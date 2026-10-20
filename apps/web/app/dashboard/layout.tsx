@@ -14,7 +14,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <nav className="side">
         <Link href="/dashboard" className="brand">{s?.["site.name"] ?? "TISU Edu"}</Link>
         <Link href="/dashboard">Kurslar</Link>
+        <Link href="/dashboard/groups">Guruhlar</Link>
         {can("user.manage") && <Link href="/dashboard/users">Foydalanuvchilar</Link>}
+        {can("user.manage") && <Link href="/dashboard/branches">Filiallar</Link>}
         {can("settings.manage") && <Link href="/dashboard/settings">Sozlamalar</Link>}
         <div className="who">
           {user.first_name} · {ROLE[user.role] ?? user.role}

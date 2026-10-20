@@ -66,3 +66,19 @@ th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--bor
   .setting { grid-template-columns: 1fr; }
   table { display: block; overflow-x: auto; }
 }
+
+.a { color: var(--accent); }
+.cols { display: grid; gap: 0 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.tag.ok { background: #dcfce7; color: #166534; }
+.tag.warn { background: #fef3c7; color: #92400e; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { border: 1px solid var(--border); background: var(--bg); color: var(--fg); border-radius: 6px; padding: 4px 8px; cursor: pointer; font: inherit; font-size: .85rem; }
+.seg button.on { color: #fff; border-color: transparent; background: var(--accent); }
+.seg button.on.s-PRESENT { background: #16a34a; }
+.seg button.on.s-LATE { background: #d97706; }
+.seg button.on.s-ABSENT { background: #dc2626; }
+.seg button.on.s-EXCUSED { background: #6b7280; }
+td input { margin: 0; min-width: 90px; }

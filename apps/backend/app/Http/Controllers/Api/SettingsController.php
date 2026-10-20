@@ -12,7 +12,7 @@ class SettingsController
     /** Login talab qilmaydi: sayt nomi, matnlar, rang va h.k. */
     public function public(Settings $settings): JsonResponse
     {
-        return response()->json(['settings' => $settings->all(publicOnly: true)])
+        return response()->json(['settings' => $settings->all(publicOnly: true) + ['app.timezone' => config('app.timezone')]])
             ->header('Cache-Control', 'public, max-age=60');
     }
 

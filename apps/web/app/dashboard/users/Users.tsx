@@ -53,6 +53,16 @@ export default function Users({ rows, total, actorRole, selfId }: { rows: UserRo
                   <>
                     <button className="link" onClick={() => run("PATCH", `users/${u.id}`, { active: !u.active })}>{u.active ? "bloklash" : "faollashtirish"}</button>
                     <button className="link" onClick={() => { const p = window.prompt("Yangi parol"); if (p) run("PATCH", `users/${u.id}`, { password: p }); }}>parol</button>
+                    {u.role === "PARENT" && (
+                      <button className="link" onClick={async () => {
+                        const phone = (window.prompt("Farzandning telefon raqami (+998…)") ?? "").trim();
+                        if (!phone) return;
+                        const f = await call("GET", `users?role=STUDENT&q=${encodeURIComponent(phone)}`);
+                        const child = (f.data.data ?? []).find((x: UserRow) => x.phone === phone);
+                        if (!child) return setErr("Bu raqamli o'quvchi topilmadi.");
+                        run("POST", `users/${u.id}/children`, { child_id: child.id });
+                      }}>farzand bog&apos;lash</button>
+                    )}
                   </>
                 )}
               </td>
