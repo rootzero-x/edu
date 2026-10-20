@@ -59,11 +59,13 @@ class FileController
         $disk = Storage::disk(Uploads::DISK);
         abort_unless($disk->exists($file->path), 404);
         $disposition = Uploads::inline($file) ? 'inline' : 'attachment';
+        // Brauzerning PDF ko'rsatkichi "sandbox" ostida ishlamaydi; boshqa turlar to'liq izolyatsiyada ochiladi.
+        $sandbox = $file->mime === 'application/pdf' ? '' : '; sandbox';
 
         return $disk->response($file->path, $file->original_name, [
             'Content-Type' => $file->mime,
             'X-Content-Type-Options' => 'nosniff',
-            'Content-Security-Policy' => "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox",
+            'Content-Security-Policy' => "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; object-src 'self'".$sandbox,
             'Cache-Control' => 'private, max-age=300',
             'Referrer-Policy' => 'no-referrer',
         ], $disposition);

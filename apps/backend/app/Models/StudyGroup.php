@@ -19,6 +19,13 @@ class StudyGroup extends Model
         static::creating(function (StudyGroup $g) {
             $g->branch_id ??= Branch::primaryId();
         });
+        // Xona faqat matn bilan berilgan bo'lsa (eski mijozlar, seeder) — xonalar ro'yxatiga bog'lanadi (to'qnashuv tekshiruvi uchun).
+        static::saving(function (StudyGroup $g) {
+            $name = trim((string) $g->room);
+            if ($g->room_id === null && $name !== '' && $g->isDirty('room')) {
+                $g->room_id = (Room::whereRaw('lower(name) = ?', [mb_strtolower($name)])->first() ?? Room::create(['name' => mb_substr($name, 0, 60)]))->id;
+            }
+        });
     }
 
     protected function casts(): array

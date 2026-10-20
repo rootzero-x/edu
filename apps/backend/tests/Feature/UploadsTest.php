@@ -102,7 +102,7 @@ class UploadsTest extends TestCase
         $res = $this->get($relative)->assertOk();
         $this->assertSame(self::pdf(), $res->streamedContent());
         $this->assertSame('nosniff', $res->headers->get('X-Content-Type-Options'));
-        $this->assertStringContainsString('sandbox', $res->headers->get('Content-Security-Policy'));
+        $this->assertStringContainsString("default-src 'none'", $res->headers->get('Content-Security-Policy'));
         $this->assertStringContainsString('inline', $res->headers->get('Content-Disposition'));
 
         // Imzo buzilsa yoki muddati o'tsa — 403.
@@ -143,8 +143,12 @@ class UploadsTest extends TestCase
         $this->assertSame(0, DB::table('files')->count());
         $this->assertSame([], Storage::disk(Uploads::DISK)->allFiles());
 
-        $this->upload('rasm.png', self::png())->assertCreated();
+        $png = $this->upload('rasm.png', self::png())->assertCreated()->json('material.file_id');
         $this->upload('notes.txt', "Uy vazifasi: 1-10 mashqlar\n")->assertCreated();
+        $url = $this->getJson("/v1/files/$png/link")->json('url');
+        $res = $this->get(parse_url($url, PHP_URL_PATH).'?'.parse_url($url, PHP_URL_QUERY))->assertOk();
+        $this->assertStringEndsWith('sandbox', $res->headers->get('Content-Security-Policy'));
+        $this->assertSame('image/png', $res->headers->get('Content-Type'));
     }
 
     public function test_office_documents_are_validated_by_their_structure(): void
