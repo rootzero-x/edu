@@ -72,6 +72,11 @@ class QuizCertificateTest extends TestCase
         ]])->assertOk()->assertJsonPath('result.score', 5)->assertJsonPath('result.passed', true);
         $this->postJson("/v1/attempts/{$attempt['id']}/submit", ['answers' => []])->assertStatus(422);
 
+        // O'tgan o'quvchi qayta topshirmaydi — sozlama ruxsat bermaguncha.
+        $this->getJson("/v1/quizzes/$quizId")->assertJsonPath('can_start', false);
+        $this->postJson("/v1/quizzes/$quizId/attempts")->assertStatus(422);
+        app(Settings::class)->set(['quiz.allow_retake_after_pass' => true], null);
+        $this->getJson("/v1/quizzes/$quizId")->assertJsonPath('can_start', true);
         $second = $this->postJson("/v1/quizzes/$quizId/attempts")->json('attempt.id');
         $this->postJson("/v1/attempts/$second/submit", ['answers' => []])->assertJsonPath('result.passed', false);
         $this->postJson("/v1/quizzes/$quizId/attempts")->assertStatus(422);

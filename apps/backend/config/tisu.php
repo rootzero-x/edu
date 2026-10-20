@@ -112,6 +112,7 @@ return [
         'quiz.default_pass_percent' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Yangi test uchun o'tish foizi", 'default' => 60],
         'quiz.default_max_attempts' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Yangi test uchun urinishlar soni', 'default' => 3],
         'quiz.show_correct_answers' => ['group' => 'quiz', 'type' => 'bool', 'label' => "Topshirgandan keyin to'g'ri javoblarni ko'rsatish", 'default' => true],
+        'quiz.allow_retake_after_pass' => ['group' => 'quiz', 'type' => 'bool', 'label' => "O'tilgan testni qayta topshirishga ruxsat", 'default' => false],
         'quiz.submit_grace_seconds' => ['group' => 'quiz', 'type' => 'int', 'min' => 0, 'max' => 600, 'label' => "Vaqt tugagach qo'shimcha soniyalar", 'default' => 15],
 
         // ── Sertifikat ───────────────────────────────────────
