@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, SlidersHorizontal, CalendarCheck, ClipboardCheck, Download, GraduationCap, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, BarChart3, SlidersHorizontal, CalendarCheck, ClipboardCheck, Download, GraduationCap, NotebookPen, Users, UsersRound } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, Field, Input, PageHeader, Progress, Select, StatCard, Table, Tabs, Td, Th, buttonClass } from "@/components/ui";
 import LiveStatus from "@/components/LiveStatus";
 import { useSiteSettings } from "@/components/SiteProvider";
@@ -30,13 +30,17 @@ type AttendanceReport = {
 };
 type QuizRow = { quiz_id: number; title: string; course: string; is_final: boolean; attempts: number; students: number; avg_percent: number; pass_rate: number | null };
 type Overview = { groups: number; students: number; courses: number; sessions: number; new_students: number; certificates: number };
-type Data = { att: AttendanceReport; quizzes: QuizRow[]; overview: Overview };
+type HomeworkRow = {
+  group_id: number; group: string; teacher: string; assignments: number; expected: number; submitted: number; late: number;
+  submission_rate: number | null; avg_homework_percent: number | null; session_marks: number; avg_mark_percent: number | null;
+};
+type Data = { att: AttendanceReport; quizzes: QuizRow[]; overview: Overview; homework: HomeworkRow[] };
 
 // Sana sayt vaqt zonasida (UTC emas: Toshkentda tun yarmidan 05:00 gacha "bugun" kechagi kun bo'lib qolardi).
 const isoIn = (d: Date, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 const PRESET_DAYS = [7, 30, 90];
 
-export default function ReportsView({ refs }: { refs: Refs }) {
+export default function ReportsView({ refs, switcher }: { refs: Refs; switcher?: ReactNode }) {
   const st = useSiteSettings();
   const tz = timezone(st);
   const labels = statusLabels(st);
@@ -54,13 +58,14 @@ export default function ReportsView({ refs }: { refs: Refs }) {
   const qs = useMemo(() => new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]).toString(), [f]);
 
   const fetcher = useCallback(async (signal: AbortSignal) => {
-    const [a, q, o] = await Promise.all([
+    const [a, q, o, h] = await Promise.all([
       call<AttendanceReport>("GET", `reports/attendance?${qs}`, undefined, { signal }),
       call<{ data: QuizRow[] }>("GET", `reports/quizzes?${qs}`, undefined, { signal }),
       call<Overview>("GET", `reports/overview?${qs}`, undefined, { signal }),
+      call<{ data: HomeworkRow[] }>("GET", `reports/homework?${qs}`, undefined, { signal }),
     ]);
     if (signal.aborted) return null;
-    const bad = [a, q, o].find((x) => !x.ok);
+    const bad = [a, q, o, h].find((x) => !x.ok);
     if (bad) {
       // Xato (masalan, juda katta davr) — eski filtr natijalari yangi filtr ostida qolib ketmasin.
       setError(errorText(bad.data));
@@ -68,7 +73,7 @@ export default function ReportsView({ refs }: { refs: Refs }) {
       return null;
     }
     setError(null);
-    return { att: a.data, quizzes: q.data.data, overview: o.data };
+    return { att: a.data, quizzes: q.data.data, overview: o.data, homework: h.data.data };
   }, [qs]);
   const live = usePolling(fetcher, setData, { seconds: refreshSeconds(st), immediate: true });
 
@@ -91,6 +96,7 @@ export default function ReportsView({ refs }: { refs: Refs }) {
           </>
         }
       />
+      {switcher}
 
       <Card className={s.filters}>
         <div className={s.presets} role="group" aria-label="Tezkor davr">
@@ -142,6 +148,7 @@ export default function ReportsView({ refs }: { refs: Refs }) {
                 { id: "groups", label: "Guruhlar", icon: <UsersRound />, count: att!.by_group.length },
                 { id: "risk", label: "Xavf ostida", icon: <AlertTriangle />, count: att!.risk.length },
                 { id: "quizzes", label: "Testlar", icon: <ClipboardCheck />, count: data.quizzes.length },
+                { id: "homework", label: "Uyga vazifa", icon: <NotebookPen />, count: data.homework.length },
               ]}
             />
           </div>
@@ -201,6 +208,28 @@ export default function ReportsView({ refs }: { refs: Refs }) {
                         <Td label="O'quvchilar">{q.students}</Td>
                         <Td label="O'rtacha">{q.avg_percent}%</Td>
                         <Td label="O'tganlar"><div className={s.rate}><Progress value={q.pass_rate ?? 0} label="O'tganlar" /><b>{q.pass_rate ?? "—"}%</b></div></Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </Card>
+          )}
+          {tab === "homework" && (
+            <Card>
+              <CardHeader title="Uyga vazifa va baholar" description="Muddati shu davrga to'g'ri kelgan vazifalar; topshirish foizi — muddat paytidagi a'zolardan" />
+              {data.homework.length === 0 ? <EmptyState compact icon={<NotebookPen />} title="Bu davrda vazifa yoki baho yo'q" /> : (
+                <Table stack caption="Uyga vazifa guruhlar bo'yicha">
+                  <thead><tr><Th>Guruh</Th><Th numeric>Vazifalar</Th><Th>Topshirdi</Th><Th numeric>Kechikkan</Th><Th numeric>O&apos;rtacha (vazifa)</Th><Th numeric>O&apos;rtacha (mashg&apos;ulot)</Th></tr></thead>
+                  <tbody>
+                    {data.homework.map((h) => (
+                      <tr key={h.group_id}>
+                        <Td><Link className="a" href={`/dashboard/homework?group_id=${h.group_id}&tab=all`}>{h.group}</Link><div className="subtle">{h.teacher}</div></Td>
+                        <Td numeric label="Vazifalar">{h.assignments}</Td>
+                        <Td label="Topshirdi"><div className={s.rate}><Progress value={h.submission_rate ?? 0} label="Topshirish" /><b>{h.submission_rate != null ? `${h.submission_rate}%` : "—"}</b></div><div className="subtle">{h.submitted}/{h.expected}</div></Td>
+                        <Td numeric label="Kechikkan">{h.late}</Td>
+                        <Td numeric label="O'rtacha (vazifa)">{h.avg_homework_percent != null ? `${h.avg_homework_percent}%` : "—"}</Td>
+                        <Td numeric label="O'rtacha (mashg'ulot)">{h.avg_mark_percent != null ? `${h.avg_mark_percent}%` : "—"}{h.session_marks ? <div className="subtle">{h.session_marks} ta baho</div> : null}</Td>
                       </tr>
                     ))}
                   </tbody>

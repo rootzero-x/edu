@@ -22,3 +22,19 @@
   .grid { display: none; grid-template-columns: 1fr 1fr; }
   .grid[data-open] { display: grid; }
 }
+
+/* Ko'rsatkichlar (KPI) */
+.kpiHeading { margin: 0 0 var(--space-3); font-size: var(--text-md); color: var(--fg-muted); font-weight: 600; }
+.kpiCharts { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); margin-bottom: var(--space-4); }
+.kpiCharts svg { height: 190px; }
+.value { fill: var(--fg); font-size: 11px; font-weight: 600; }
+.target { stroke: var(--fg-subtle); stroke-width: 1; stroke-dasharray: 4 4; }
+.neutralBar { fill: var(--accent); }
+.up, .down, .flat { display: inline-flex; align-items: center; gap: 2px; font-weight: 500; }
+.up svg, .down svg { width: 14px; height: 14px; }
+.up { color: var(--success); }
+.down { color: var(--danger); }
+.flat { color: var(--fg-subtle); }
+.drill { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.drill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.rowHead { text-transform: none !important; letter-spacing: 0 !important; font-size: var(--text-sm) !important; color: var(--fg) !important; font-weight: 600; white-space: nowrap; }
