@@ -24,8 +24,6 @@ class GroupAttendanceTest extends TestCase
 
     private User $student;
 
-    private User $parent;
-
     private int $groupId;
 
     protected function setUp(): void
@@ -38,8 +36,6 @@ class GroupAttendanceTest extends TestCase
         $this->admin = User::factory()->role(Role::Admin)->create();
         $this->teacher = User::factory()->role(Role::Teacher)->create();
         $this->student = User::factory()->create(['first_name' => 'Aziz', 'last_name' => 'K']);
-        $this->parent = User::factory()->role(Role::Parent)->create();
-        DB::table('telegram_links')->insert(['user_id' => $this->parent->id, 'telegram_id' => 77, 'chat_id' => 77, 'linked_at' => now()]);
         $branch = Branch::create(['name' => 'Markaz']);
         $course = Course::create(['title' => 'Ingliz', 'created_by' => $this->admin->id]);
 
@@ -50,7 +46,6 @@ class GroupAttendanceTest extends TestCase
             'schedules' => [['weekday' => 1, 'start_time' => '14:00', 'end_time' => '15:30'], ['weekday' => 3, 'start_time' => '14:00', 'end_time' => '15:30']],
         ])->assertCreated()->json('group.id');
         $this->postJson("/v1/groups/{$this->groupId}/members", ['student_id' => $this->student->id])->assertCreated();
-        $this->postJson("/v1/users/{$this->parent->id}/children", ['child_id' => $this->student->id])->assertCreated();
     }
 
     private function sessionAt(string $startsAt): int
@@ -66,7 +61,7 @@ class GroupAttendanceTest extends TestCase
             ->assertJsonPath('created', 0);
     }
 
-    public function test_teacher_marks_attendance_with_auto_status_and_parent_is_notified(): void
+    public function test_teacher_marks_attendance_with_auto_status(): void
     {
         $this->postJson("/v1/groups/{$this->groupId}/sessions/generate", ['from' => '2026-10-19', 'to' => '2026-10-25']);
         $today = $this->sessionAt('2026-10-21 14:00:00');
@@ -75,7 +70,7 @@ class GroupAttendanceTest extends TestCase
         $this->getJson("/v1/sessions/$today/attendance")->assertOk()->assertJsonPath('rows.0.status', null);
         // 14:12 da keldi → sozlama (5/30) bo'yicha LATE.
         $this->putJson("/v1/sessions/$today/attendance", ['items' => [['student_id' => $this->student->id, 'arrived_at' => '14:12']]])
-            ->assertOk()->assertJsonPath('notified', 0);
+            ->assertOk()->assertJsonPath('changed', 1);
         $this->getJson("/v1/sessions/$today/attendance")->assertJsonPath('rows.0.status', 'LATE');
 
         // Sozlama o'zgarsa qoida ham o'zgaradi.
@@ -84,11 +79,10 @@ class GroupAttendanceTest extends TestCase
         $this->getJson("/v1/sessions/$today/attendance")->assertJsonPath('rows.0.status', 'PRESENT');
 
         $this->putJson("/v1/sessions/$today/attendance", ['items' => [['student_id' => $this->student->id, 'status' => 'ABSENT']]])
-            ->assertJsonPath('notified', 1);
-        Http::assertSent(fn ($r) => str_contains((string) ($r['text'] ?? ''), 'Aziz K') && str_contains($r['text'], 'kelmadi'));
-        // Holat o'zgarmasa qayta xabar yuborilmaydi.
+            ->assertJsonPath('changed', 1);
+        // Holat o'zgarmasa o'zgarish hisoblanmaydi.
         $this->putJson("/v1/sessions/$today/attendance", ['items' => [['student_id' => $this->student->id, 'status' => 'ABSENT']]])
-            ->assertJsonPath('notified', 0);
+            ->assertJsonPath('changed', 0);
 
         $this->getJson("/v1/groups/{$this->groupId}/attendance")->assertOk()->assertJsonPath('data.0.rate', fn ($v) => (float) $v === 0.0);
     }
@@ -115,15 +109,12 @@ class GroupAttendanceTest extends TestCase
         $this->putJson("/v1/sessions/$old/attendance", $item)->assertNotFound();
     }
 
-    public function test_student_and_parent_see_own_group_only(): void
+    public function test_student_sees_own_group_only(): void
     {
         Sanctum::actingAs($this->student);
         $this->getJson('/v1/groups')->assertOk()->assertJsonCount(1, 'data');
-        $this->postJson('/v1/groups', [])->assertForbidden();
-
-        Sanctum::actingAs($this->parent);
-        $this->getJson('/v1/groups')->assertJsonCount(1, 'data');
         $this->getJson("/v1/groups/{$this->groupId}/attendance")->assertOk()->assertJsonCount(1, 'data');
+        $this->postJson('/v1/groups', [])->assertForbidden();
 
         Sanctum::actingAs(User::factory()->create());
         $this->getJson('/v1/groups')->assertJsonCount(0, 'data');

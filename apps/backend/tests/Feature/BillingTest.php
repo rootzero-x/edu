@@ -215,8 +215,7 @@ class BillingTest extends TestCase
 
     public function test_payment_updates_balance_notifies_and_is_idempotent_by_request_id(): void
     {
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
+        $teacher = User::factory()->role(Role::Teacher)->create();
         $g = $this->group();
         $this->join($g, $this->student);
         $this->accrue('2026-10-01', '2026-10-20');
@@ -230,7 +229,7 @@ class BillingTest extends TestCase
         $this->assertSame(1, BillingEntry::where('type', 'PAYMENT')->count());
 
         $this->assertDatabaseHas('notifications_log', ['user_id' => $this->student->id, 'kind' => 'billing.payment:'.$r->json('entry.id')]);
-        $this->assertDatabaseHas('notifications_log', ['user_id' => $parent->id, 'kind' => 'billing.payment:'.$r->json('entry.id')]);
+        $this->assertSame(1, DB::table('notifications_log')->where('kind', 'billing.payment:'.$r->json('entry.id'))->count());
         $text = json_decode(DB::table('notifications_log')->where('user_id', $this->student->id)->value('payload'), true)['text'];
         $this->assertStringContainsString("400 000 so'm", $text);
         $this->assertStringContainsString('Naqd', $text);
@@ -244,7 +243,7 @@ class BillingTest extends TestCase
         $this->postJson($url, ['amount' => 1000, 'method' => 'CARD', 'date' => '2026-08-01'])->assertUnprocessable();
         $this->postJson($url, ['amount' => 0, 'method' => 'CARD', 'date' => '2026-10-20'])->assertUnprocessable();
         $this->postJson($url, ['amount' => 1.5, 'method' => 'CARD', 'date' => '2026-10-20'])->assertUnprocessable();
-        $this->postJson("/v1/billing/students/{$parent->id}/payments", ['amount' => 1000, 'method' => 'CARD', 'date' => '2026-10-20'])->assertUnprocessable();
+        $this->postJson("/v1/billing/students/{$teacher->id}/payments", ['amount' => 1000, 'method' => 'CARD', 'date' => '2026-10-20'])->assertUnprocessable();
     }
 
     public function test_void_keeps_entry_and_excludes_it_from_balance(): void
@@ -282,11 +281,9 @@ class BillingTest extends TestCase
 
     // ── Huquqlar ─────────────────────────────────────────────
 
-    public function test_permissions_student_parent_teacher(): void
+    public function test_permissions_student_teacher(): void
     {
         $other = User::factory()->create();
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
         $teacher = User::factory()->role(Role::Teacher)->create();
 
         Sanctum::actingAs($this->student);
@@ -295,11 +292,6 @@ class BillingTest extends TestCase
         $this->getJson("/v1/billing/students/{$other->id}")->assertForbidden();
         $this->getJson('/v1/billing/balances')->assertForbidden();
         $this->postJson("/v1/billing/students/{$this->student->id}/payments", ['amount' => 1000, 'method' => 'CASH', 'date' => '2026-10-20'])->assertForbidden();
-
-        Sanctum::actingAs($parent);
-        $this->getJson('/v1/billing/me')->assertOk()->assertJsonPath('students.0.student.id', $this->student->id);
-        $this->getJson("/v1/billing/students/{$this->student->id}")->assertOk();
-        $this->getJson("/v1/billing/students/{$other->id}")->assertForbidden();
 
         Sanctum::actingAs($teacher);
         $this->getJson('/v1/billing/me')->assertOk()->assertJsonCount(0, 'students');
@@ -387,31 +379,27 @@ class BillingTest extends TestCase
     {
         config(['services.telegram.bot_token' => '1:T', 'services.telegram.webhook_secret' => 'webhook-secret-for-tests-0123456789abcdef']);
         Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []])]);
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
-        foreach ([[$this->student, 102], [$parent, 103]] as [$u, $tg]) {
-            DB::table('telegram_links')->insert(['user_id' => $u->id, 'telegram_id' => $tg, 'chat_id' => $tg, 'linked_at' => now()]);
-        }
+        DB::table('telegram_links')->insert(['user_id' => $this->student->id, 'telegram_id' => 102, 'chat_id' => 102, 'linked_at' => now()]);
         $this->join($this->group(), $this->student);
         $this->accrue('2026-10-01', '2026-10-20');
         BillingEntry::create(['student_id' => $this->student->id, 'type' => 'PAYMENT', 'amount' => 100000, 'method' => 'CARD', 'entry_date' => '2026-10-02']);
 
         $this->postJson('/v1/telegram/webhook', ['update_id' => 1, 'message' => [
-            'message_id' => 1, 'text' => '💰 Balans', 'chat' => ['id' => 103, 'type' => 'private'], 'from' => ['id' => 103, 'first_name' => 'X'],
+            'message_id' => 1, 'text' => '💰 Balans', 'chat' => ['id' => 102, 'type' => 'private'], 'from' => ['id' => 102, 'first_name' => 'X'],
         ]], ['X-Telegram-Bot-Api-Secret-Token' => 'webhook-secret-for-tests-0123456789abcdef'])->assertOk();
         $sent = collect(Http::recorded())->map(fn ($p) => $p[0])->filter(fn ($r) => str_ends_with($r->url(), 'sendMessage'))->last();
         $this->assertStringContainsString('Aziz K', $sent['text']);
         $this->assertStringContainsString("-158 060 so'm", $sent['text']); // 100000 - 12903*20
         $this->assertStringContainsString('Karta', $sent['text']);
 
-        // Qarz eslatmasi: o'chiq — hech narsa; yoqilgan — o'quvchi va ota-onaga, bir davrda bir marta.
+        // Qarz eslatmasi: o'chiq — hech narsa; yoqilgan — o'quvchiga, bir davrda bir marta.
         $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
         $this->assertSame(0, DB::table('notifications_log')->where('kind', 'like', 'billing.debt:%')->count());
         app(Settings::class)->set(['billing.debt_reminder' => true], null);
         $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
         $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
         $this->assertSame(1, DB::table('notifications_log')->where('user_id', $this->student->id)->where('kind', 'like', 'billing.debt:%')->count());
-        $this->assertSame(1, DB::table('notifications_log')->where('user_id', $parent->id)->where('kind', 'like', 'billing.debt:%')->count());
+        $this->assertSame(1, DB::table('notifications_log')->where('kind', 'like', 'billing.debt:%')->count());
         app(Settings::class)->set(['billing.debt_reminder_min' => 200000], null);
         Carbon::setTestNow('2026-11-20 10:00:00');
         $this->artisan('tisu:billing-remind-debts')->assertSuccessful();

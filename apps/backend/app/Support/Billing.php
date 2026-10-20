@@ -166,27 +166,16 @@ final class Billing
             ->where('users.role', Role::Student->value);
     }
 
-    /** Ko'ruvchi shu o'quvchining balansini ko'ra oladimi: boshqaruvchi, o'zi yoki ota-onasi. */
+    /** Ko'ruvchi shu o'quvchining balansini ko'ra oladimi: boshqaruvchi yoki o'quvchining o'zi. */
     public static function canView(User $viewer, int $studentId): bool
     {
-        if ($viewer->hasPermission('billing.manage') || $viewer->id === $studentId) {
-            return true;
-        }
-
-        return $viewer->role === Role::Parent
-            && DB::table('parent_child')->where(['parent_id' => $viewer->id, 'child_id' => $studentId])->exists();
+        return $viewer->hasPermission('billing.manage') || $viewer->id === $studentId;
     }
 
-    /** Ko'ruvchining o'zi (o'quvchi) yoki farzandlari (ota-ona) — "Balans" kartochkasi uchun. @return list<int> */
+    /** Ko'ruvchining o'zi (o'quvchi) — "Balans" kartochkasi uchun. @return list<int> */
     public static function ownStudentIds(User $viewer): array
     {
-        return match ($viewer->role) {
-            Role::Student => [$viewer->id],
-            Role::Parent => DB::table('parent_child')->join('users', 'users.id', '=', 'parent_child.child_id')
-                ->where('parent_child.parent_id', $viewer->id)->where('users.role', Role::Student->value)
-                ->orderBy('users.first_name')->pluck('users.id')->map(fn ($id) => (int) $id)->all(),
-            default => [],
-        };
+        return $viewer->role === Role::Student ? [$viewer->id] : [];
     }
 
     /** Hisoblash boshlanadigan sana (sozlama bo'sh bo'lsa null). */

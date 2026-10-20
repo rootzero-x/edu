@@ -60,7 +60,7 @@ class CertificateController
         return response()->json(['issued' => $issued, 'data' => $this->evaluate($group, $settings, $data['student_ids'] ?? null)]);
     }
 
-    /** O'z sertifikatlari (o'quvchi), farzandlariniki (ota-ona), o'zi o'qitgan guruhlarniki (o'qituvchi), yoki hammasi (group.manage). */
+    /** O'z sertifikatlari (o'quvchi), o'zi o'qitgan guruhlarniki (o'qituvchi), yoki hammasi (group.manage). */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -73,7 +73,6 @@ class CertificateController
             ->orderByDesc('certificates.issued_at');
         if (! $user->hasPermission('group.manage')) {
             $q->where(fn ($w) => $w->where('certificates.student_id', $user->id)
-                ->orWhereIn('certificates.student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'))
                 ->orWhereIn('certificates.group_id', DB::table('study_groups')->where('teacher_id', $user->id)->select('id')));
         }
         if ($request->filled('group_id')) {

@@ -56,20 +56,12 @@ class QaRolePassTest extends TestCase
         $this->group->update(['active' => false]);
         $this->patchJson("/v1/users/{$this->teacher->id}", ['role' => 'STUDENT'])->assertOk()->assertJsonPath('user.role', 'STUDENT');
         $this->assertSame(0, $this->teacher->tokens()->count());
-
-        // Ota-onaga faqat o'quvchi farzand qilib bog'lanadi.
-        $parent = User::factory()->role(Role::Parent)->create();
-        $other = User::factory()->role(Role::Teacher)->create();
-        $this->postJson("/v1/users/{$parent->id}/children", ['child_id' => $other->id])->assertUnprocessable();
-        $this->postJson("/v1/users/{$parent->id}/children", ['child_id' => $this->student->id])->assertCreated();
     }
 
     /** #8 */
     public function test_permission_is_checked_before_model_binding(): void
     {
         Sanctum::actingAs($this->teacher);
-        $this->getJson('/v1/users/999999/children')->assertForbidden();
-        $this->getJson("/v1/users/{$this->student->id}/children")->assertForbidden();
         $this->patchJson('/v1/users/999999', ['first_name' => 'X'])->assertForbidden();
     }
 
@@ -173,33 +165,14 @@ class QaRolePassTest extends TestCase
             ->assertOk()->assertJsonPath('question.text', "O'zbekiston poytaxti?");
     }
 
-    /** #3 (davomi): guruhdagi yoki farzand sifatida bog'langan o'quvchining roli o'zgarmaydi. */
-    public function test_enrolled_or_linked_student_role_cannot_change(): void
+    /** #3 (davomi): guruhdagi o'quvchining roli o'zgarmaydi. */
+    public function test_enrolled_student_role_cannot_change(): void
     {
         Sanctum::actingAs($this->admin);
         $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertUnprocessable()->assertJsonValidationErrors('role');
 
         DB::table('group_members')->where('student_id', $this->student->id)->update(['left_at' => now()]);
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
-        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertUnprocessable();
-
-        DB::table('parent_child')->delete();
         $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertOk()->assertJsonPath('user.role', 'TEACHER');
-    }
-
-    /** #10: ota-ona test topshira olmaydi — boshlash imkoni ko'rsatilmaydi. */
-    public function test_parent_cannot_start_quiz(): void
-    {
-        Sanctum::actingAs($this->teacher);
-        $quizId = $this->postJson("/v1/courses/{$this->course->id}/quizzes", ['title' => 'T', 'published' => true])->json('quiz.id');
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
-
-        Sanctum::actingAs($parent);
-        $this->getJson("/v1/quizzes/$quizId")->assertOk()->assertJsonPath('can_take', false)->assertJsonPath('can_start', false);
-        Sanctum::actingAs($this->student);
-        $this->getJson("/v1/quizzes/$quizId")->assertOk()->assertJsonPath('can_start', true);
     }
 
     /** #11 */

@@ -27,9 +27,7 @@ class GroupController
 
         return $q->where(function ($w) use ($user) {
             $w->where('teacher_id', $user->id)
-                ->orWhereIn('id', DB::table('group_members')->whereNull('left_at')->where('student_id', $user->id)->select('group_id'))
-                ->orWhereIn('id', DB::table('group_members')->whereNull('left_at')
-                    ->whereIn('student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'))->select('group_id'));
+                ->orWhereIn('id', DB::table('group_members')->whereNull('left_at')->where('student_id', $user->id)->select('group_id'));
         });
     }
 
@@ -51,7 +49,7 @@ class GroupController
 
     public function show(Request $request, int $group): JsonResponse
     {
-        // Telefon raqamlari faqat xodimlarga (o'quvchi/ota-ona sinfdoshlarining raqamini ko'rmaydi).
+        // Telefon raqamlari faqat xodimlarga (o'quvchi sinfdoshlarining raqamini ko'rmaydi).
         $staff = $request->user()->hasPermission('attendance.mark') || $request->user()->hasPermission('group.manage');
         $teacherPhone = $staff || app(Settings::class)->bool('security.teacher_phone_visible');
         $g = self::findVisible($request->user(), $group)

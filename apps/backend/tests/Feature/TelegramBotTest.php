@@ -28,8 +28,6 @@ class TelegramBotTest extends TestCase
 
     private User $student;
 
-    private User $parent;
-
     private int $groupId;
 
     protected function setUp(): void
@@ -42,9 +40,8 @@ class TelegramBotTest extends TestCase
         $admin = User::factory()->role(Role::Admin)->create();
         $this->teacher = User::factory()->role(Role::Teacher)->create(['first_name' => 'Ustoz']);
         $this->student = User::factory()->create(['first_name' => 'Aziz', 'last_name' => 'K']);
-        $this->parent = User::factory()->role(Role::Parent)->create();
         // Admin chati faol, user.manage huquqli akkauntga bog'langan (bot adminligi sharti).
-        foreach ([[$admin, self::ADMIN_CHAT], [$this->teacher, 101], [$this->student, 102], [$this->parent, 103]] as [$u, $tg]) {
+        foreach ([[$admin, self::ADMIN_CHAT], [$this->teacher, 101], [$this->student, 102]] as [$u, $tg]) {
             DB::table('telegram_links')->insert(['user_id' => $u->id, 'telegram_id' => $tg, 'chat_id' => $tg, 'linked_at' => now()]);
         }
         $course = Course::create(['title' => 'Ingliz tili', 'created_by' => $admin->id, 'published' => true]);
@@ -55,7 +52,6 @@ class TelegramBotTest extends TestCase
             'schedules' => [['weekday' => 3, 'start_time' => '14:00', 'end_time' => '15:30']],
         ])->assertCreated()->json('group.id');
         $this->postJson("/v1/groups/{$this->groupId}/members", ['student_id' => $this->student->id])->assertCreated();
-        $this->postJson("/v1/users/{$this->parent->id}/children", ['child_id' => $this->student->id])->assertCreated();
         $this->postJson("/v1/groups/{$this->groupId}/sessions/generate", ['from' => '2026-10-19', 'to' => '2026-10-30'])->assertOk();
         $this->app['auth']->forgetGuards();
     }
@@ -156,15 +152,12 @@ class TelegramBotTest extends TestCase
         $this->assertTrue($this->last(999)['reply_markup']['keyboard'][0][0]['request_contact']);
     }
 
-    public function test_parent_sees_children_attendance(): void
+    public function test_children_command_no_longer_exists(): void
     {
-        $sid = $this->sessionId('2026-10-21 14:00:00');
-        DB::table('attendances')->insert(['session_id' => $sid, 'student_id' => $this->student->id, 'status' => 'ABSENT', 'marked_by' => $this->teacher->id]);
-        $this->text(103, '👨‍👩‍👧 Farzandlarim');
-        $text = $this->last(103)['text'];
-        $this->assertStringContainsString('Aziz K', $text);
-        $this->assertStringContainsString('«ENG-1» — 0%', $text);
-        $this->assertStringContainsString('21.10', $text);
+        $this->text(102, '/children');
+        $this->assertStringContainsString('Buyruq tushunilmadi', $this->last(102)['text']);
+        $buttons = collect($this->last(102)['reply_markup']['keyboard'])->flatten(1)->pluck('text')->implode(' ');
+        $this->assertStringNotContainsString('Farzand', $buttons);
     }
 
     // ── O'qituvchi: inline davomat ───────────────────────────
@@ -185,9 +178,8 @@ class TelegramBotTest extends TestCase
 
         $this->press(101, "a:m:$sid:{$this->student->id}:A");
         $this->assertSame('ABSENT', DB::table('attendances')->where('session_id', $sid)->value('status'));
-        // Ota-onaga xabar AttendanceController::mark orqali ketdi.
-        $this->assertSame(1, DB::table('notifications_log')->where(['user_id' => $this->parent->id, 'kind' => 'attendance.ABSENT'])->count());
-        $this->assertStringContainsString('Ota-onaga 1 ta', $this->callbackAnswer()['text']);
+        $this->assertSame(0, DB::table('notifications_log')->where('kind', 'like', 'attendance.%')->count());
+        $this->assertStringContainsString('Saqlandi', $this->callbackAnswer()['text']);
         $this->assertStringContainsString('❌ Aziz K', $this->last(101)['reply_markup']['inline_keyboard'][0][0]['text']);
         $this->assertSame('attendance.mark', DB::table('audit_logs')->where('actor_id', $this->teacher->id)->value('action'));
     }
@@ -235,7 +227,7 @@ class TelegramBotTest extends TestCase
 
         app(Settings::class)->set(['telegram.admin_chat_ids' => [self::ADMIN_CHAT]], null);
         $this->text(self::ADMIN_CHAT, '/stats');
-        $this->assertStringContainsString('Foydalanuvchilar: 4', $this->last(self::ADMIN_CHAT)['text']);
+        $this->assertStringContainsString('Foydalanuvchilar: 3', $this->last(self::ADMIN_CHAT)['text']);
         $this->assertStringContainsString('Bugungi darslar: 1', $this->last(self::ADMIN_CHAT)['text']);
 
         // Admin tugmasi admin chatida ko'rinadi.

@@ -51,14 +51,14 @@ class DashboardController
                     && ($manager || (int) $s->group->teacher_id === (int) $user->id),
             ])->values();
 
-        // Davomat: belgilovchi — ko'rinadigan guruhlar bo'yicha, o'quvchi/ota-ona — faqat o'zi/farzandi.
+        // Davomat: belgilovchi — ko'rinadigan guruhlar bo'yicha, o'quvchi — faqat o'zi.
         $days = $settings->int('ui.summary_attendance_days');
         $statuses = DB::table('attendances')
             ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
             ->whereIn('class_sessions.group_id', $groupIds)
             ->where('class_sessions.cancelled', false)
             ->where('class_sessions.starts_at', '>=', now()->subDays($days))
-            ->when(! $marker, fn ($q) => $q->whereIn('attendances.student_id', $this->selfAndChildren($user->id)))
+            ->when(! $marker, fn ($q) => $q->where('attendances.student_id', $user->id))
             ->pluck('attendances.status')->all();
 
         // Belgilanmagan darslar — /v1/attendance/unmarked bilan bir xil qoida (qisman belgilanganlar ham).
@@ -89,11 +89,5 @@ class DashboardController
                 'unmarked_sessions' => $unmarked,
             ],
         ]);
-    }
-
-    /** @return list<int> */
-    private function selfAndChildren(int $userId): array
-    {
-        return array_merge([$userId], DB::table('parent_child')->where('parent_id', $userId)->pluck('child_id')->map(fn ($id) => (int) $id)->all());
     }
 }

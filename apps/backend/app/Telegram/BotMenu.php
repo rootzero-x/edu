@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 class BotMenu
 {
     /** Menyu amallari (telegram.menu sozlamasida ishlatiladi). */
-    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'balance', 'profile', 'today', 'unmarked', 'children', 'news', 'app'];
+    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'balance', 'profile', 'today', 'unmarked', 'news', 'app'];
 
     private const STATUS_CODES = ['P' => 'PRESENT', 'L' => 'LATE', 'A' => 'ABSENT', 'E' => 'EXCUSED'];
 
@@ -161,7 +161,6 @@ class BotMenu
                 'today' => $this->today($user),
                 'unmarked' => $this->unmarked($user),
                 'news' => $this->news($user),
-                'children' => $this->children($user),
                 'app' => [$this->t->get('telegram.text.app_open'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])],
                 default => [$this->t->get('telegram.text.unknown'), null],
             };
@@ -313,7 +312,7 @@ class BotMenu
         return [$this->t->get('telegram.text.certificates_title')."\n\n".implode("\n\n", $lines), null];
     }
 
-    /** O'quvchi — o'z balansi, ota-ona — farzandlariniki (BillingController::me orqali). */
+    /** O'quvchining o'z balansi (BillingController::me orqali). */
     private function balance(User $user): array
     {
         $res = $this->api->call($user, [BillingController::class, 'me']);
@@ -352,36 +351,6 @@ class BotMenu
         ]);
 
         return [$text, $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])];
-    }
-
-    // ── Ota-ona ──────────────────────────────────────────────
-
-    private function children(User $user): array
-    {
-        $children = User::whereIn('id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'))
-            ->orderBy('first_name')->get();
-        if ($children->isEmpty()) {
-            return [$this->t->get('telegram.text.children_empty'), null];
-        }
-        $emoji = (array) $this->settings->get('telegram.attendance_emoji');
-        $blocks = [];
-        foreach ($children as $child) {
-            $groupIds = DB::table('group_members')->where('student_id', $child->id)->whereNull('left_at')->pluck('group_id')->all();
-            $lines = $groupIds ? $this->attendanceLines($user, $child->id, $groupIds) : [$this->t->get('telegram.text.child_no_groups')];
-            $absences = DB::table('attendances')
-                ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
-                ->where('attendances.student_id', $child->id)->where('attendances.status', 'ABSENT')
-                ->orderByDesc('class_sessions.starts_at')->limit(3)->pluck('class_sessions.starts_at');
-            if ($absences->isNotEmpty()) {
-                $lines[] = $this->t->get('telegram.text.child_absences', [
-                    'dates' => $absences->map(fn ($d) => ($emoji['ABSENT'] ?? '').Carbon::parse($d)->format('d.m'))->implode(', '),
-                ]);
-            }
-            $blocks[] = $this->t->get('telegram.text.child_block', ['name' => trim($child->first_name.' '.$child->last_name), 'lines' => implode("\n", $lines)]);
-        }
-
-        return [$this->t->get('telegram.text.children_title')."\n\n".implode("\n\n", $blocks),
-            $this->inline([[$this->webApp('telegram.text.btn_open_app', '/attendance')]])];
     }
 
     // ── O'qituvchi: bugungi darslar va davomat ───────────────
@@ -499,11 +468,9 @@ class BotMenu
 
     private function mark(User $user, ClassSession $session, array $items): string
     {
-        $res = $this->api->call($user, [AttendanceController::class, 'mark'], ['session' => $session], ['items' => $items], 'attendance.mark');
+        $this->api->call($user, [AttendanceController::class, 'mark'], ['session' => $session], ['items' => $items], 'attendance.mark');
 
-        return ($res['notified'] ?? 0) > 0
-            ? $this->t->get('telegram.text.marked_notified', ['count' => $res['notified']])
-            : $this->t->get('telegram.text.marked');
+        return $this->t->get('telegram.text.marked');
     }
 
     private function renderSheet(User $user, int $chatId, int $messageId, ClassSession $session): void

@@ -13,7 +13,7 @@ class RemindLessonsCommand extends Command
         {--dry-run : Hech narsa yubormasdan kimga nima ketishini ko\'rsatish}
         {--skip : Hozir navbatdagilarni yubormasdan "o\'tkazildi" deb belgilash}';
 
-    protected $description = "Yaqinlashayotgan darslar haqida o'quvchilarga, o'qituvchiga (va ota-onalarga) Telegram eslatma";
+    protected $description = "Yaqinlashayotgan darslar haqida o'quvchilarga va o'qituvchiga Telegram eslatma";
 
     public function handle(Settings $settings, Notifier $notifier): int
     {
@@ -22,7 +22,6 @@ class RemindLessonsCommand extends Command
         if (! $students && ! $teachers) {
             return self::SUCCESS;
         }
-        $withParents = $settings->bool('automation.lesson_reminder_parents');
         $sessions = DB::table('class_sessions')
             ->join('study_groups', 'study_groups.id', '=', 'class_sessions.group_id')
             ->where('class_sessions.cancelled', false)->where('study_groups.active', true)
@@ -39,13 +38,7 @@ class RemindLessonsCommand extends Command
                 ->get(['users.id', 'users.first_name']);
             if ($students) {
                 foreach ($members as $st) {
-                    $recipients = [$st->id];
-                    if ($withParents) {
-                        $recipients = array_merge($recipients, DB::table('parent_child')->where('child_id', $st->id)->pluck('parent_id')->all());
-                    }
-                    foreach ($recipients as $uid) {
-                        $items[] = ['user_id' => (int) $uid, 'kind' => $kind, 'key' => 'telegram.text.lesson_reminder', 'vars' => $vars + ['name' => $st->first_name]];
-                    }
+                    $items[] = ['user_id' => (int) $st->id, 'kind' => $kind, 'key' => 'telegram.text.lesson_reminder', 'vars' => $vars + ['name' => $st->first_name]];
                 }
             }
             // O'qituvchi: guruhda o'quvchi bo'lsa.

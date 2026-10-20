@@ -101,14 +101,11 @@ class AuditFixesTest extends TestCase
         $this->assertStringContainsString('+998909999999', $this->getJson("/v1/groups/{$this->group->id}")->getContent());
     }
 
-    public function test_children_list_and_user_filters(): void
+    public function test_user_filters(): void
     {
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
         User::factory()->role(Role::Teacher)->create(['active' => false]);
 
         Sanctum::actingAs($this->admin);
-        $this->getJson("/v1/users/{$parent->id}/children")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $this->student->id);
         $this->getJson('/v1/users?role=TEACHER&active=1&per_page=500')->assertOk()->assertJsonPath('meta.total', 1);
         $this->getJson('/v1/users?per_page=9999')->assertUnprocessable();
     }

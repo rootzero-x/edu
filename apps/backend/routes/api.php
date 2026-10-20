@@ -51,11 +51,6 @@ Route::prefix('v1')->group(function () {
             Route::post('/users', [UserController::class, 'store']);
             Route::patch('/users/{user}', [UserController::class, 'update']);
         });
-        Route::middleware('perm:user.manage')->group(function () {
-            Route::get('/users/{parent}/children', [UserController::class, 'children']);
-            Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
-            Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
-        });
 
         // Guruhlar va davomat (ko'rish — ko'rinish doirasi controller'da)
         Route::get('/groups', [GroupController::class, 'index']);
@@ -99,7 +94,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/reports/quizzes', [ReportController::class, 'quizzes']);
         });
 
-        // To'lovlar: o'quvchi — o'zi, ota-ona — farzandlari (tekshiruv controller'da); boshqarish — billing.manage
+        // To'lovlar: o'quvchi — o'zi (tekshiruv controller'da); boshqarish — billing.manage
         Route::get('/billing/me', [BillingController::class, 'me']);
         Route::get('/billing/students/{student}', [BillingController::class, 'show'])->whereNumber('student');
         Route::middleware('perm:billing.manage')->group(function () {
