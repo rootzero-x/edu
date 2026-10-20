@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\CourseController;
@@ -100,6 +101,19 @@ Route::prefix('v1')->group(function () {
             Route::get('/reports/attendance', [ReportController::class, 'attendance']);
             Route::get('/reports/attendance.csv', [ReportController::class, 'attendanceCsv']);
             Route::get('/reports/quizzes', [ReportController::class, 'quizzes']);
+        });
+
+        // To'lovlar: o'quvchi — o'zi, ota-ona — farzandlari (tekshiruv controller'da); boshqarish — billing.manage
+        Route::get('/billing/me', [BillingController::class, 'me']);
+        Route::get('/billing/students/{student}', [BillingController::class, 'show'])->whereNumber('student');
+        Route::middleware('perm:billing.manage')->group(function () {
+            Route::get('/billing/balances', [BillingController::class, 'balances']);
+            Route::get('/billing/balances.csv', [BillingController::class, 'balancesCsv']);
+            Route::get('/billing/report', [BillingController::class, 'report']);
+            Route::get('/billing/entries.csv', [BillingController::class, 'entriesCsv']);
+            Route::post('/billing/students/{student}/payments', [BillingController::class, 'storePayment'])->whereNumber('student');
+            Route::post('/billing/students/{student}/adjustments', [BillingController::class, 'storeAdjustment'])->whereNumber('student');
+            Route::post('/billing/entries/{entry}/void', [BillingController::class, 'void'])->whereNumber('entry');
         });
 
         // Testlar

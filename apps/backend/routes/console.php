@@ -33,3 +33,6 @@ Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping
 Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping();
 Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping();
+// To'lovlar: bugungi kunni hisoblash (o'tkazib yuborilgan kunlar bilan) va qarz eslatmasi — vaqt app.timezone bo'yicha.
+Schedule::command('tisu:billing-accrue')->dailyAt('00:20')->withoutOverlapping();
+Schedule::command('tisu:billing-remind-debts')->dailyAt('10:00')->withoutOverlapping();
