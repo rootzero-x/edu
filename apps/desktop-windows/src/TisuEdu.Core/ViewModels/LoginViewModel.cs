@@ -24,7 +24,6 @@ public sealed partial class LoginViewModel : ObservableObject
         _platform = platform;
         _prefs = prefs;
         _phone = string.IsNullOrEmpty(prefs.LastPhone) ? "+998" : prefs.LastPhone!;
-        settings.Changed += (_, _) => OnPropertyChanged(string.Empty);
     }
 
     /// <summary>Telegram polling oralig'i (testlarda qisqartiriladi).</summary>

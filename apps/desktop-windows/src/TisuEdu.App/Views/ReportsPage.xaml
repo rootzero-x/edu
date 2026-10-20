@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.ReportsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels"
+    xmlns:models="using:TisuEdu.Core.Models">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" Spacing="8">
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.PeriodText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+
+            <!-- Filtrlar -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <CalendarDatePicker Header="Dan" Date="{x:Bind ViewModel.From, Mode=TwoWay}" DateFormat="{}{day.integer(2)}.{month.integer(2)}.{year.full}" />
+                    <CalendarDatePicker Header="Gacha" Date="{x:Bind ViewModel.To, Mode=TwoWay}" DateFormat="{}{day.integer(2)}.{month.integer(2)}.{year.full}" />
+                    <ComboBox Header="Guruh" MinWidth="220" ItemsSource="{x:Bind ViewModel.Groups}" DisplayMemberPath="Name"
+                              SelectedItem="{x:Bind ViewModel.Group, Mode=TwoWay, Converter={StaticResource ItemPassThrough}}" />
+                    <Button Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.ApplyCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                            <TextBlock Text="Ko'rsatish" />
+                        </StackPanel>
+                    </Button>
+                    <DropDownButton VerticalAlignment="Bottom">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xEDE1;" FontSize="14" />
+                            <TextBlock Text="CSV eksport" />
+                        </StackPanel>
+                        <DropDownButton.Flyout>
+                            <MenuFlyout Placement="Bottom">
+                                <MenuFlyoutItem Text="Davomat (o'quvchilar kesimida)" Command="{x:Bind ViewModel.ExportAttendanceCommand}" />
+                                <MenuFlyoutItem Text="Davomat (guruhlar kesimida)" Command="{x:Bind ViewModel.ExportGroupsCommand}" />
+                                <MenuFlyoutItem Text="Testlar" Command="{x:Bind ViewModel.ExportQuizzesCommand}" />
+                            </MenuFlyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+                </StackPanel>
+            </Border>
+
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+
+            <GridView ItemsSource="{x:Bind ViewModel.Overview}" SelectionMode="None" ScrollViewer.VerticalScrollMode="Disabled" IsTabStop="False">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:StatCard">
+                        <Grid Width="220" Height="96" Padding="16" ColumnSpacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="20" VerticalAlignment="Top" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource SecondaryTextStyle}" />
+                                <TextBlock Text="{x:Bind Value}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                <TextBlock Text="{x:Bind Caption}" Style="{StaticResource SecondaryTextStyle}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+
+            <Pivot>
+                <PivotItem Header="Davomat">
+                    <StackPanel Spacing="8" Margin="0,8,0,0">
+                        <Border Style="{StaticResource CardStyle}">
+                            <Grid ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Umumiy davomat" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.TotalRate, Mode=OneWay}" Style="{StaticResource TitleLargeTextBlockStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.TotalCounts, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+                                </StackPanel>
+                                <!-- Kunlar bo'yicha davomat (ustunli diagramma) -->
+                                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Enabled">
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Days}" AutomationProperties.Name="Kunlar bo'yicha davomat">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="4" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DayBar">
+                                                <StackPanel Width="22" ToolTipService.ToolTip="{x:Bind Tooltip}">
+                                                    <Grid Height="120">
+                                                        <Rectangle Height="{x:Bind BarHeight}" VerticalAlignment="Bottom" RadiusX="3" RadiusY="3"
+                                                                   Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{x:Bind Date}" FontSize="9" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Text="Guruhlar kesimida" Style="{StaticResource SectionHeaderStyle}" />
+                        <TextBlock Text="Bu davrda ma'lumot yo'q." Style="{StaticResource SecondaryTextStyle}"
+                                   Visibility="{x:Bind ViewModel.HasGroups, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.ByGroup}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GroupRateRow">
+                                    <Border Style="{StaticResource ListCardStyle}" Margin="0,0,0,4">
+                                        <Grid ColumnSpacing="16">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="160" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind Group}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" />
+                                                <TextBlock Text="{x:Bind Counts}" Style="{StaticResource SecondaryTextStyle}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Sessions}" Style="{StaticResource SecondaryTextStyle}" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{x:Bind Rate}" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" />
+                                                <ProgressBar Value="{x:Bind RateValue}" Maximum="100" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{x:Bind ViewModel.RiskTitle, Mode=OneWay}" Style="{StaticResource SectionHeaderStyle}" Visibility="{x:Bind ViewModel.HasRisk, Mode=OneWay}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Risk}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RiskItem">
+                                    <Border Style="{StaticResource ListCardStyle}" Margin="0,0,0,4">
+                                        <Grid ColumnSpacing="16">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Glyph="&#xE7BA;" FontSize="16" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" IsTextSelectionEnabled="True" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                                <TextBlock Text="{x:Bind Rate}" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{x:Bind Absent}" Style="{StaticResource SecondaryTextStyle}" HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </PivotItem>
+
+                <PivotItem Header="Testlar">
+                    <StackPanel Spacing="8" Margin="0,8,0,0">
+                        <TextBlock Text="Bu davrda test topshirilmagan." Style="{StaticResource SecondaryTextStyle}"
+                                   Visibility="{x:Bind ViewModel.HasQuizzes, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Quizzes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:QuizRow">
+                                    <Border Style="{StaticResource ListCardStyle}" Margin="0,0,0,4">
+                                        <Grid ColumnSpacing="24">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="110" />
+                                                <ColumnDefinition Width="110" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock Text="{x:Bind Course}" Style="{StaticResource SecondaryTextStyle}" />
+                                                <TextBlock Text="{x:Bind Attempts}" Style="{StaticResource SecondaryTextStyle}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="O'rtacha" Style="{StaticResource SecondaryTextStyle}" />
+                                                <TextBlock Text="{x:Bind Avg}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="O'tganlar" Style="{StaticResource SecondaryTextStyle}" />
+                                                <TextBlock Text="{x:Bind PassRate}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </PivotItem>
+            </Pivot>
+        </StackPanel>
+    </ScrollViewer>
+</local:ViewPage>

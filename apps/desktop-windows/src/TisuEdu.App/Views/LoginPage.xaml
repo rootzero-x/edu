@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TisuEdu.App.Views.LoginPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="SideColumn" Width="5*" />
+            <ColumnDefinition Width="6*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Chap panel: brend va afzalliklar (login.side_title / login.side_points). -->
+        <Grid x:Name="SidePanel" Margin="24,8,0,24" CornerRadius="12">
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="{ThemeResource SystemAccentColorDark1}" Offset="0" />
+                    <GradientStop Color="{ThemeResource SystemAccentColor}" Offset="1" />
+                </LinearGradientBrush>
+            </Grid.Background>
+            <StackPanel VerticalAlignment="Center" Margin="48" Spacing="16">
+                <Image Source="ms-appx:///Assets/Square44x44Logo.targetsize-256.png" Width="64" Height="64" HorizontalAlignment="Left" />
+                <TextBlock Text="{x:Bind ViewModel.SiteName, Mode=OneWay}" Style="{StaticResource TitleLargeTextBlockStyle}" Foreground="White" TextWrapping="Wrap" />
+                <TextBlock Text="{x:Bind ViewModel.Tagline, Mode=OneWay}" Style="{StaticResource BodyLargeTextBlockStyle}" Foreground="White" Opacity="0.85" TextWrapping="Wrap" />
+                <TextBlock Text="{x:Bind ViewModel.SideTitle, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" Foreground="White" Margin="0,24,0,0" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{x:Bind ViewModel.SidePoints, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6">
+                                <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="White" />
+                                <TextBlock Text="{x:Bind}" Foreground="White" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="420" Margin="32" VerticalAlignment="Center" Spacing="16">
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
+                <TextBlock Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" Style="{StaticResource BodyTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+
+                <InfoBar x:Name="ExpiredBar" Severity="Warning" IsClosable="True" IsOpen="False" />
+                <InfoBar Severity="Error" IsClosable="False" IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}" Message="{x:Bind ViewModel.Error, Mode=OneWay}" />
+
+                <!-- Telegram orqali kirish -->
+                <Button x:Name="TelegramButton" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" MinHeight="44"
+                        Command="{x:Bind ViewModel.StartTelegramCommand}" Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <FontIcon Glyph="&#xE724;" FontSize="16" />
+                        <TextBlock Text="{x:Bind ViewModel.TelegramButton, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+
+                <Border Style="{StaticResource CardStyle}" Visibility="{x:Bind ViewModel.IsWaitingTelegram, Mode=OneWay}">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ProgressRing IsActive="{x:Bind ViewModel.IsWaitingTelegram, Mode=OneWay}" Width="20" Height="20" />
+                            <TextBlock Text="{x:Bind ViewModel.WaitingText, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="320" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource SecondaryTextStyle}">
+                            <Run Text="Qolgan vaqt:" />
+                            <Run Text="{x:Bind ViewModel.SecondsLeft, Mode=OneWay}" />
+                            <Run Text="s" />
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Telegram'ni qayta ochish" Command="{x:Bind ViewModel.OpenTelegramAgainCommand}" />
+                            <Button Content="Bekor qilish" Command="{x:Bind ViewModel.CancelTelegramCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Grid Margin="0,8" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="yoki" Style="{StaticResource SecondaryTextStyle}" />
+                    <Rectangle Grid.Column="2" Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- Telefon va parol -->
+                <TextBlock Text="{x:Bind ViewModel.PasswordTitle, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBox x:Name="PhoneBox" Header="Telefon raqami" InputScope="TelephoneNumber"
+                         Text="{x:Bind ViewModel.Phone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <PasswordBox x:Name="PasswordInput" Header="Parol" KeyDown="Password_KeyDown"
+                             Password="{x:Bind ViewModel.Password, Mode=TwoWay}" />
+                <Button Content="Kirish" HorizontalAlignment="Stretch" MinHeight="40" Command="{x:Bind ViewModel.LoginCommand}" />
+                <ProgressBar IsIndeterminate="True" Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+
+                <!-- Ro'yxatdan o'tish (login.register_*) -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,16,0,0" Visibility="{x:Bind ViewModel.HasRegister, Mode=OneWay}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{x:Bind ViewModel.RegisterTitle, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.RegisterText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+                        <HyperlinkButton Content="{x:Bind ViewModel.RegisterButton, Mode=OneWay}" Command="{x:Bind ViewModel.RegisterCommand}" Padding="0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="900" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="SidePanel.Visibility" Value="Collapsed" />
+                        <Setter Target="SideColumn.Width" Value="0" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+    </Grid>
+</Page>

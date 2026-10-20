@@ -53,7 +53,11 @@ public sealed partial class QuestionItem : ObservableObject
     private string _textAnswer = "";
 
     // Natija ko'rinishi
-    [ObservableProperty] private bool _isReviewed;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAnswer))]
+    private bool _isReviewed;
+
+    public bool CanAnswer => !IsReviewed;
     [ObservableProperty] private bool _isCorrect;
     [ObservableProperty] private string _reviewText = "";
 
@@ -112,7 +116,7 @@ public sealed partial class QuizViewModel(AppServices services, int quizId) : Pa
 
     // Topshirish rejimi
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOverview))]
+    [NotifyPropertyChangedFor(nameof(IsOverview), nameof(ShowQuestions))]
     private bool _isTaking;
 
     [ObservableProperty] private string _timeLeft = "";
@@ -121,13 +125,17 @@ public sealed partial class QuizViewModel(AppServices services, int quizId) : Pa
 
     // Natija
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOverview))]
+    [NotifyPropertyChangedFor(nameof(IsOverview), nameof(ShowQuestions))]
     private bool _hasResult;
 
     [ObservableProperty] private string _resultTitle = "";
     [ObservableProperty] private string _resultText = "";
     [ObservableProperty] private bool _resultPassed;
-    [ObservableProperty] private bool _hasReview;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowQuestions))]
+    private bool _hasReview;
+
+    public bool ShowQuestions => IsTaking || (HasResult && HasReview);
 
     private bool _canStart;
 

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.CertificatesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels"
+    xmlns:models="using:TisuEdu.Core.Models">
+    <Grid MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <AutoSuggestBox HorizontalAlignment="Right" Width="280" PlaceholderText="Ism, kod yoki kurs" QueryIcon="Find"
+                            Visibility="{x:Bind ViewModel.ShowSearch}" Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+        <StackPanel Grid.Row="1" Spacing="8">
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+            <TextBlock Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+        </StackPanel>
+        <ListView Grid.Row="2" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="None" ItemContainerStyle="{StaticResource CardListViewItemStyle}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:CertificateItem">
+                    <Border Style="{StaticResource ListCardStyle}">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="44" Height="44" CornerRadius="22" Background="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xEB95;" FontSize="20" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Text="{x:Bind Course}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="{x:Bind Student}" />
+                                <TextBlock Style="{StaticResource SecondaryTextStyle}">
+                                    <Run Text="{x:Bind Code}" FontFamily="Consolas" />
+                                    <Run Text=" · " />
+                                    <Run Text="{x:Bind Meta}" />
+                                </TextBlock>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Tag="{x:Bind}" Click="Copy_Click" ToolTipService.ToolTip="Havolani nusxalash" AutomationProperties.Name="Havolani nusxalash">
+                                    <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                                </Button>
+                                <Button Tag="{x:Bind}" Click="Open_Click" Style="{StaticResource AccentButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                                        <TextBlock Text="{x:Bind OpenText}" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</local:ViewPage>

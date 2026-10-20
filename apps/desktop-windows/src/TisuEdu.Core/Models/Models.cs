@@ -490,6 +490,8 @@ public sealed class QuizResultRow
     public double? Percent { get; set; }
     public bool? Passed { get; set; }
     [JsonIgnore] public string FullName => $"{FirstName} {LastName}".Trim();
+    [JsonIgnore] public string ScoreText => $"{Score}/{MaxScore}";
+    [JsonIgnore] public string PercentText => Services.Format.Percent(Percent);
 }
 
 // ── Sertifikatlar, yangiliklar ───────────────────────────────

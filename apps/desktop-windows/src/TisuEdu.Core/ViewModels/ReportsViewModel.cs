@@ -37,6 +37,8 @@ public sealed class DayBar(DayRow d)
 {
     public string Date => d.Date.Length >= 10 ? d.Date[8..10] + "." + d.Date[5..7] : d.Date;
     public double Rate => d.Rate ?? 0;
+    /// <summary>Ustun balandligi (piksel, 0–120).</summary>
+    public double BarHeight => Math.Max(2, (d.Rate ?? 0) * 1.2);
     public string Tooltip => $"{d.Date}: {Format.Percent(d.Rate)}";
 }
 
@@ -63,8 +65,8 @@ public sealed partial class ReportsViewModel(AppServices services) : PageViewMod
     private AttendanceReport? _attendance;
     private QuizReport? _quizzes;
 
-    [ObservableProperty] private DateTimeOffset _from;
-    [ObservableProperty] private DateTimeOffset _to;
+    [ObservableProperty] private DateTimeOffset? _from;
+    [ObservableProperty] private DateTimeOffset? _to;
     [ObservableProperty] private GroupOption? _group;
     [ObservableProperty] private string _periodText = "";
     [ObservableProperty] private string _totalRate = "—";
@@ -79,7 +81,7 @@ public sealed partial class ReportsViewModel(AppServices services) : PageViewMod
     private bool _initialized;
 
     private ReportFilter Filter() => new(
-        DateOnly.FromDateTime(From.Date), DateOnly.FromDateTime(To.Date), Group?.Id);
+        From is { } f ? DateOnly.FromDateTime(f.Date) : null, To is { } t ? DateOnly.FromDateTime(t.Date) : null, Group?.Id);
 
     protected override async Task LoadCoreAsync(CancellationToken ct)
     {
