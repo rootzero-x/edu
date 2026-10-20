@@ -16,8 +16,7 @@ export default async function GroupsPage() {
       ? Promise.all([
           api<{ data: { id: number; title: string }[] }>("/v1/courses"),
           api<{ data: { id: number; name: string; active: boolean }[] }>("/v1/branches"),
-          api<{ data: Person[] }>("/v1/users?role=TEACHER&active=1&per_page=500"),
-          api<{ data: Person[] }>("/v1/users?role=ADMIN"),
+          api<{ data: Person[] }>("/v1/groups/teachers"),
         ])
       : Promise.resolve(null),
   ]);
@@ -26,7 +25,7 @@ export default async function GroupsPage() {
     <NewGroup
       courses={refs[0].data.data ?? []}
       branches={(refs[1].data.data ?? []).filter((b) => b.active)}
-      teachers={[...(refs[2].data.data ?? []), ...(refs[3].data.data ?? [])]}
+      teachers={refs[2].data.data ?? []}
     />
   );
   return (

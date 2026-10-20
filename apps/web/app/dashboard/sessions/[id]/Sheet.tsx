@@ -130,7 +130,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
       return next;
     };
     if (!r.ok) {
-      setEdits(dropSent);
+      // Belgilar saqlanmadi — tahrirlar qoladi ("Hozir saqlash" bilan qayta yuboriladi), yo'qolmaydi.
       setFailed(new Set(ids));
       setSaveState("error");
       toast.error("Davomat saqlanmadi", errorText(r.data));
@@ -149,7 +149,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     setSaveState("saved");
     if (r.data.notified) toast.info(`Ota-onalarga ${r.data.notified} ta xabar yuborildi`);
     void refreshNow(); // avtomatik aniqlangan holatlarni olish uchun
-  }, [session.id, toast, refreshNow]);
+  }, [session.id, toast, refreshNow, reasonRequired]);
 
   const schedule = (ms = SAVE_DELAY) => {
     if (timer.current) clearTimeout(timer.current);

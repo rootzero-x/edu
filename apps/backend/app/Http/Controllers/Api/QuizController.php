@@ -66,7 +66,8 @@ class QuizController
         $user = $request->user();
         // Javob kaliti faqat kursga aloqador xodimga (admin, muallif, shu kursdagi guruh o'qituvchisi).
         if ($user->hasPermission('quiz.manage') && $this->canSeeKey($user, $quiz)) {
-            return response()->json(['quiz' => $quiz->load('questions.options', 'course:id,title')]);
+            return response()->json(['quiz' => $quiz->load('questions.options', 'course:id,title,created_by'),
+                'can_edit' => CourseController::canEdit($user, $quiz->course)]);
         }
         abort_unless($quiz->published && $quiz->course->published, 404);
         $access->authorize($user, $quiz->course);

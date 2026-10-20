@@ -6,9 +6,9 @@ import { AlertTriangle, BarChart3, SlidersHorizontal, CalendarCheck, ClipboardCh
 import { Badge, Card, CardHeader, EmptyState, Field, Input, PageHeader, Progress, Select, StatCard, Table, Tabs, Td, Th, buttonClass } from "@/components/ui";
 import LiveStatus from "@/components/LiveStatus";
 import { useSiteSettings } from "@/components/SiteProvider";
-import { call } from "@/lib/client";
+import { call, errorText } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
-import { refreshSeconds, statusLabels, timezone } from "@/lib/settings";
+import { num, refreshSeconds, statusLabels, timezone } from "@/lib/settings";
 import { STATUS_TONE } from "@/lib/status";
 import { usePolling } from "@/lib/usePolling";
 import s from "./reports.module.css";
@@ -33,15 +33,21 @@ type QuizRow = { quiz_id: number; title: string; course: string; is_final: boole
 type Overview = { groups: number; students: number; courses: number; sessions: number; new_students: number; certificates: number };
 type Data = { att: AttendanceReport; quizzes: QuizRow[]; overview: Overview };
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
-const PRESETS: [string, number][] = [["7 kun", 6], ["30 kun", 29], ["90 kun", 89]];
+// Sana sayt vaqt zonasida (UTC emas: Toshkentda tun yarmidan 05:00 gacha "bugun" kechagi kun bo'lib qolardi).
+const isoIn = (d: Date, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+const PRESET_DAYS = [7, 30, 90];
 
 export default function ReportsView({ refs }: { refs: Refs }) {
   const st = useSiteSettings();
   const tz = timezone(st);
   const labels = statusLabels(st);
-  const [f, setF] = useState({ from: daysAgo(29), to: iso(new Date()), group_id: "", course_id: "", branch_id: "", teacher_id: "" });
+  const iso = (d: Date) => isoIn(d, tz);
+  const daysAgo = (n: number) => iso(new Date(Date.now() - n * 86400000));
+  const maxDays = num(st, "reports.max_days", 366);
+  const defaultDays = Math.min(num(st, "reports.default_days", 30), maxDays);
+  const PRESETS = PRESET_DAYS.filter((n) => n <= maxDays).map((n): [string, number] => [`${n} kun`, n - 1]);
+  const [error, setError] = useState<string | null>(null);
+  const [f, setF] = useState({ from: daysAgo(defaultDays - 1), to: iso(new Date()), group_id: "", course_id: "", branch_id: "", teacher_id: "" });
   const [showFilters, setShowFilters] = useState(false);
   const activeFilters = [f.group_id, f.course_id, f.branch_id, f.teacher_id].filter(Boolean).length;
   const [data, setData] = useState<Data | null>(null);
@@ -54,7 +60,16 @@ export default function ReportsView({ refs }: { refs: Refs }) {
       call<{ data: QuizRow[] }>("GET", `reports/quizzes?${qs}`, undefined, { signal }),
       call<Overview>("GET", `reports/overview?${qs}`, undefined, { signal }),
     ]);
-    return a.ok && q.ok && o.ok ? { att: a.data, quizzes: q.data.data, overview: o.data } : null;
+    if (signal.aborted) return null;
+    const bad = [a, q, o].find((x) => !x.ok);
+    if (bad) {
+      // Xato (masalan, juda katta davr) — eski filtr natijalari yangi filtr ostida qolib ketmasin.
+      setError(errorText(bad.data));
+      setData(null);
+      return null;
+    }
+    setError(null);
+    return { att: a.data, quizzes: q.data.data, overview: o.data };
   }, [qs]);
   const live = usePolling(fetcher, setData, { seconds: refreshSeconds(st), immediate: true });
 
@@ -102,7 +117,9 @@ export default function ReportsView({ refs }: { refs: Refs }) {
         </div>
       </Card>
 
-      {!data ? (
+      {error ? (
+        <Card><EmptyState icon={<AlertTriangle />} title="Hisobot olinmadi">{error}</EmptyState></Card>
+      ) : !data ? (
         <div className="stats-grid">{[0, 1, 2, 3].map((i) => <StatCard key={i} label="…" value="…" />)}</div>
       ) : (
         <>

@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\DB;
 class CourseController
 {
     /** Kursni tahrirlash: admin — hammasi, o'qituvchi — faqat o'zi yaratgani. */
+    /** Kurs tarkibini (modul, dars, test) faqat muallif yoki admin o'zgartiradi. */
+    public static function canEdit(User $user, Course $course): bool
+    {
+        return $user->hasPermission('course.manage') && ($user->isAdmin() || (int) $course->created_by === (int) $user->id);
+    }
+
     public static function authorizeEdit(User $user, Course $course): void
     {
         if (! $user->isAdmin() && (int) $course->created_by !== (int) $user->id) {
@@ -51,7 +57,7 @@ class CourseController
         if (! $granted && ! $settings->bool('course.show_outline_to_guests')) {
             $course->setRelation('modules', collect());
 
-            return response()->json(['course' => $course, 'access' => ['granted' => false] + $access->denial($course)]);
+            return response()->json(['course' => $course, 'can_edit' => false, 'access' => ['granted' => false] + $access->denial($course)]);
         }
         $course->load(['modules.lessons' => function ($q) use ($manage) {
             $q->select('id', 'module_id', 'title', 'position', 'published');
@@ -60,7 +66,7 @@ class CourseController
             }
         }]);
 
-        return response()->json(['course' => $course, 'access' => $granted ? ['granted' => true] : ['granted' => false] + $access->denial($course)]);
+        return response()->json(['course' => $course, 'can_edit' => self::canEdit($request->user(), $course), 'access' => $granted ? ['granted' => true] : ['granted' => false] + $access->denial($course)]);
     }
 
     public function store(Request $request): JsonResponse

@@ -211,6 +211,20 @@ class GroupController
         ];
     }
 
+    /** Guruhga biriktirish mumkin bo'lgan xodimlar (davomat belgilash huquqi bor faollar). user.manage talab qilinmaydi. */
+    public function teachers(): JsonResponse
+    {
+        $rows = User::query()->where('active', true)
+            ->whereIn('role', [Role::Teacher->value, Role::Admin->value, Role::SuperAdmin->value])
+            ->orderBy('first_name')->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name', 'role'])
+            ->filter(fn (User $u) => $u->hasPermission('attendance.mark'))
+            ->map(fn (User $u) => ['id' => $u->id, 'first_name' => $u->first_name, 'last_name' => $u->last_name, 'role' => $u->role->value])
+            ->values();
+
+        return response()->json(['data' => $rows]);
+    }
+
     private function assertTeacher(int $id): void
     {
         $u = User::find($id);

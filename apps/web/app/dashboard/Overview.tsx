@@ -26,7 +26,7 @@ export default function Overview({ initial, firstName }: { initial: Summary | nu
     const r = await call<Summary>("GET", "dashboard/summary", undefined, { signal });
     return r.ok ? r.data : null;
   }, []);
-  const live = usePolling(fetcher, setData, { seconds });
+  const live = usePolling(fetcher, setData, { seconds, immediate: !initial });
 
   const today = fmtLongDate(data?.generated_at ?? Date.now(), tz);
   const header = (
@@ -41,7 +41,7 @@ export default function Overview({ initial, firstName }: { initial: Summary | nu
     return (
       <>
         {header}
-        <Card><EmptyState icon={<AlertTriangle />} title="Ma'lumotni yuklab bo'lmadi">API bilan aloqa yo&apos;q. Birozdan keyin avtomatik qayta urinadi.</EmptyState></Card>
+        <Card><EmptyState icon={<AlertTriangle />} title="Ma'lumotni yuklab bo'lmadi">{seconds > 0 ? "API bilan aloqa yo'q. Birozdan keyin avtomatik qayta urinadi." : "API bilan aloqa yo'q. Yuqoridagi yangilash tugmasini bosing."}</EmptyState></Card>
       </>
     );
   }

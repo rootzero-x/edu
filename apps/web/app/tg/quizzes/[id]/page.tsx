@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cleanAnswers } from "@/lib/quiz";
 import { useParams } from "next/navigation";
 import { errorText, tg } from "../../_lib/api";
 import { useTg } from "../../_lib/TgProvider";
-import { confirmDialog, haptic, webApp } from "../../_lib/webapp";
+import { confirmDialog, haptic, openLink, webApp } from "../../_lib/webapp";
 import { date } from "../../_lib/format";
 import { Async, Badge, Empty, MainButton, Page, Row, Section, useApi } from "../../_ui/ui";
 
@@ -48,7 +49,7 @@ function fmtLeft(sec: number) {
 /** Test: ma'lumot → urinish (savollar birma-bir, taymer) → natija va tahlil. */
 export default function TgQuiz() {
   const { id } = useParams<{ id: string }>();
-  const { t, tz } = useTg();
+  const { t, tz, settings } = useTg();
   const info = useApi<Info>(`quizzes/${id}`);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [result, setResult] = useState<{ res: Result; attempt: Attempt; answers: Answers } | null>(null);
@@ -74,6 +75,16 @@ export default function TgQuiz() {
   return (
     <Async q={info}>
       {({ quiz, attempts, can_take }) => {
+        // Boshqaruvchilar (javob kalitini ko'radiganlar) uchun API urinishlarsiz to'liq testni qaytaradi.
+        if (!Array.isArray(attempts)) {
+          const site = String(settings["site.url"] ?? "").replace(/\/$/, "");
+          return (
+            <Page title={quiz.title} subtitle={quiz.course?.title}>
+              <Empty text={t("quiz_manage_on_web")} icon="🛠" />
+              {site && <MainButton text={t("open_on_web")} onClick={() => openLink(`${site}/dashboard/quizzes/${quiz.id}/edit`)} />}
+            </Page>
+          );
+        }
         const used = attempts.length;
         const open = attempts.find((a) => !a.submitted_at);
         const best = Math.max(-1, ...attempts.filter((a) => a.percent !== null).map((a) => a.percent!));
@@ -116,6 +127,7 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
   const [busy, setBusy] = useState(false);
   const [left, setLeft] = useState<number | null>(null);
   const submitted = useRef(false);
+  const autoTried = useRef(false);
   const qs = attempt.questions;
   const q = qs[i];
   const last = i === qs.length - 1;
@@ -140,7 +152,9 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
   }, []);
 
   const submit = useCallback(async (force = false) => {
-    if (submitted.current) return;
+    // Vaqt tugaganda avto-topshirish bir marta urinadi (xatoda har soniya qayta yuborib, ogohlantirish chiqarmasin).
+    if (submitted.current || (force && autoTried.current)) return;
+    if (force) autoTried.current = true;
     if (!force) {
       const unanswered = qs.filter((x) => !(answers[x.id]?.length && answers[x.id].some((v) => v.trim() !== ""))).length;
       const ok = await confirmDialog(unanswered ? t("quiz_unanswered", { n: unanswered }) : t("quiz_confirm_submit"));
@@ -148,7 +162,7 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
     }
     submitted.current = true;
     setBusy(true);
-    const r = await tg<Result>("POST", `attempts/${attempt.id}/submit`, { answers });
+    const r = await tg<Result>("POST", `attempts/${attempt.id}/submit`, { answers: cleanAnswers(answers) });
     setBusy(false);
     if (!r.ok) {
       submitted.current = false;

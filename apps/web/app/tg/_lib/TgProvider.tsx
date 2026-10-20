@@ -43,6 +43,10 @@ const FALLBACK: Record<string, string> = {
   news_pinned: "Muhim",
   open_in_telegram: "Bu sahifa Telegram ichida ochiladi.",
   go_to_bot: "Botga o'tish",
+  quiz_manage_on_web: "Testni tahrirlash va natijalarni ko'rish — saytdagi boshqaruv panelida.",
+  open_on_web: "Saytda ochish",
+  sheet_reason: "O'zgartirish sababi",
+  sheet_reason_hint: "Masalan: ma'lumotnoma keltirdi",
 };
 
 export default function TgProvider({ settings, children }: { settings: Record<string, any> | null; children: React.ReactNode }) {

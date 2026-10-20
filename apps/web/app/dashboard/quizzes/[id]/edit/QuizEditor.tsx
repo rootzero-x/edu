@@ -15,7 +15,7 @@ const TYPES: [string, string][] = [["SINGLE", "Bitta javob"], ["MULTIPLE", "Bir 
 const typeLabel = (t: string) => TYPES.find(([v]) => v === t)?.[1] ?? t;
 const blankOpts = (): Opt[] => [{ text: "", is_correct: true }, { text: "", is_correct: false }];
 
-export default function QuizEditor({ quiz, results }: { quiz: any; results: any[] }) {
+export default function QuizEditor({ quiz, results, readOnly = false }: { quiz: any; results: any[]; readOnly?: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
@@ -28,7 +28,8 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
     minutes: quiz.time_limit_sec ? Math.round(quiz.time_limit_sec / 60) : 0, is_final: quiz.is_final, shuffle: quiz.shuffle,
   });
   const [cfg, setCfg] = useState(fromQuiz);
-  useEffect(() => setCfg(fromQuiz()), [quiz]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Faqat boshqa testga o'tganda qayta to'ldiriladi: router.refresh() saqlanmagan sozlamalarni o'chirmasin.
+  useEffect(() => setCfg(fromQuiz()), [quiz.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(key: string, method: string, path: string, body?: unknown, ok = "Saqlandi") {
     setBusy(key);
@@ -97,7 +98,7 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
         title={quiz.title}
         description={`${quiz.questions.length} savol · ${totalPoints} ball`}
         badge={quiz.published ? <Badge tone="success" dot>E&apos;lon qilingan</Badge> : <Badge tone="warning" dot>Yashirin</Badge>}
-        actions={
+        actions={readOnly ? undefined : (
           <>
             <Switch label="E'lon qilish" checked={quiz.published}
               onChange={(e) => run("pub", "PATCH", `quizzes/${quiz.id}`, { published: e.target.checked }, e.target.checked ? "Test e'lon qilindi" : "Test yashirildi")} />
@@ -106,10 +107,15 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
               items={[{ label: "Testni o'chirish", icon: <Trash2 />, danger: true, onSelect: deleteQuiz }]}
             />
           </>
-        }
+        )}
       />
 
-      <Card>
+      {readOnly && (
+        <Card style={{ marginBottom: 16 }}>
+          <CardBody><p className="subtle" style={{ margin: 0 }}>Bu testni faqat kurs muallifi yoki administrator tahrirlaydi. Siz savollar va natijalarni ko&apos;rishingiz mumkin.</p></CardBody>
+        </Card>
+      )}
+      {!readOnly && <Card>
         <CardHeader title="Sozlamalar" />
         <CardBody>
           <form className={s.form} onSubmit={(e) => {
@@ -132,7 +138,7 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
             <div><Button type="submit" icon={<Save />} loading={busy === "cfg"}>Saqlash</Button></div>
           </form>
         </CardBody>
-      </Card>
+      </Card>}
 
       <h2 className={s.h2}>Savollar</h2>
       {quiz.questions.length === 0 && <Card><EmptyState compact icon={<ClipboardList />} title="Hali savol yo'q">Pastdagi formadan birinchi savolni qo&apos;shing.</EmptyState></Card>}
@@ -145,8 +151,8 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
                 <span className={s.qMeta}>
                   <Badge>{typeLabel(q.type)}</Badge>
                   <Badge tone="accent">{q.points} ball</Badge>
-                  <Button variant="ghost" size="sm" iconOnly aria-label="Savolni tahrirlash" icon={<Pencil />} onClick={() => editQuestion(q)} />
-                  <Button variant="ghost" size="sm" iconOnly aria-label="Savolni o'chirish" icon={<Trash2 />} loading={busy === `del${q.id}`} onClick={() => removeQuestion(q)} />
+                  {!readOnly && <Button variant="ghost" size="sm" iconOnly aria-label="Savolni tahrirlash" icon={<Pencil />} onClick={() => editQuestion(q)} />}
+                  {!readOnly && <Button variant="ghost" size="sm" iconOnly aria-label="Savolni o'chirish" icon={<Trash2 />} loading={busy === `del${q.id}`} onClick={() => removeQuestion(q)} />}
                 </span>
               </div>
               {q.type === "TEXT" ? (
@@ -165,7 +171,7 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
         ))}
       </div>
 
-      <Card style={{ marginTop: 16 }}>
+      {!readOnly && <Card style={{ marginTop: 16 }}>
         <CardHeader title="Yangi savol" />
         <CardBody>
           <form className={s.form} onSubmit={addQuestion}>
@@ -205,20 +211,20 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
             <div><Button type="submit" icon={<Plus />} loading={busy === "q"}>Savol qo&apos;shish</Button></div>
           </form>
         </CardBody>
-      </Card>
+      </Card>}
 
       <Card style={{ marginTop: 16 }}>
         <CardHeader title="Natijalar" description={`${results.length} ta urinish`} />
         {results.length === 0 ? <EmptyState compact icon={<Trophy />} title="Hali hech kim topshirmagan" /> : (
-          <Table>
+          <Table stack>
             <thead><tr><Th>O&apos;quvchi</Th><Th>Ball</Th><Th>%</Th><Th>Natija</Th></tr></thead>
             <tbody>
               {results.map((r) => (
                 <tr key={r.id}>
                   <Td>{[r.first_name, r.last_name].filter(Boolean).join(" ")}<div className="subtle">{r.phone}</div></Td>
-                  <Td>{r.score}/{r.max_score}</Td>
-                  <Td>{r.percent}</Td>
-                  <Td>{r.passed ? <Badge tone="success">O&apos;tdi</Badge> : <Badge tone="warning">O&apos;tmadi</Badge>}</Td>
+                  <Td label="Ball">{r.score}/{r.max_score}</Td>
+                  <Td label="%">{r.percent}</Td>
+                  <Td label="Natija">{r.passed ? <Badge tone="success">O&apos;tdi</Badge> : <Badge tone="warning">O&apos;tmadi</Badge>}</Td>
                 </tr>
               ))}
             </tbody>

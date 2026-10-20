@@ -43,7 +43,7 @@ function Reports({ groups }: { groups: Group[] }) {
               </div>
               <Progress value={r.rate} />
               <div className="tg-stats" style={{ padding: "10px 0 0" }}>
-                {["PRESENT", "LATE", "ABSENT", "EXCUSED"].map((s) => (
+                {(Object.keys(labels).length ? Object.keys(labels) : ["PRESENT", "LATE", "ABSENT", "EXCUSED"]).map((s) => (
                   <div key={s}><b>{emoji[s]} {r.counts[s] ?? 0}</b><small>{labels[s] ?? s}</small></div>
                 ))}
               </div>

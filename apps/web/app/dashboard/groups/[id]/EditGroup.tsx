@@ -24,8 +24,9 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
       end_date: (group.end_date ?? "").slice(0, 10),
     });
     setSlots(group.schedules.map((x) => ({ weekday: x.weekday, start_time: x.start_time.slice(0, 5), end_time: x.end_time.slice(0, 5) })));
-    call<{ data: Person[] }>("GET", "users?role=TEACHER&active=1&per_page=500").then((r) => r.ok && setTeachers(r.data.data ?? []));
-  }, [open, group]);
+    call<{ data: Person[] }>("GET", "groups/teachers").then((r) => r.ok && setTeachers(r.data.data ?? []));
+    // Faqat ochilganda to'ldiriladi: polling yangilagan `group` yozilayotgan qiymatlarni o'chirmasin.
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     setBusy(true);
@@ -36,11 +37,12 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
       end_date: f.end_date || null,
       schedules: slots,
     });
-    setBusy(false);
-    if (!r.ok) return toast.error("Saqlanmadi", errorText(r.data));
+    if (!r.ok) { setBusy(false); return toast.error("Saqlanmadi", errorText(r.data)); }
     // Jadval o'zgargan bo'lsa kelgusi darslar yangi jadvaldan qo'shiladi.
-    await call("POST", `groups/${group.id}/sessions/generate`, {});
-    toast.success("Guruh yangilandi");
+    const g = await call("POST", `groups/${group.id}/sessions/generate`, {});
+    setBusy(false);
+    if (g.ok) toast.success("Guruh yangilandi");
+    else toast.error("Guruh saqlandi, lekin darslar yaratilmadi", errorText(g.data));
     onClose();
     onSaved();
   }

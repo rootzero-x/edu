@@ -401,6 +401,10 @@ return [
             'quiz_failed' => "Afsuski, o'tish bali yetmadi.",
             'quiz_time_expired' => 'Vaqt tugagan edi — javoblar hisobga olinmadi.',
             'quiz_not_allowed' => 'Bu test sizning guruhingiz uchun emas.',
+            'sheet_reason' => "O'zgartirish sababi",
+            'sheet_reason_hint' => "Masalan: ma'lumotnoma keltirdi",
+            'quiz_manage_on_web' => "Testni tahrirlash va natijalarni ko'rish — saytdagi boshqaruv panelida.",
+            'open_on_web' => 'Saytda ochish',
             'quiz_best' => 'Eng yaxshi natija: {percent}%',
             'correct' => "To'g'ri",
             'wrong' => "Noto'g'ri",
@@ -440,10 +444,10 @@ return [
         'course.embed_hosts' => ['group' => 'course', 'type' => 'list', 'public' => true, 'label' => 'Video joylash mumkin bo\'lgan saytlar', 'default' => ['youtube.com', 'youtu.be', 'vimeo.com', 'player.vimeo.com']],
 
         // ── Hisobotlar ───────────────────────────────────────
-        'reports.default_days' => ['group' => 'reports', 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => 'Hisobotning standart davri (kun)', 'default' => 30],
+        'reports.default_days' => ['group' => 'reports', 'public' => true, 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => 'Hisobotning standart davri (kun)', 'default' => 30],
         'reports.top_n' => ['group' => 'reports', 'type' => 'int', 'min' => 3, 'max' => 100, 'label' => "Xavf ro'yxatida nechta o'quvchi", 'default' => 10],
         'reports.risk_threshold_percent' => ['group' => 'reports', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Davomati shundan past o'quvchi xavf ostida (%)", 'default' => 75],
-        'reports.max_days' => ['group' => 'reports', 'type' => 'int', 'min' => 31, 'max' => 3650, 'label' => 'Hisobotning maksimal davri (kun)', 'default' => 366],
+        'reports.max_days' => ['group' => 'reports', 'public' => true, 'type' => 'int', 'min' => 31, 'max' => 3650, 'label' => 'Hisobotning maksimal davri (kun)', 'default' => 366],
 
         // ── Yangiliklar ──────────────────────────────────────
         'news.public_on_home' => ['group' => 'news', 'type' => 'bool', 'public' => true, 'label' => "Ochiq yangiliklar bosh sahifada ko'rinsin", 'default' => true],

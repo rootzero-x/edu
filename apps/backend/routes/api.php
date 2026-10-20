@@ -75,6 +75,7 @@ Route::prefix('v1')->group(function () {
             Route::patch('/sessions/{session}', [GroupController::class, 'updateSession']);
         });
         Route::middleware('perm:group.manage')->group(function () {
+            Route::get('/groups/teachers', [GroupController::class, 'teachers']);
             Route::post('/groups', [GroupController::class, 'store']);
             Route::patch('/groups/{group}', [GroupController::class, 'update']);
             Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);

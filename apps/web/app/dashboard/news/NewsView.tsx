@@ -155,9 +155,12 @@ function Editor({ item, groups, isAdmin, roleNames, onClose, onSaved }: {
     const r = item
       ? await call("PATCH", `announcements/${item.id}`, body)
       : await call("POST", "announcements", { ...body, publish: publishNow });
-    if (r.ok && item && publishNow && !item.published_at) await call("POST", `announcements/${item.id}/publish`, { published: true });
+    if (!r.ok) { setBusy(false); return toast.error("Saqlanmadi", errorText(r.data)); }
+    if (item && publishNow && !item.published_at) {
+      const p = await call("POST", `announcements/${item.id}/publish`, { published: true });
+      if (!p.ok) { setBusy(false); toast.error("Saqlandi, lekin chop etilmadi", errorText(p.data)); return onSaved(); }
+    }
     setBusy(false);
-    if (!r.ok) return toast.error("Saqlanmadi", errorText(r.data));
     toast.success(publishNow ? "E'lon chop etildi" : "Saqlandi");
     onSaved();
   }

@@ -29,7 +29,15 @@ final class Settings
         }
         $stored = $this->stored();
 
-        return array_key_exists($key, $stored) ? $stored[$key] : $defs[$key]['default'];
+        if (! array_key_exists($key, $stored)) {
+            return $defs[$key]['default'];
+        }
+        // Obyekt sozlamalarda keyinroq qo'shilgan standart kalitlar (masalan, yangi matnlar) ham ko'rinsin.
+        if ($defs[$key]['type'] === 'object' && is_array($stored[$key]) && is_array($defs[$key]['default'])) {
+            return $stored[$key] + $defs[$key]['default'];
+        }
+
+        return $stored[$key];
     }
 
     public function int(string $key): int

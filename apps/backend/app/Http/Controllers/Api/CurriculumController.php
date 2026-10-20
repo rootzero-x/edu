@@ -67,7 +67,7 @@ class CurriculumController
             ->pluck('lessons.id')->map(fn ($id) => (int) $id)->all();
         $i = array_search((int) $lesson->id, $ids, true);
 
-        return response()->json(['lesson' => $lesson, 'nav' => [
+        return response()->json(['lesson' => $lesson, 'can_edit' => CourseController::canEdit($request->user(), $course), 'nav' => [
             'prev' => $i !== false && $i > 0 ? $ids[$i - 1] : null,
             'next' => $i !== false && $i < count($ids) - 1 ? $ids[$i + 1] : null,
             'index' => $i === false ? null : $i + 1, 'total' => count($ids),

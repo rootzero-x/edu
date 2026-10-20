@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import NotFoundCard from "@/components/NotFoundCard";
 import { ArrowLeft, ArrowRight, ExternalLink, FileText, Link2, PlayCircle } from "lucide-react";
-import { api, me, publicSettings } from "@/lib/api";
+import { api, publicSettings } from "@/lib/api";
 import { LessonActions, MaterialActions } from "./LessonManage";
 import { list } from "@/lib/settings";
 import { embedUrl } from "@/lib/embed";
@@ -15,7 +15,7 @@ type Lesson = {
   module: { id: number; title: string; course: { id: number; title: string } };
   materials: Material[];
 };
-type Res = { lesson: Lesson; nav: { prev: number | null; next: number | null; index: number | null; total: number } };
+type Res = { lesson: Lesson; can_edit?: boolean; nav: { prev: number | null; next: number | null; index: number | null; total: number } };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -25,8 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [r, st, user] = await Promise.all([api<Res | Denial>(`/v1/lessons/${id}`), publicSettings(), me()]);
-  const manage = Boolean(user?.permissions.includes("course.manage"));
+  const [r, st] = await Promise.all([api<Res | Denial>(`/v1/lessons/${id}`), publicSettings()]);
   if (r.status === 403 && isDenial(r.data)) {
     const d = r.data;
     return (
@@ -37,7 +36,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     );
   }
   if (r.status !== 200) return <NotFoundCard />;
-  const { lesson, nav } = r.data as Res;
+  const { lesson, nav, can_edit } = r.data as Res;
+  const manage = Boolean(can_edit);
   const hosts = list<string>(st, "course.embed_hosts");
   const course = lesson.module.course;
 

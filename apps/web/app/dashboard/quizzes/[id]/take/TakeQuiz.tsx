@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cleanAnswers } from "@/lib/quiz";
 import { CheckCircle2, Clock, Send, XCircle } from "lucide-react";
 import { Badge, Button, ButtonLink, Card, CardBody, EmptyState, Input, PageHeader, Spinner, cx, useConfirm } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
@@ -42,7 +43,7 @@ export default function TakeQuiz({ quizId }: { quizId: number }) {
     if (!attempt || sent.current) return;
     sent.current = true;
     setBusy(true);
-    const r = await call("POST", `attempts/${attempt.id}/submit`, { answers });
+    const r = await call("POST", `attempts/${attempt.id}/submit`, { answers: cleanAnswers(answers) });
     setBusy(false);
     if (!r.ok) { sent.current = false; return setErr(errorText(r.data)); }
     try { localStorage.removeItem(`tisu.quiz.${attempt.id}`); } catch { /* ignore */ }

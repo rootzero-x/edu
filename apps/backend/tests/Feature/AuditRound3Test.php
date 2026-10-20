@@ -119,4 +119,20 @@ class AuditRound3Test extends TestCase
         $csv = $this->get('/v1/reports/attendance.csv')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=HYPERLINK", $csv);
     }
+
+    public function test_can_edit_flag_and_teacher_lookup(): void
+    {
+        $other = User::factory()->role(Role::Teacher)->create();
+        Sanctum::actingAs($other);
+        // Kursga aloqasi bo'lmagan o'qituvchi: ko'radi, lekin tahrirlay olmaydi.
+        $this->getJson("/v1/courses/{$this->course->id}")->assertOk()->assertJsonPath('can_edit', false);
+        Sanctum::actingAs($this->teacher);
+        $this->getJson("/v1/courses/{$this->course->id}")->assertOk()->assertJsonPath('can_edit', true);
+        $this->getJson('/v1/groups/teachers')->assertForbidden(); // o'qituvchida group.manage yo'q
+
+        Sanctum::actingAs(User::factory()->role(Role::Admin)->create());
+        $ids = collect($this->getJson('/v1/groups/teachers')->assertOk()->json('data'))->pluck('id');
+        $this->assertTrue($ids->contains($this->teacher->id));
+        $this->assertFalse($ids->contains(User::factory()->create()->id));
+    }
 }
