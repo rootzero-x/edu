@@ -482,6 +482,8 @@ return [
             'lesson' => 'Dars',
             'quiz' => 'Test',
             'sheet_title' => 'Davomat varaqasi',
+            'attendance_groups' => 'Guruhlar: {n}',
+            'left_group' => 'guruhdan chiqqan',
             'quiz_leave_confirm' => "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
         ]],
 

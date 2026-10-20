@@ -79,6 +79,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/groups/{group}/members', [GroupController::class, 'members'])->whereNumber('group');
         Route::get('/groups/{group}/members/{student}/history', [GroupController::class, 'memberHistory'])->whereNumber('group');
         Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
+        Route::get('/attendance/reports', [AttendanceController::class, 'reports']);
         Route::get('/sessions', [GroupController::class, 'allSessions']);
         Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
         Route::middleware('perm:attendance.mark')->group(function () {

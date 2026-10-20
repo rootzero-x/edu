@@ -57,6 +57,8 @@ const FALLBACK: Record<string, string> = {
   lesson: "Dars",
   quiz: "Test",
   sheet_title: "Davomat varaqasi",
+  attendance_groups: "Guruhlar: {n}",
+  left_group: "guruhdan chiqqan",
   nav_attendance: "Davomat",
   nav_balance: "Balans",
   balance_title: "To'lovlar va balans",

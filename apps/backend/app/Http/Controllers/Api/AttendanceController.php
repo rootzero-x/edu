@@ -103,22 +103,57 @@ class AttendanceController
     public function report(Request $request, int $group): JsonResponse
     {
         $g = GroupController::findVisible($request->user(), $group);
-        $rows = DB::table('attendances')
+
+        return response()->json(['data' => $this->reportRows($request->user(), [$g->id])[$g->id] ?? []]);
+    }
+
+    /**
+     * Bir nechta guruh davomati bitta so'rovda (Mini App: admin/o'qituvchining barcha guruhlari).
+     * group_ids bo'lmasa — ko'rinadigan faol guruhlar. Har guruhga alohida so'rov ko'p guruhli adminni sekinlashtirardi.
+     */
+    public function reports(Request $request): JsonResponse
+    {
+        $data = $request->validate(['group_ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/']]);
+        $ids = isset($data['group_ids']) ? array_map('intval', explode(',', $data['group_ids'])) : null;
+        $groupIds = GroupController::visible($request->user())
+            ->when($ids !== null, fn ($q) => $q->whereIn('id', $ids), fn ($q) => $q->where('active', true))
+            ->orderBy('name')->limit(200)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $rows = $this->reportRows($request->user(), $groupIds);
+
+        return response()->json(['data' => array_map(fn ($id) => ['group_id' => $id, 'rows' => $rows[$id] ?? []], $groupIds)]);
+    }
+
+    /**
+     * Guruhlar bo'yicha o'quvchilar davomati: hozirgi a'zolar + davomati bor chiqib ketganlar (tarix yo'qolmasin, belgi bilan).
+     * Xodim — hamma o'quvchini, o'quvchi — faqat o'zini ko'radi. Barcha guruhlar uchun 2 ta so'rov.
+     *
+     * @param  list<int>  $groupIds
+     * @return array<int, list<array>>
+     */
+    private function reportRows(\App\Models\User $user, array $groupIds): array
+    {
+        if (! $groupIds) {
+            return [];
+        }
+        $marks = DB::table('attendances')
             ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
-            ->where('class_sessions.group_id', $g->id)->where('class_sessions.cancelled', false)
-            ->get(['attendances.student_id', 'attendances.status'])
-            ->groupBy('student_id');
-        // Hozirgi a'zolar + davomati bor chiqib ketganlar (tarix yo'qolmasin, belgi bilan).
-        $students = DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
-            ->where('group_members.group_id', $g->id)
-            ->where(fn ($w) => $w->whereNull('group_members.left_at')->orWhereIn('group_members.student_id', $rows->keys()->all()))
-            ->orderBy('users.first_name')->get(['users.id', 'users.first_name', 'users.last_name', 'group_members.left_at']);
-        $canSeeAll = $request->user()->hasPermission('attendance.mark');
+            ->whereIn('class_sessions.group_id', $groupIds)->where('class_sessions.cancelled', false)
+            ->get(['class_sessions.group_id', 'attendances.student_id', 'attendances.status'])
+            ->groupBy(fn ($r) => $r->group_id.':'.$r->student_id);
+        $canSeeAll = $user->hasPermission('attendance.mark');
+        $members = DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
+            ->whereIn('group_members.group_id', $groupIds)
+            ->when(! $canSeeAll, fn ($q) => $q->where('group_members.student_id', $user->id))
+            ->orderBy('users.first_name')
+            ->get(['group_members.group_id', 'users.id', 'users.first_name', 'users.last_name', 'group_members.left_at']);
 
-        $data = $students->filter(fn ($s) => $canSeeAll || (int) $s->id === (int) $request->user()->id)->map(function ($s) use ($rows) {
-            $statuses = ($rows[$s->id] ?? collect())->pluck('status')->all();
-
-            return [
+        $out = [];
+        foreach ($members as $s) {
+            $statuses = ($marks[$s->group_id.':'.$s->id] ?? collect())->pluck('status')->all();
+            if ($s->left_at !== null && ! $statuses) {
+                continue;
+            }
+            $out[(int) $s->group_id][] = [
                 'student_id' => $s->id,
                 'name' => trim($s->first_name.' '.$s->last_name),
                 'counts' => array_count_values($statuses) + ['PRESENT' => 0, 'LATE' => 0, 'ABSENT' => 0, 'EXCUSED' => 0],
@@ -126,9 +161,9 @@ class AttendanceController
                 'left' => $s->left_at !== null,
                 'left_at' => $s->left_at,
             ];
-        })->values();
+        }
 
-        return response()->json(['data' => $data]);
+        return $out;
     }
 
     /** O'zgarishlar tarixi (audit_logs dan). */

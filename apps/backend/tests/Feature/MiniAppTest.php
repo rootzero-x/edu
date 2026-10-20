@@ -134,4 +134,46 @@ class MiniAppTest extends TestCase
         $defaults = config('tisu.settings')['miniapp.texts']['default'] ?? app(Settings::class)->get('miniapp.texts');
         $this->assertSame([], array_values(array_diff(array_unique($used), array_keys($defaults))));
     }
+
+    public function test_attendance_reports_for_many_groups_in_one_request(): void
+    {
+        $admin = User::factory()->role(Role::Admin)->create();
+        $t1 = User::factory()->role(Role::Teacher)->create();
+        $t2 = User::factory()->role(Role::Teacher)->create();
+        [$s1, $s2] = [User::factory()->create(['first_name' => 'Aziz']), User::factory()->create(['first_name' => 'Bobur'])];
+        $course = Course::create(['title' => 'Ingliz', 'created_by' => $admin->id]);
+        $branch = Branch::create(['name' => 'Markaz']);
+        Sanctum::actingAs($admin);
+        $mk = fn (string $name, User $t) => $this->postJson('/v1/groups', [
+            'name' => $name, 'course_id' => $course->id, 'branch_id' => $branch->id, 'teacher_id' => $t->id, 'start_date' => '2026-10-19',
+            'schedules' => [['weekday' => 1, 'start_time' => '07:00', 'end_time' => '07:30']],
+        ])->assertCreated()->json('group.id');
+        [$g1, $g2, $g3] = [$mk('A-1', $t1), $mk('B-2', $t2), $mk('C-3', $t2)];
+        foreach ([[$g1, $s1], [$g1, $s2], [$g2, $s2]] as [$g, $s]) {
+            $this->postJson("/v1/groups/$g/members", ['student_id' => $s->id])->assertCreated();
+        }
+        $this->patchJson("/v1/groups/$g3", ['active' => false])->assertOk();
+        $this->postJson("/v1/groups/$g1/sessions/generate", ['from' => '2026-10-19', 'to' => '2026-10-19'])->assertOk();
+        $sid = (int) DB::table('class_sessions')->where('group_id', $g1)->value('id');
+        $this->putJson("/v1/sessions/$sid/attendance", ['items' => [
+            ['student_id' => $s1->id, 'status' => 'PRESENT'], ['student_id' => $s2->id, 'status' => 'ABSENT']]])->assertOk();
+
+        // Admin: faol guruhlar (yopiq C-3 yo'q), natija har guruhli endpoint bilan bir xil.
+        $all = $this->getJson('/v1/attendance/reports')->assertOk()->json('data');
+        $this->assertSame([$g1, $g2], array_column($all, 'group_id'));
+        $this->assertSame($this->getJson("/v1/groups/$g1/attendance")->json('data'), $all[0]['rows']);
+        $this->assertSame([100.0, 0.0], array_map(fn ($r) => (float) $r['rate'], $all[0]['rows']));
+        $this->assertSame([$g3], array_column($this->getJson("/v1/attendance/reports?group_ids=$g3")->json('data'), 'group_id'));
+
+        Sanctum::actingAs($t1);
+        $this->assertSame([$g1], array_column($this->getJson('/v1/attendance/reports')->json('data'), 'group_id'));
+        $this->assertSame([], $this->getJson("/v1/attendance/reports?group_ids=$g2")->json('data'));
+
+        Sanctum::actingAs($s2); // o'quvchi — faqat o'zi, ikkala guruhida
+        $mine = $this->getJson('/v1/attendance/reports')->json('data');
+        $this->assertSame([$g1, $g2], array_column($mine, 'group_id'));
+        $this->assertSame([$s2->id], array_column($mine[0]['rows'], 'student_id'));
+
+        $this->getJson('/v1/attendance/reports?group_ids=1;drop')->assertStatus(422);
+    }
 }
