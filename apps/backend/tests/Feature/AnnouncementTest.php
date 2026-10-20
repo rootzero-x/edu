@@ -59,8 +59,11 @@ class AnnouncementTest extends TestCase
         Http::assertSentCount(1);
         Http::assertSent(fn ($r) => (int) $r['chat_id'] === 51 && str_contains($r['text'], "Dars ko'chdi"));
 
+        // Telegram'ga yuborilgan yangilik o'qilgan hisoblanadi (notifications.mark_pushed_news_read).
         Sanctum::actingAs($this->student);
-        $this->getJson('/v1/announcements')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.unread', 1)->assertJsonPath('data.0.read', false);
+        $this->getJson('/v1/announcements')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.unread', 0)->assertJsonPath('data.0.read', true);
+        DB::table('announcement_reads')->delete();
+        $this->getJson('/v1/announcements')->assertJsonPath('meta.unread', 1)->assertJsonPath('data.0.read', false);
         $this->postJson("/v1/announcements/$id/read")->assertJsonPath('unread', 0);
 
         Sanctum::actingAs($this->outsider);
