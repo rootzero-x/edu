@@ -55,3 +55,24 @@ users, branches, courses, modules, lessons, lesson_materials, groups, group_memb
 - Lokal: `npm test`, `npm run build` (api + web).
 - Deploydan oldin va keyin serverdagi boshqa saytlar HTTP statusi solishtiriladi.
 - `/health`, login, kurs yaratish, Mini App ochilishi — qo'lda smoke test.
+
+---
+
+## Holat (2026-10-20)
+Ishlab turibdi: https://tisu.uzstudents.uz (Vercel) · https://api.tisu.uzstudents.uz (myxvest, Laravel 12 / PHP 8.3) · @edu_tisu_bot + Mini App (/tg).
+To'lov tizimi yo'q (ichki o'quv tizimi) — billing olib tashlangan.
+
+| Bo'lim | Holat |
+|---|---|
+| Auth: telefon+parol, Telegram (deep-link, Mini App initData), profil | ✅ |
+| Sozlamalar: barcha matn/qoida/rol huquqlari `config/tisu.php` registry + panel (Sozlamalar) | ✅ |
+| Kurslar, modullar, darslar, materiallar; kurs maxfiyligi (`course.*`: kontent faqat guruh o'quvchilariga, boshqalarga @rootzero_x murojaati) | ✅ |
+| Guruhlar, jadval, darslar, davomat (avto-status, o'tgan darslarni tuzatish + sabab + tarix, belgilanmaganlar) | ✅ |
+| Testlar, baholash, sertifikat (QR, ochiq tekshiruv) | ✅ |
+| Hisobotlar: davomat trendi, guruhlar, xavf ostidagilar, testlar, CSV | ✅ |
+| Bot: rolga qarab menyu, o'qituvchi davomati, admin (statistika, qidiruv, xabar tarqatish) | ✅ |
+| Avtomatik vazifalar (cron): darslarni yaratish, dars eslatmasi, belgilanmagan davomat eslatmasi, tozalash | ✅ |
+
+Foydali buyruqlar (serverda, `/opt/alt/php83/usr/bin/php artisan …`):
+`tisu:setting <key> '<json>'`, `tisu:telegram-setup`, `tisu:telegram-status`, `tisu:create-admin`, `schedule:list`.
+Deploy: `./deploy/deploy-backend.sh` (zaxira → migratsiya → health-check); web — `main` ga push.
