@@ -115,4 +115,23 @@ class MiniAppTest extends TestCase
         $this->getJson('/v1/sessions?from=2026-10-21&to=2026-10-20')->assertStatus(422);
         $this->getJson('/v1/sessions?from=2026-10-21&to=2026-10-22&group_ids=1;drop')->assertStatus(422);
     }
+
+    /** Mini App'dagi har bir t("kalit") sozlamaning standart matnlarida bor (aks holda ekranda xom kalit chiqadi). */
+    public function test_every_text_key_used_by_the_mini_app_has_a_default(): void
+    {
+        $dir = base_path('../web/app/tg');
+        if (! is_dir($dir)) {
+            $this->markTestSkipped('apps/web topilmadi');
+        }
+        $used = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir)) as $f) {
+            if (preg_match('/\.tsx?$/', $f->getFilename())) {
+                preg_match_all('/\bt\(\s*"([a-z0-9_]+)"/', file_get_contents($f->getPathname()), $m);
+                $used = array_merge($used, $m[1]);
+            }
+        }
+        $this->assertNotEmpty($used);
+        $defaults = config('tisu.settings')['miniapp.texts']['default'] ?? app(Settings::class)->get('miniapp.texts');
+        $this->assertSame([], array_values(array_diff(array_unique($used), array_keys($defaults))));
+    }
 }

@@ -12,23 +12,29 @@ export type Group = {
 export type Session = { id: number; group_id: number; starts_at: string; ends_at: string; topic: string | null; cancelled: boolean; marked_count: number };
 export type SessionWithGroup = Session & { group: Group };
 
-/** Guruhlar bo'yicha darslar (GET /groups/{id}/sessions) — bitta ro'yxatga, vaqt bo'yicha. */
+/**
+ * Guruhlar darslari vaqt bo'yicha bitta ro'yxatda. Bitta so'rov (GET /sessions) — har guruhga alohida
+ * so'rov ko'p guruhli adminni api limitiga tushirardi.
+ */
 export function useSessions(groups: Group[] | null, from: string, to: string) {
   const [state, setState] = useState<{ data: SessionWithGroup[] | null; error: boolean }>({ data: null, error: false });
   const key = groups?.map((g) => g.id).join(",") ?? "";
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!groups) return;
+    if (groups.length === 0) return setState({ data: [], error: false });
     let cancelled = false;
-    Promise.all(groups.map(async (g) => {
-      const r = await tg<{ data: Session[] }>("GET", `groups/${g.id}/sessions?from=${from}&to=${to}`);
-      if (!r.ok) throw new Error(String(r.status));
-      return r.data.data.map((s) => ({ ...s, group: g }));
-    }))
-      .then((lists) => !cancelled && setState({ data: lists.flat().sort((a, b) => a.starts_at.localeCompare(b.starts_at)), error: false }))
-      .catch(() => !cancelled && setState({ data: null, error: true }));
+    const byId = new Map(groups.map((g) => [g.id, g]));
+    tg<{ data: Session[] }>("GET", `sessions?from=${from}&to=${to}&group_ids=${key}`).then((r) => {
+      if (cancelled) return;
+      if (!r.ok) return setState({ data: null, error: true });
+      const list = r.data.data.flatMap((s) => (byId.has(s.group_id) ? [{ ...s, group: byId.get(s.group_id)! }] : []));
+      setState({ data: list.sort((a, b) => a.starts_at.localeCompare(b.starts_at)), error: false });
+    });
     return () => {
       cancelled = true;
     };
-  }, [key, from, to]);
-  return state;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, from, to, attempt]);
+  return { ...state, reload: () => setAttempt((n) => n + 1) };
 }

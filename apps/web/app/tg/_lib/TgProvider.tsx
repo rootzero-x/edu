@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { setReauth } from "./api";
-import { haptic, openLink, waitForWebApp, webApp, type WebApp } from "./webapp";
+import { setOfflineText, setReauth } from "./api";
+import { canLeave, haptic, launchedFromTelegram, openLink, waitForWebApp, webApp, type WebApp } from "./webapp";
 
 export type TgUser = {
   id: number;
@@ -14,7 +14,7 @@ export type TgUser = {
   permissions: string[];
 };
 
-type Phase = "boot" | "outside" | "need_phone" | "linking" | "blocked" | "error" | "ready";
+type Phase = "boot" | "outside" | "need_phone" | "linking" | "blocked" | "expired" | "error" | "ready";
 
 type Ctx = {
   me: TgUser;
@@ -47,11 +47,21 @@ const FALLBACK: Record<string, string> = {
   open_on_web: "Saytda ochish",
   sheet_reason: "O'zgartirish sababi",
   sheet_reason_hint: "Masalan: ma'lumotnoma keltirdi",
+  sheet_reason_required: "O'zgartirish sababini yozing.",
+  session_expired: "Sessiya eskirgan. Ilovani yopib, qayta oching.",
+  reopen: "Yopish",
+  offline: "Internet bilan aloqa yo'q.",
+  quiz_leave_confirm: "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
+  nav_attendance: "Davomat",
+  nav_balance: "Balans",
+  balance_title: "To'lovlar va balans",
+  balance_empty: "To'lovlar bo'yicha ma'lumot yo'q.",
 };
 
 export default function TgProvider({ settings, children }: { settings: Record<string, any> | null; children: React.ReactNode }) {
   const s = settings ?? {};
   const texts = { ...FALLBACK, ...((s["miniapp.texts"] as Record<string, string>) ?? {}) };
+  setOfflineText(texts.offline);
   const t = useCallback(
     (key: string, vars: Record<string, string | number> = {}) =>
       Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), texts[key] ?? key),
@@ -68,7 +78,7 @@ export default function TgProvider({ settings, children }: { settings: Record<st
   const auth = useCallback(async (): Promise<boolean> => {
     const wa = waRef.current;
     if (!wa?.initData) {
-      setPhase("outside");
+      setPhase(launchedFromTelegram() ? "error" : "outside");
       return false;
     }
     try {
@@ -83,7 +93,11 @@ export default function TgProvider({ settings, children }: { settings: Record<st
         setPhase("ready");
         return true;
       }
-      setPhase(data.status === "need_phone" ? "need_phone" : data.status === "blocked" || res.status === 403 ? "blocked" : "error");
+      setPhase(
+        data.status === "need_phone" ? "need_phone"
+          : data.status === "expired" ? "expired"
+            : data.status === "blocked" || res.status === 403 ? "blocked" : "error",
+      );
     } catch {
       setPhase("error");
     }
@@ -97,14 +111,16 @@ export default function TgProvider({ settings, children }: { settings: Record<st
       const wa = await waitForWebApp();
       if (cancelled) return;
       waRef.current = wa;
-      if (!wa) return setPhase("outside");
+      // SDK yuklanmadi: Telegram ichida bo'lsa — tarmoq xatosi (qayta urinish), aks holda — brauzer.
+      if (!wa) return setPhase(launchedFromTelegram() ? "error" : "outside");
       wa.ready();
       wa.expand();
       const applyTheme = () => {
         document.documentElement.dataset.tgScheme = wa.colorScheme;
         try {
-          wa.setHeaderColor("bg_color");
-          wa.setBackgroundColor("bg_color");
+          // Sahifa foni secondary_bg (tg.css --c-bg): sarlavha va "overscroll" foni ham shu rangda bo'lsin.
+          wa.setHeaderColor("secondary_bg_color");
+          wa.setBackgroundColor("secondary_bg_color");
         } catch {
           /* eski versiya */
         }
@@ -122,8 +138,9 @@ export default function TgProvider({ settings, children }: { settings: Record<st
   useEffect(() => {
     const wa = webApp();
     if (!wa || phase !== "ready") return;
-    const back = () => {
+    const back = async () => {
       haptic.tap();
+      if (!(await canLeave())) return;
       if (window.history.length > 1) router.back();
       else router.push("/tg");
     };
@@ -131,7 +148,9 @@ export default function TgProvider({ settings, children }: { settings: Record<st
       wa.BackButton.show();
       wa.BackButton.onClick(back);
     } else wa.BackButton.hide();
-    return () => wa.BackButton.offClick(back);
+    return () => {
+      wa.BackButton.offClick(back);
+    };
   }, [pathname, phase, router]);
 
   /** Telefon ulash: requestContact → bot kontaktni qabul qiladi → qayta kirish. */
@@ -148,6 +167,13 @@ export default function TgProvider({ settings, children }: { settings: Record<st
       }
       setPhase("need_phone");
     });
+  }
+
+  function retry() {
+    // SDK umuman yuklanmagan bo'lsa — sahifani qayta yuklash kerak.
+    if (!waRef.current) return window.location.reload();
+    setPhase("boot");
+    auth();
   }
 
   function goToBot() {
@@ -182,10 +208,17 @@ export default function TgProvider({ settings, children }: { settings: Record<st
           </>
         )}
         {phase === "blocked" && <p className="tg-hint">{t("blocked")}</p>}
+        {phase === "expired" && (
+          <>
+            <div className="tg-emoji">⏳</div>
+            <p className="tg-hint">{t("session_expired")}</p>
+            <button className="tg-btn" onClick={() => waRef.current?.close()}>{t("reopen")}</button>
+          </>
+        )}
         {phase === "error" && (
           <>
             <p className="tg-hint">{t("error")}</p>
-            <button className="tg-btn" onClick={() => { setPhase("boot"); auth(); }}>{t("retry")}</button>
+            <button className="tg-btn" onClick={retry}>{t("retry")}</button>
           </>
         )}
       </div>

@@ -448,6 +448,11 @@ return [
             'balance_recent' => "So'nggi yozuvlar",
             'balance_empty' => "To'lovlar bo'yicha ma'lumot yo'q.",
             'balance_voided' => 'bekor qilingan',
+            'sheet_reason_required' => "O'zgartirish sababini yozing.",
+            'session_expired' => 'Sessiya eskirgan. Ilovani yopib, qayta oching.',
+            'reopen' => 'Yopish',
+            'offline' => "Internet bilan aloqa yo'q.",
+            'quiz_leave_confirm' => "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
         ]],
 
         // ── Kurs maxfiyligi ──────────────────────────────────

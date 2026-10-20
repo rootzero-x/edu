@@ -89,7 +89,6 @@ export function Failed({ onRetry, text }: { onRetry?: () => void; text?: string 
   );
 }
 
-/** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
 /** Kursga yozilmagan foydalanuvchi: murojaat tugmasi bilan (matnlar sozlamalardan). */
 export function Denied({ denial }: { denial: Denial }) {
   const url = denial.contact_url || (denial.contact?.startsWith("@") ? `https://t.me/${denial.contact.slice(1)}` : "");
@@ -103,9 +102,11 @@ export function Denied({ denial }: { denial: Denial }) {
   );
 }
 
+/** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
 export function Async<T>({ q, children }: { q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null }; children: (data: T) => React.ReactNode }) {
   if (q.loading && !q.data) return <Loading />;
-  if (q.denial) return <Page><Denied denial={q.denial} /></Page>;
+  // Page ichida ham, tashqarisida ham ishlatiladi — ichma-ich <main> bo'lmasin.
+  if (q.denial) return <Denied denial={q.denial} />;
   if (q.error || !q.data) return <Failed onRetry={q.reload} text={q.error} />;
   return <>{children(q.data)}</>;
 }
@@ -118,19 +119,25 @@ export function Progress({ value, tone }: { value: number; tone?: "ok" | "warn" 
 
 /**
  * Telegram MainButton. Telegram tashqarisida (brauzerda sinash) sahifa ichidagi tugma ko'rsatiladi.
+ * Bosish faqat faol holatda o'tadi (SDK nofaol tugma bosilishini ham yuborishi mumkin), ketma-ket
+ * ikki bosishni handler o'zi to'xtatadi (progress).
  */
 export function MainButton({ text, onClick, disabled, progress, hidden }: {
   text: string; onClick: () => void; disabled?: boolean; progress?: boolean; hidden?: boolean;
 }) {
   const handler = useRef(onClick);
   handler.current = onClick;
+  const blocked = useRef(false);
+  blocked.current = Boolean(disabled || progress || hidden);
   const [native, setNative] = useState(false);
 
   useEffect(() => {
     const wa = webApp();
-    if (!wa) return;
+    if (!wa?.initData) return;
     setNative(true);
-    const cb = () => handler.current();
+    const cb = () => {
+      if (!blocked.current) handler.current();
+    };
     wa.MainButton.onClick(cb);
     return () => {
       wa.MainButton.offClick(cb);
@@ -141,15 +148,31 @@ export function MainButton({ text, onClick, disabled, progress, hidden }: {
 
   useEffect(() => {
     const wa = webApp();
-    if (!wa) return;
+    if (!wa?.initData) return;
     const b = wa.MainButton;
+    const theme = wa.themeParams ?? {};
     b.setText(text);
-    if (hidden) b.hide();
-    else b.show();
-    if (disabled) b.disable();
-    else b.enable();
+    // Tartib muhim: SDK hideProgress() nofaol tugmani qayta faollashtiradi, shuning uchun avval progress.
     if (progress) b.showProgress(false);
     else b.hideProgress();
+    if (disabled && !progress) {
+      b.disable();
+      // Ko'p klientlar nofaol tugmani xiralashtirmaydi — rang bilan ko'rsatamiz.
+      try {
+        b.setParams({ color: theme.secondary_bg_color || "#c8c8cc", text_color: theme.hint_color || "#8a8f98" });
+      } catch {
+        /* eski versiya */
+      }
+    } else if (!progress) {
+      b.enable();
+      try {
+        if (theme.button_color) b.setParams({ color: theme.button_color, text_color: theme.button_text_color || "#ffffff" });
+      } catch {
+        /* eski versiya */
+      }
+    }
+    if (hidden) b.hide();
+    else b.show();
   }, [text, disabled, progress, hidden]);
 
   if (native || hidden) return null;
