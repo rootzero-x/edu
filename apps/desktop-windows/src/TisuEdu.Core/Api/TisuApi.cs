@@ -5,7 +5,7 @@ using TisuEdu.Core.Models;
 namespace TisuEdu.Core.Api;
 
 /// <summary>/v1 endpointlari (apps/backend/routes/api.php) uchun tiplangan qobiq.</summary>
-public sealed class TisuApi(ApiClient http)
+public sealed partial class TisuApi(ApiClient http)
 {
     public ApiClient Http { get; } = http;
 

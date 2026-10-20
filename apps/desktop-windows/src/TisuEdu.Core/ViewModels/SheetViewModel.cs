@@ -235,6 +235,17 @@ public sealed partial class SheetViewModel(AppServices services, int sessionId) 
         }
     }
 
+    public bool CanCancel => S.Session.Can(Permissions.GroupManage);
+
+    public string CancelActionText => Cancelled ? "Darsni tiklash" : "Darsni bekor qilish";
+
+    partial void OnCancelledChanged(bool value) => OnPropertyChanged(nameof(CancelActionText));
+
+    [RelayCommand]
+    private Task ToggleCancelAsync() => ConfirmActAsync(CancelActionText,
+        Cancelled ? "Dars qayta faollashtirilsinmi?" : "Dars bekor qilinsinmi? Bekor qilingan darsda davomat belgilanmaydi.",
+        Cancelled ? "Tiklash" : "Bekor qilish", () => S.Api.CancelSessionAsync(sessionId, !Cancelled), Cancelled ? "Dars tiklandi." : "Dars bekor qilindi.");
+
     [RelayCommand]
     private void OpenGroup()
     {

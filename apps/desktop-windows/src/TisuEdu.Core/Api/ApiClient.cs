@@ -94,6 +94,9 @@ public sealed class ApiClient
     public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default) =>
         SendAsync<T>(HttpMethod.Patch, path, body, ct);
 
+    public Task<T> DeleteAsync<T>(string path, object? body = null, CancellationToken ct = default) =>
+        SendAsync<T>(HttpMethod.Delete, path, body, ct);
+
     /// <summary>
     /// Tarmoqdan oladi va diskka saqlaydi; aloqa bo'lmasa oxirgi saqlangan javobni qaytaradi (oflayn rejim).
     /// </summary>

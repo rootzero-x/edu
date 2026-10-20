@@ -17,6 +17,7 @@ public static class Permissions
     public const string UserManage = "user.manage";
     public const string SettingsManage = "settings.manage";
     public const string AnnouncementManage = "announcement.manage";
+    public const string BillingManage = "billing.manage";
 }
 
 public static class AttendanceStatus
@@ -373,6 +374,7 @@ public sealed class QuizSummary
     public int MaxAttempts { get; set; }
     public int? TimeLimitSec { get; set; }
     public bool Published { get; set; } = true;
+    public bool Shuffle { get; set; }
     public int QuestionsCount { get; set; }
     public bool Locked { get; set; }
     public int? MyAttempts { get; set; }
@@ -413,6 +415,9 @@ public sealed class QuizInfo
     public int MaxAttempts { get; set; }
     public int? TimeLimitSec { get; set; }
     public int CourseId { get; set; }
+    public int? LessonId { get; set; }
+    public bool Shuffle { get; set; }
+    public bool Published { get; set; } = true;
     public int QuestionsCount { get; set; }
     public NamedRef? Course { get; set; }
     /// <summary>Faqat boshqaruvchiga (javob kaliti bilan).</summary>
@@ -504,7 +509,10 @@ public sealed class Certificate
     public string? LastName { get; set; }
     public string? Course { get; set; }
     public string? Group { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public string? RevokedReason { get; set; }
     [JsonIgnore] public string StudentName => $"{FirstName} {LastName}".Trim();
+    [JsonIgnore] public bool Revoked => RevokedAt is not null;
 }
 
 public sealed class Announcement
@@ -517,8 +525,11 @@ public sealed class Announcement
     public string? AudienceRole { get; set; }
     public NamedRef? Group { get; set; }
     public bool Pinned { get; set; }
+    public bool IsPublic { get; set; }
+    public bool NotifyTelegram { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
     public string? Author { get; set; }
+    public int? CreatedBy { get; set; }
     public bool Read { get; set; }
 }
 

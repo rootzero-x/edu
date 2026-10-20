@@ -84,6 +84,26 @@ internal sealed class FakeNavigator : INavigator
     public bool GoBack() => false;
 }
 
+/// <summary>Formalarni "to'ldiradi": navbatdagi qiymatlar standart qiymatlar ustiga yoziladi.</summary>
+internal sealed class FakeForms : IForms
+{
+    public Queue<Dictionary<string, string>> Answers { get; } = new();
+    public List<string> Errors { get; } = [];
+    public List<string> Titles { get; } = [];
+
+    public async Task<bool> ShowAsync(string title, IReadOnlyList<FormField> fields, Func<FormValues, Task<string?>> submit, string primaryText = "Saqlash")
+    {
+        Titles.Add(title);
+        if (Answers.Count == 0) return false; // foydalanuvchi bekor qildi
+        var values = fields.ToDictionary(f => f.Key, f => f.Value);
+        foreach (var (k, v) in Answers.Dequeue()) values[k] = v;
+        var error = await submit(new FormValues(values));
+        if (error is null) return true;
+        Errors.Add(error);
+        return false;
+    }
+}
+
 internal sealed class FakeNotifier : INotifier
 {
     public List<Announcement> Shown { get; } = [];
@@ -107,7 +127,8 @@ internal sealed class TestApp : IDisposable
         Notifier = new FakeNotifier();
         Watcher = new AnnouncementWatcher(Session, Settings, Notifier, Dir);
         Preferences = new Preferences(Path.Combine(Dir, "prefs.json"));
-        Services = new AppServices(Session, Settings, Platform, Navigator, Watcher, Preferences);
+        Forms = new FakeForms();
+        Services = new AppServices(Session, Settings, Platform, Navigator, Watcher, Preferences, Forms);
     }
 
     public string Dir { get; }
@@ -123,6 +144,7 @@ internal sealed class TestApp : IDisposable
     public FakeNotifier Notifier { get; }
     public AnnouncementWatcher Watcher { get; }
     public Preferences Preferences { get; }
+    public FakeForms Forms { get; }
     public AppServices Services { get; }
 
     public const string UserJson = """{"id":7,"phone":"+998901234567","first_name":"Ali","last_name":"Valiyev","role":"TEACHER","branch_id":null,"active":true,"locale":"uz","permissions":["course.view","attendance.mark","report.view"]}""";

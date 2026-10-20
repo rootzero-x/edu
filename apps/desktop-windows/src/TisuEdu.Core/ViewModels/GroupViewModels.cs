@@ -68,6 +68,57 @@ public sealed partial class GroupsViewModel(AppServices services) : PageViewMode
     {
         if (item is not null) S.Navigator.Navigate(Page.Group, item.Group.Id);
     }
+
+    public bool CanManage => S.Session.Can(Permissions.GroupManage);
+
+    [RelayCommand]
+    private async Task NewGroupAsync()
+    {
+        var (courses, teachers) = await GroupForms.OptionsAsync(S);
+        if (courses is null) { ActionError = teachers is null ? Strings.Offline : null; return; }
+        var ok = await S.Forms.ShowAsync("Yangi guruh", Editing.GroupForm(null, courses, teachers!, Settings), v =>
+        {
+            var (body, error) = Editing.GroupBody(v, Settings, edit: false);
+            return body is null ? Task.FromResult(error) : Submit(() => S.Api.CreateGroupAsync(body));
+        }, "Yaratish");
+        if (ok) { await RefreshAsync(); Notice = "Guruh yaratildi. Darslarni jadvaldan yaratishni unutmang."; }
+    }
+}
+
+internal static class GroupForms
+{
+    /// <summary>Kurslar va o'qituvchilar ro'yxati (parallel).</summary>
+    public static async Task<(List<KeyValuePair<string, string>>? Courses, List<KeyValuePair<string, string>>? Teachers)> OptionsAsync(AppServices s)
+    {
+        try
+        {
+            var coursesTask = s.Api.CoursesAsync();
+            var teachersTask = s.Api.TeachersAsync();
+            await Task.WhenAll(coursesTask, teachersTask);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            return (coursesTask.Result.Value.Data.Select(c => Editing.Opt(c.Id.ToString(inv), c.Title)).ToList(),
+                teachersTask.Result.Select(t => Editing.Opt(t.Id.ToString(inv), t.FullName)).ToList());
+        }
+        catch (ApiException) { return (null, null); }
+    }
+}
+
+public sealed class CandidateItem(CertificateCandidate c)
+{
+    public CertificateCandidate Candidate { get; } = c;
+    public string Name => c.Name + (c.Left ? " (chiqib ketgan)" : "");
+    public string Meta => $"Davomat: {Format.Percent(c.AttendanceRate)} · {c.MarkedSessions} dars · yakuniy test: {(c.FinalQuizPassed ? "o'tgan" : "o'tmagan")}";
+    public bool HasCertificate => c.Certificate is not null;
+    public bool Eligible => c.Certificate is null && c.Blockers.Count == 0;
+    public string Status => c.Certificate is { } code ? $"Berilgan: {code}"
+        : c.Blockers.Count == 0 ? "Berish mumkin"
+        : string.Join(", ", c.Blockers.Select(b => b switch
+        {
+            "NO_ATTENDANCE_DATA" => "davomat ma'lumoti kam",
+            "LOW_ATTENDANCE" => "davomat past",
+            "QUIZ_NOT_PASSED" => "yakuniy test topshirilmagan",
+            _ => b,
+        }));
 }
 
 public sealed class SessionItem(ClassSession s, int students, SiteSettings st)
@@ -139,6 +190,7 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
         var g = await groupTask;
         Track(g);
         var group = g.Value;
+        _group = group;
         Name = group.Name;
         Course = group.Course?.Title ?? "";
         Teacher = group.Teacher is null ? "" : group.Teacher.FullName + (string.IsNullOrEmpty(group.Teacher.Phone) ? "" : " · " + group.Teacher.Phone);
@@ -182,6 +234,92 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
     {
         if (item is not null) S.Navigator.Navigate(Page.Sheet, item.Session.Id);
     }
+
+    // ── Boshqarish (group.manage) ────────────────────────────
+    private Group? _group;
+
+    public bool CanManage => S.Session.Can(Permissions.GroupManage);
+
+    public ObservableCollection<CandidateItem> Candidates { get; } = [];
+
+    [ObservableProperty] private bool _hasCandidates;
+    [ObservableProperty] private bool _canIssue;
+
+    [RelayCommand]
+    private async Task EditGroupAsync()
+    {
+        if (_group is null) return;
+        var (courses, teachers) = await GroupForms.OptionsAsync(S);
+        if (courses is null) { ActionError = Strings.Offline; return; }
+        var g = _group;
+        var ok = await S.Forms.ShowAsync("Guruhni tahrirlash", Editing.GroupForm(g, courses, teachers!, Settings), v =>
+        {
+            var (body, error) = Editing.GroupBody(v, Settings, edit: true);
+            return body is null ? Task.FromResult(error) : Submit(() => S.Api.UpdateGroupAsync(groupId, body));
+        });
+        if (ok) { await RefreshAsync(); Notice = "Guruh saqlandi."; }
+    }
+
+    [RelayCommand]
+    private Task GenerateSessionsAsync() => ConfirmActAsync("Darslarni yaratish",
+        "Haftalik jadval bo'yicha darslar yaratilsinmi? Mavjud darslar takrorlanmaydi.", "Yaratish",
+        () => S.Api.GenerateSessionsAsync(groupId), "Darslar jadvaldan yaratildi.");
+
+    [RelayCommand]
+    private async Task AddMemberAsync()
+    {
+        List<UserRow> found = [];
+        var searched = await S.Forms.ShowAsync("O'quvchi qo'shish", [new FormField("q", "Ism yoki telefon raqami") { Required = true }], async v =>
+        {
+            try
+            {
+                found = (await S.Api.UsersAsync(v.Str("q"), "STUDENT", null, 1)).Data.Where(u => u.Active).ToList();
+                return found.Count == 0 ? "O'quvchi topilmadi. Avval «Foydalanuvchilar» bo'limida qo'shing." : null;
+            }
+            catch (ApiException ex) { return ex.Message; }
+        }, "Qidirish");
+        if (!searched) return;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var options = found.Select(u => Editing.Opt(u.Id.ToString(inv), $"{u.FullName} · {u.Phone}")).ToList();
+        await EditAsync("O'quvchini tanlang", [FormField.Choice("student", "O'quvchi", options, options[0].Key)],
+            v => S.Api.AddMemberAsync(groupId, v.Int("student") ?? 0), "O'quvchi guruhga qo'shildi.", "Qo'shish");
+    }
+
+    [RelayCommand]
+    private async Task RemoveMemberAsync(StudentRow? row)
+    {
+        if (row is null) return;
+        var reasons = Settings.List("enrollment.leave_reasons");
+        var fields = new List<FormField>();
+        if (reasons.Count > 0) fields.Add(FormField.Choice("reason", "Sabab", reasons.Select(r => Editing.Opt(r, r)), reasons[0]));
+        else fields.Add(new FormField("reason", "Sabab"));
+        await EditAsync($"{row.Name} — guruhdan chiqarish", fields,
+            v => S.Api.LeaveMemberAsync(groupId, row.Id, v.StrOrNull("reason")), "O'quvchi guruhdan chiqarildi.", "Chiqarish");
+    }
+
+    [RelayCommand]
+    private async Task LoadCandidatesAsync()
+    {
+        await ActAsync(async () =>
+        {
+            var list = await S.Api.CertificateCandidatesAsync(groupId);
+            Candidates.Clear();
+            foreach (var c in list) Candidates.Add(new CandidateItem(c));
+            HasCandidates = Candidates.Count > 0;
+            CanIssue = Candidates.Any(c => c.Eligible);
+        });
+    }
+
+    [RelayCommand]
+    private Task IssueCertificatesAsync() => ConfirmActAsync("Sertifikat berish",
+        $"Shartlarga mos {Candidates.Count(c => c.Eligible)} ta o'quvchiga sertifikat berilsinmi? O'quvchilarga Telegram'da xabar boradi.", "Berish",
+        async () =>
+        {
+            var r = await S.Api.IssueCertificatesAsync(groupId);
+            Candidates.Clear();
+            foreach (var c in r.Data) Candidates.Add(new CandidateItem(c));
+            CanIssue = Candidates.Any(c => c.Eligible);
+        }, "Sertifikatlar berildi.", reload: false);
 }
 
 /// <summary>Belgilanmagan darslar (attendance.mark): o'tgan, bekor qilinmagan, to'liq belgilanmagan.</summary>

@@ -45,6 +45,10 @@ public enum Page
     Reports,
     Profile,
     AppSettings,
+    Users,
+    AdminSettings,
+    Billing,
+    BillingStudent,
 }
 
 public interface INavigator

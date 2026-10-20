@@ -37,6 +37,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public string NavUsers => Settings.Nav("/dashboard/users", "Foydalanuvchilar");
     public string NavBranches => Settings.Nav("/dashboard/branches", "Filiallar");
     public string NavSettings => Settings.Nav("/dashboard/settings", "Sozlamalar");
+    public string NavBilling => Settings.Nav("/dashboard/billing", "To'lovlar");
     public string LogoutText => Settings.Text("logout", "Chiqish");
 
     // ── Ruxsatlar ────────────────────────────────────────────
@@ -46,6 +47,9 @@ public sealed partial class ShellViewModel : ObservableObject
     public bool CanUsers => _s.Session.Can(Permissions.UserManage);
     public bool CanSettings => _s.Session.Can(Permissions.SettingsManage);
     public bool HasAdmin => CanUsers || CanSettings;
+    /// <summary>To'lovlar: boshqaruvchi — hammasi, o'quvchi — o'z balansi (billing.enabled bo'lsa).</summary>
+    public bool CanBilling => _s.Session.Can(Permissions.BillingManage)
+        || (_s.Session.User?.Role == "STUDENT" && Settings.Bool("billing.enabled", false));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUnread), nameof(UnreadText))]

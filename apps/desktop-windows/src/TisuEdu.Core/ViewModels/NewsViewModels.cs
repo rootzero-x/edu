@@ -26,6 +26,8 @@ public sealed partial class NewsItem(Announcement a, SiteSettings st) : Observab
     private bool _isRead = a.Read;
 
     public bool IsUnread => !IsRead;
+    public bool IsDraft => a.PublishedAt is null;
+    public string StatusText => IsDraft ? "Qoralama" : "Chop etilgan";
 }
 
 /// <summary>Yangiliklar: sahifalab yuklash, ochilganda o'qilgan deb belgilash, menyu belgisi bilan sinxron.</summary>
@@ -45,13 +47,76 @@ public sealed partial class NewsViewModel(AppServices services) : PageViewModel(
     [ObservableProperty] private int _unread;
 
     public bool HasSelection => Selected is not null;
+
+    // ── Boshqarish (announcement.manage): o'z e'lonlari, admin — hammasi ──
+    public bool CanManage => S.Session.Can(Permissions.AnnouncementManage);
+
+    [ObservableProperty] private bool _isManageMode;
+
+    partial void OnIsManageModeChanged(bool value)
+    {
+        Selected = null;
+        _ = RefreshAsync();
+    }
+
+    private bool IsAdmin => S.Session.User?.Role is "ADMIN" or "SUPER_ADMIN";
+
+    private async Task<List<KeyValuePair<string, string>>> GroupOptionsAsync()
+    {
+        try
+        {
+            var g = await S.Api.GroupsAsync();
+            var me = S.Session.User?.Id;
+            return g.Value.Data.Where(x => x.Active && (IsAdmin || x.TeacherId == me))
+                .Select(x => Editing.Opt(x.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), x.Name)).ToList();
+        }
+        catch (ApiException) { return []; }
+    }
+
+    [RelayCommand]
+    private async Task NewAnnouncementAsync()
+    {
+        var groups = await GroupOptionsAsync();
+        var ok = await S.Forms.ShowAsync("Yangi e'lon", Editing.AnnouncementForm(null, Settings, groups, IsAdmin),
+            v => Submit(() => S.Api.CreateAnnouncementAsync(Editing.AnnouncementBody(v, create: true))), "Yaratish");
+        if (!ok) return;
+        if (!IsManageMode) IsManageMode = true; else await RefreshAsync();
+        Notice = "E'lon yaratildi.";
+    }
+
+    [RelayCommand]
+    private async Task EditAnnouncementAsync()
+    {
+        if (Selected is not { } item) return;
+        var groups = await GroupOptionsAsync();
+        await EditAsync("E'lonni tahrirlash", Editing.AnnouncementForm(item.Announcement, Settings, groups, IsAdmin),
+            v => S.Api.UpdateAnnouncementAsync(item.Id, Editing.AnnouncementBody(v, create: false)), "E'lon saqlandi.");
+    }
+
+    [RelayCommand]
+    private Task TogglePublishAsync()
+    {
+        if (Selected is not { } item) return Task.CompletedTask;
+        var publish = item.IsDraft;
+        return ConfirmActAsync(publish ? "Chop etish" : "Yashirish",
+            publish ? $"«{item.Title}» chop etilsinmi? Sozlamaga ko'ra Telegram'da xabar yuboriladi." : $"«{item.Title}» yashirilsinmi (qoralamaga qaytadi)?",
+            publish ? "Chop etish" : "Yashirish", () => S.Api.PublishAnnouncementAsync(item.Id, publish), publish ? "Chop etildi." : "Yashirildi.");
+    }
+
+    [RelayCommand]
+    private Task DeleteAnnouncementAsync()
+    {
+        if (Selected is not { } item) return Task.CompletedTask;
+        return ConfirmActAsync("E'lonni o'chirish", $"«{item.Title}» o'chirilsinmi?", "O'chirish",
+            async () => { await S.Api.DeleteAnnouncementAsync(item.Id); Selected = null; }, "E'lon o'chirildi.");
+    }
     public string Title => Settings.Str("news.title", Settings.Nav("/dashboard/news", "Yangiliklar"));
     public string EmptyText => Settings.Text("news_empty", "Hozircha yangiliklar yo'q.");
 
     protected override async Task LoadCoreAsync(CancellationToken ct)
     {
         ResetStale();
-        var r = await S.Api.AnnouncementsAsync(1, ct);
+        var r = IsManageMode ? await S.Api.ManagedAnnouncementsAsync(1, ct) : await S.Api.AnnouncementsAsync(1, ct);
         Track(r);
         Items.Clear();
         Append(r.Value);
@@ -66,6 +131,7 @@ public sealed partial class NewsViewModel(AppServices services) : PageViewModel(
         CanLoadMore = _page < _pages;
         Unread = p.Meta.Unread;
         S.Watcher.SetUnread(Unread);
+        OnPropertyChanged(nameof(CanManage));
         IsEmpty = Items.Count == 0;
     }
 
@@ -73,12 +139,12 @@ public sealed partial class NewsViewModel(AppServices services) : PageViewModel(
     private async Task LoadMoreAsync()
     {
         if (!CanLoadMore) return;
-        await ActAsync(async () => Append((await S.Api.AnnouncementsAsync(_page + 1)).Value));
+        await ActAsync(async () => Append((IsManageMode ? await S.Api.ManagedAnnouncementsAsync(_page + 1) : await S.Api.AnnouncementsAsync(_page + 1)).Value));
     }
 
     partial void OnSelectedChanged(NewsItem? value)
     {
-        if (value is { IsRead: false }) _ = MarkReadAsync(value);
+        if (value is { IsRead: false, IsDraft: false } && !IsManageMode) _ = MarkReadAsync(value);
     }
 
     private async Task MarkReadAsync(NewsItem item)
@@ -110,6 +176,8 @@ public sealed class CertificateItem(Certificate c, SiteSettings st)
     public string Meta => string.Join(" · ", new[] { c.Group, Format.Date(c.IssuedAt) }.Where(x => !string.IsNullOrEmpty(x)));
     public string Url => st.CertificateBaseUrl.TrimEnd('/') + "/" + Uri.EscapeDataString(c.Code);
     public string OpenText => st.Text("certificate_open", "Ochish");
+    public bool Revoked => c.Revoked;
+    public string RevokedText => "Bekor qilingan" + (string.IsNullOrEmpty(c.RevokedReason) ? "" : ": " + c.RevokedReason);
 }
 
 public sealed partial class CertificatesViewModel(AppServices services) : PageViewModel(services)
@@ -150,6 +218,21 @@ public sealed partial class CertificatesViewModel(AppServices services) : PageVi
     private void Open(CertificateItem? item)
     {
         if (item is not null) S.Platform.Open(new Uri(item.Url));
+    }
+
+    public bool CanRevoke => S.Session.Can(Permissions.GroupManage);
+
+    [RelayCommand]
+    private async Task RevokeAsync(CertificateItem? item)
+    {
+        if (item is null || item.Revoked) return;
+        var reason = await S.Forms.PromptAsync("Sertifikatni bekor qilish", $"{item.Student} — {item.Code}: sabab", required: false, primary: "Bekor qilish");
+        if (reason is null) return;
+        if (await ActAsync(() => S.Api.RevokeCertificateAsync(item.Code, reason.Length > 0 ? reason : null)))
+        {
+            await RefreshAsync();
+            Notice = "Sertifikat bekor qilindi.";
+        }
     }
 
     [RelayCommand]

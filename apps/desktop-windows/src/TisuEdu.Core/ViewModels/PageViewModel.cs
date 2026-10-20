@@ -6,8 +6,9 @@ using TisuEdu.Core.Services;
 namespace TisuEdu.Core.ViewModels;
 
 /// <summary>Ilova xizmatlari — har bir ViewModel shu orqali API, sessiya va platformaga murojaat qiladi.</summary>
-public sealed class AppServices(Session session, SettingsService settings, IPlatform platform, INavigator navigator, AnnouncementWatcher watcher, Preferences preferences)
+public sealed class AppServices(Session session, SettingsService settings, IPlatform platform, INavigator navigator, AnnouncementWatcher watcher, Preferences preferences, IForms forms)
 {
+    public IForms Forms { get; } = forms;
     public Session Session { get; } = session;
     public TisuApi Api => Session.Api;
     public SettingsService Settings { get; } = settings;
@@ -139,4 +140,38 @@ public abstract partial class PageViewModel : ObservableObject
 
     [RelayCommand]
     private void DismissNotice() => Notice = null;
+
+    /// <summary>Forma ichidagi API amali: xato bo'lsa matni qaytadi (dialog ochiq qoladi).</summary>
+    protected static async Task<string?> Submit(Func<Task> action)
+    {
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (ApiException ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    /// <summary>Forma → API → muvaffaqiyatda xabar va qayta yuklash.</summary>
+    protected async Task EditAsync(string title, IReadOnlyList<FormField> fields, Func<FormValues, Task> save, string notice, string primary = "Saqlash")
+    {
+        var ok = await S.Forms.ShowAsync(title, fields, v => Submit(() => save(v)), primary);
+        if (!ok) return;
+        await RefreshAsync();
+        Notice = notice;
+    }
+
+    /// <summary>Tasdiqlab, amalni bajarish (o'chirish va h.k.).</summary>
+    protected async Task ConfirmActAsync(string title, string message, string primary, Func<Task> action, string notice, bool reload = true)
+    {
+        if (!await S.Platform.ConfirmAsync(title, message, primary, "Bekor qilish")) return;
+        if (await ActAsync(action))
+        {
+            if (reload) await RefreshAsync();
+            Notice = notice;
+        }
+    }
 }

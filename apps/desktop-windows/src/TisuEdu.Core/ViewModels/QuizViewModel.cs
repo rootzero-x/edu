@@ -82,6 +82,17 @@ public sealed partial class QuestionItem : ObservableObject
     }
 }
 
+/// <summary>Boshqaruvchi ko'rinishidagi savol (javob kaliti bilan).</summary>
+public sealed class QuestionKeyItem(QuizQuestion q, int index)
+{
+    public QuizQuestion Question { get; } = q;
+    public string Header => $"{index + 1}. {q.Text}";
+    public string Meta => (q.Type switch { "SINGLE" => "Bitta javob", "MULTIPLE" => "Bir nechta javob", _ => "Matnli javob" }) + $" · {q.Points} ball";
+    public string Answers => q.Type == "TEXT"
+        ? "Javob: " + string.Join(" / ", q.AcceptedAnswers ?? [])
+        : string.Join("\n", q.Options.Select(o => (o.IsCorrect == true ? "✓ " : "○ ") + o.Text));
+}
+
 public sealed class AttemptItem(AttemptSummary a)
 {
     public string When => Format.DateTime(a.SubmittedAt ?? a.StartedAt);
@@ -102,6 +113,48 @@ public sealed partial class QuizViewModel(AppServices services, int quizId) : Pa
     public ObservableCollection<AttemptItem> Attempts { get; } = [];
     public ObservableCollection<QuestionItem> Questions { get; } = [];
     public ObservableCollection<QuizResultRow> Results { get; } = [];
+    public ObservableCollection<QuestionKeyItem> KeyQuestions { get; } = [];
+
+    private QuizInfo? _info;
+
+    [ObservableProperty] private bool _canEdit;
+    [ObservableProperty] private bool _hasKeyQuestions;
+
+    [RelayCommand]
+    private Task EditQuizAsync() => _info is null ? Task.CompletedTask : EditAsync("Test sozlamalari", Editing.QuizForm(_info, 60, 3),
+        v => S.Api.UpdateQuizAsync(quizId, Editing.QuizBody(v)), "Test saqlandi.");
+
+    [RelayCommand]
+    private Task DeleteQuizAsync() => ConfirmActAsync("Testni o'chirish", $"«{Title}» testi o'chirilsinmi? Topshirganlar bo'lsa, o'chirish o'rniga yashiring.", "O'chirish",
+        async () => { await S.Api.DeleteQuizAsync(quizId); S.Navigator.GoBack(); }, "Test o'chirildi.", reload: false);
+
+    [RelayCommand]
+    private async Task AddQuestionAsync()
+    {
+        var ok = await S.Forms.ShowAsync("Yangi savol", Editing.QuestionForm(null), v =>
+        {
+            var (body, error) = Editing.QuestionBody(v, null);
+            return body is null ? Task.FromResult(error) : Submit(() => S.Api.CreateQuestionAsync(quizId, body));
+        }, "Qo'shish");
+        if (ok) { await RefreshAsync(); Notice = "Savol qo'shildi."; }
+    }
+
+    [RelayCommand]
+    private async Task EditQuestionAsync(QuestionKeyItem? item)
+    {
+        if (item is null) return;
+        var q = item.Question;
+        var ok = await S.Forms.ShowAsync("Savolni tahrirlash", Editing.QuestionForm(q), v =>
+        {
+            var (body, error) = Editing.QuestionBody(v, q.Type);
+            return body is null ? Task.FromResult(error) : Submit(() => S.Api.UpdateQuestionAsync(q.Id, body));
+        });
+        if (ok) { await RefreshAsync(); Notice = "Savol saqlandi."; }
+    }
+
+    [RelayCommand]
+    private Task DeleteQuestionAsync(QuestionKeyItem? item) => item is null ? Task.CompletedTask : ConfirmActAsync("Savolni o'chirish",
+        "Savol o'chirilsinmi?", "O'chirish", () => S.Api.DeleteQuestionAsync(item.Question.Id), "Savol o'chirildi.");
 
     [ObservableProperty] private string _title = "";
     [ObservableProperty] private string _courseTitle = "";
@@ -150,6 +203,11 @@ public sealed partial class QuizViewModel(AppServices services, int quizId) : Pa
     {
         var d = await S.Api.QuizAsync(quizId, ct);
         var q = d.Quiz;
+        _info = q;
+        CanEdit = d.CanEdit == true;
+        KeyQuestions.Clear();
+        foreach (var (kq, i) in (q.Questions ?? []).Select((x, i) => (x, i))) KeyQuestions.Add(new QuestionKeyItem(kq, i));
+        HasKeyQuestions = KeyQuestions.Count > 0;
         Title = q.Title;
         CourseTitle = q.Course?.Title ?? "";
         Meta = string.Join(" · ", new[]

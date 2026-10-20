@@ -34,6 +34,11 @@ public sealed partial class CoursesViewModel(AppServices services) : PageViewMod
 
     public string Title => Settings.Nav("/dashboard/courses", "Kurslar");
     public string EmptyText => Settings.Text("courses_empty", "Kurslar topilmadi.");
+    public bool CanCreate => S.Session.Can(Permissions.CourseManage) || S.Session.Can("course.author");
+
+    [RelayCommand]
+    private Task NewCourseAsync() => EditAsync("Yangi kurs", Editing.CourseForm(null),
+        v => S.Api.CreateCourseAsync(Editing.CourseBody(v)), "Kurs yaratildi.", "Yaratish");
 
     partial void OnSearchChanged(string value) => ApplyFilter();
 
@@ -64,6 +69,7 @@ public sealed partial class CoursesViewModel(AppServices services) : PageViewMod
 
 public sealed class ModuleItem(CourseModule m, int index)
 {
+    public CourseModule Module { get; } = m;
     public string Title => m.Title;
     public string Number => (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
     public string Meta => $"{m.Lessons.Count} dars";
@@ -126,9 +132,11 @@ public sealed partial class CourseViewModel(AppServices services, int courseId) 
         var r = await courseTask;
         Track(r);
         var d = r.Value;
+        _course = d.Course;
         Title = d.Course.Title;
         Description = d.Course.Description?.Trim() ?? "";
         CanEdit = d.CanEdit;
+        IsPublished = d.Course.Published;
         Denied = d.Access.Granted ? null : d.Access;
         IsDenied = Denied is not null;
         Modules.Clear();
@@ -162,6 +170,43 @@ public sealed partial class CourseViewModel(AppServices services, int courseId) 
 
     [RelayCommand]
     private void OpenOnWeb() => S.Platform.Open(new Uri($"{Settings.SiteUrl}/dashboard/courses/{courseId}"));
+
+    // ── Tahrirlash (kurs muallifi yoki admin: can_edit) ──────
+    private Course? _course;
+
+    [ObservableProperty] private bool _isPublished;
+
+    public bool CanCreateQuiz => CanEdit && S.Session.Can(Permissions.QuizManage);
+
+    partial void OnCanEditChanged(bool value) => OnPropertyChanged(nameof(CanCreateQuiz));
+
+    [RelayCommand]
+    private Task EditCourseAsync() => EditAsync("Kursni tahrirlash", Editing.CourseForm(_course),
+        v => S.Api.UpdateCourseAsync(courseId, Editing.CourseBody(v)), "Kurs saqlandi.");
+
+    [RelayCommand]
+    private Task DeleteCourseAsync() => ConfirmActAsync("Kursni o'chirish", $"«{Title}» kursi o'chirilsinmi? Guruhlari bor kursni o'chirib bo'lmaydi — uni yashiring.", "O'chirish",
+        async () => { await S.Api.DeleteCourseAsync(courseId); S.Navigator.GoBack(); }, "Kurs o'chirildi.", reload: false);
+
+    [RelayCommand]
+    private Task AddModuleAsync() => EditAsync("Yangi modul", Editing.ModuleForm(null),
+        v => S.Api.CreateModuleAsync(courseId, new { title = v.Str("title") }), "Modul qo'shildi.", "Qo'shish");
+
+    [RelayCommand]
+    private Task EditModuleAsync(ModuleItem? m) => m is null ? Task.CompletedTask : EditAsync("Modulni tahrirlash", Editing.ModuleForm(m.Title),
+        v => S.Api.UpdateModuleAsync(m.Module.Id, new { title = v.Str("title") }), "Modul saqlandi.");
+
+    [RelayCommand]
+    private Task DeleteModuleAsync(ModuleItem? m) => m is null ? Task.CompletedTask : ConfirmActAsync("Modulni o'chirish",
+        $"«{m.Title}» moduli va undagi barcha darslar o'chirilsinmi?", "O'chirish", () => S.Api.DeleteModuleAsync(m.Module.Id), "Modul o'chirildi.");
+
+    [RelayCommand]
+    private Task AddLessonAsync(ModuleItem? m) => m is null ? Task.CompletedTask : EditAsync($"Yangi dars — {m.Title}", Editing.LessonForm(null, null, false),
+        v => S.Api.CreateLessonAsync(m.Module.Id, Editing.LessonBody(v)), "Dars qo'shildi.", "Qo'shish");
+
+    [RelayCommand]
+    private Task NewQuizAsync() => EditAsync("Yangi test", Editing.QuizForm(null, Settings.Int("quiz.default_pass_percent", 60), Settings.Int("quiz.default_max_attempts", 3)),
+        v => S.Api.CreateQuizAsync(courseId, Editing.QuizBody(v)), "Test yaratildi. Endi savollar qo'shing.", "Yaratish");
 }
 
 internal static class AccessActions
@@ -245,6 +290,9 @@ public sealed partial class LessonViewModel(AppServices services, int lessonId) 
         }
         Track(r);
         var d = r.Value;
+        _lesson = d.Lesson;
+        CanEdit = d.CanEdit;
+        VideoUri = null;
         Title = d.Lesson.Title;
         Body = d.Lesson.Body?.Trim() ?? "";
         HasBody = Body.Length > 0;
@@ -259,9 +307,61 @@ public sealed partial class LessonViewModel(AppServices services, int lessonId) 
         IsEmpty = Materials.Count == 0 && !HasBody;
     }
 
+    // ── Ilova ichida video (WebView2), course.embed_hosts ro'yxatidagi xostlar ──
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVideo))]
+    private Uri? _videoUri;
+
+    [ObservableProperty] private string _videoTitle = "";
+
+    public bool HasVideo => VideoUri is not null;
+
+    [RelayCommand]
+    private void CloseVideo() => VideoUri = null;
+
+    // ── Tahrirlash ───────────────────────────────────────────
+    private Lesson? _lesson;
+
+    [ObservableProperty] private bool _canEdit;
+
+    [RelayCommand]
+    private Task EditLessonAsync() => _lesson is null ? Task.CompletedTask : EditAsync("Darsni tahrirlash", Editing.LessonForm(_lesson.Title, _lesson.Body, _lesson.Published),
+        v => S.Api.UpdateLessonAsync(_lessonId, Editing.LessonBody(v)), "Dars saqlandi.");
+
+    [RelayCommand]
+    private Task DeleteLessonAsync() => ConfirmActAsync("Darsni o'chirish", $"«{Title}» darsi o'chirilsinmi?", "O'chirish",
+        async () => { await S.Api.DeleteLessonAsync(_lessonId); S.Navigator.GoBack(); }, "Dars o'chirildi.", reload: false);
+
+    [RelayCommand]
+    private async Task AddMaterialAsync()
+    {
+        var ok = await S.Forms.ShowAsync("Yangi material", Editing.MaterialForm(null), v => Editing.ValidateMaterial(v) is { } e
+            ? Task.FromResult<string?>(e) : Submit(() => S.Api.CreateMaterialAsync(_lessonId, Editing.MaterialBody(v))), "Qo'shish");
+        if (ok) { await RefreshAsync(); Notice = "Material qo'shildi."; }
+    }
+
+    [RelayCommand]
+    private async Task EditMaterialAsync(MaterialItem? m)
+    {
+        if (m is null) return;
+        var ok = await S.Forms.ShowAsync("Materialni tahrirlash", Editing.MaterialForm(m.Material), v => Editing.ValidateMaterial(v) is { } e
+            ? Task.FromResult<string?>(e) : Submit(() => S.Api.UpdateMaterialAsync(m.Material.Id, Editing.MaterialBody(v))));
+        if (ok) { await RefreshAsync(); Notice = "Material saqlandi."; }
+    }
+
+    [RelayCommand]
+    private Task DeleteMaterialAsync(MaterialItem? m) => m is null ? Task.CompletedTask : ConfirmActAsync("Materialni o'chirish",
+        $"«{m.Title}» o'chirilsinmi?", "O'chirish", () => S.Api.DeleteMaterialAsync(m.Material.Id), "Material o'chirildi.");
+
     [RelayCommand]
     private void OpenMaterial(MaterialItem? m)
     {
+        if (m is { Type: "VIDEO" } && Embed.Url(m.Material.Url, Settings.List("course.embed_hosts")) is { } embed)
+        {
+            VideoTitle = m.Title;
+            VideoUri = embed;
+            return;
+        }
         if (m?.Material.Url is { } url && Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp))
             S.Platform.Open(u);
     }
