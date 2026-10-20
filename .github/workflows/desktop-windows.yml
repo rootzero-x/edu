@@ -1,0 +1,157 @@
+name: Desktop (Windows)
+
+on:
+  push:
+    paths:
+      - "apps/desktop-windows/**"
+      - ".github/workflows/desktop-windows.yml"
+  pull_request:
+    paths:
+      - "apps/desktop-windows/**"
+      - ".github/workflows/desktop-windows.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+    working-directory: apps/desktop-windows
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  APP_PROJECT: src/TisuEdu.App/TisuEdu.App.csproj
+
+jobs:
+  test:
+    name: Core tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Test (TisuEdu.Core)
+        run: dotnet test tests/TisuEdu.Core.Tests -c Release --logger "trx;LogFileName=core.trx" --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: apps/desktop-windows/TestResults
+          if-no-files-found: ignore
+
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            rid: win-x64
+          - platform: ARM64
+            rid: win-arm64
+    env:
+      RID: ${{ matrix.rid }}
+      PLATFORM: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Version
+        id: ver
+        run: |
+          $v = "1.0.${{ github.run_number }}"
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "VERSION=$v" >> $env:GITHUB_ENV
+
+      - name: Restore
+        run: dotnet restore $env:APP_PROJECT -r $env:RID
+
+      # 1) Paketsiz (unpackaged), self-contained: .NET va Windows App SDK ilova bilan birga — o'rnatishsiz ishlaydi.
+      - name: Publish unpackaged (self-contained)
+        run: |
+          msbuild $env:APP_PROJECT /t:Publish /restore /m /v:minimal /p:Configuration=Release /p:Platform=$env:PLATFORM `
+            /p:RuntimeIdentifier=$env:RID /p:SelfContained=true /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true `
+            /p:PublishReadyToRun=true /p:Version=$env:VERSION /p:PublishDir="$PWD\artifacts\unpackaged\" `
+            /flp:"logfile=$PWD\unpackaged.log;verbosity=normal"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path artifacts\unpackaged\TisuEdu.exe)) { throw "TisuEdu.exe topilmadi" }
+
+      - name: Zip unpackaged
+        run: Compress-Archive -Path artifacts\unpackaged\* -DestinationPath "artifacts\TisuEdu-$env:VERSION-$env:RID-portable.zip"
+
+      # 2) MSIX: CI uchun o'z-o'zidan imzolangan sertifikat (Publisher = CN=TISU Edu, Package.appxmanifest bilan bir xil).
+      #    Reliz uchun haqiqiy sertifikat: secrets.MSIX_CERT_BASE64 + secrets.MSIX_CERT_PASSWORD.
+      - name: Signing certificate
+        env:
+          MSIX_CERT_BASE64: ${{ secrets.MSIX_CERT_BASE64 }}
+          MSIX_CERT_PASSWORD: ${{ secrets.MSIX_CERT_PASSWORD }}
+        run: |
+          $pfx = "$PWD\signing.pfx"
+          if ($env:MSIX_CERT_BASE64) {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:MSIX_CERT_BASE64))
+            $certPass = $env:MSIX_CERT_PASSWORD
+          } else {
+            $certPass = [Guid]::NewGuid().ToString("N")
+            $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=TISU Edu" -KeyUsage DigitalSignature `
+              -FriendlyName "TISU Edu (CI)" -CertStoreLocation "Cert:\CurrentUser\My" `
+              -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+            Export-PfxCertificate -Cert $cert -FilePath $pfx -Password (ConvertTo-SecureString $certPass -AsPlainText -Force) | Out-Null
+            Export-Certificate -Cert $cert -FilePath "$PWD\artifacts\TisuEdu-CI.cer" | Out-Null
+          }
+          "PFX_PATH=$pfx" >> $env:GITHUB_ENV
+          echo "::add-mask::$certPass"
+          "PFX_PASSWORD=$certPass" >> $env:GITHUB_ENV
+
+      - name: Build MSIX
+        run: |
+          (Get-Content src\TisuEdu.App\Package.appxmanifest) -replace 'Version="1\.0\.0\.0"', "Version=""$env:VERSION.0""" | Set-Content src\TisuEdu.App\Package.appxmanifest
+          msbuild $env:APP_PROJECT /restore /m /v:minimal /p:Configuration=Release /p:Platform=$env:PLATFORM `
+            /p:RuntimeIdentifier=$env:RID /p:Version=$env:VERSION `
+            /p:GenerateAppxPackageOnBuild=true /p:UapAppxPackageBuildMode=SideloadOnly /p:AppxBundle=Never `
+            /p:AppxPackageDir="$PWD\artifacts\msix\" /p:AppxPackageSigningEnabled=false `
+            /flp:"logfile=$PWD\msix.log;verbosity=normal"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $msix = Get-ChildItem artifacts\msix -Recurse -Filter *.msix | Select-Object -First 1
+          if (-not $msix) { throw "MSIX topilmadi" }
+          $out = "artifacts\TisuEdu-$env:VERSION-$env:RID.msix"
+          Copy-Item $msix.FullName $out
+          # Imzolash alohida (MSBuild parolli PFX'ni import qila olmaydi): Windows SDK signtool.
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /f $env:PFX_PATH /p $env:PFX_PASSWORD $out
+          if ($LASTEXITCODE -ne 0) { throw "signtool xatosi" }
+          Get-AuthenticodeSignature $out | Format-List Status, SignerCertificate
+
+      # Xatolarni annotatsiya sifatida chiqarish (loglarni yuklab olmasdan ko'rish uchun).
+      - name: Report build errors
+        if: failure()
+        run: |
+          foreach ($log in @("unpackaged.log", "msix.log")) {
+            if (Test-Path $log) {
+              $errors = Select-String -Path $log -Pattern ": error " | ForEach-Object { (($_.Line -replace '^\s*\d+>', '') -replace '^.*?\\apps\\desktop-windows\\', '') -replace ' \[[^\]]*\]$', '' } | Select-Object -Unique | Select-Object -First 40
+              if ($errors) {
+                $msg = ($errors | ForEach-Object { $_.Trim() }) -join "%0A"
+                echo "::error title=$log::$msg"
+              }
+            }
+          }
+
+      - name: Remove signing key
+        if: always()
+        run: Remove-Item -Force -ErrorAction SilentlyContinue signing.pfx
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TisuEdu-${{ steps.ver.outputs.version }}-${{ matrix.rid }}
+          path: |
+            apps/desktop-windows/artifacts/*.zip
+            apps/desktop-windows/artifacts/*.msix
+            apps/desktop-windows/artifacts/*.cer
+          if-no-files-found: error

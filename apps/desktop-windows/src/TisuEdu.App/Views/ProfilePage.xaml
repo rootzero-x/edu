@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.ProfilePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="760" Padding="{StaticResource PagePadding}" Spacing="12" HorizontalAlignment="Left">
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+
+            <Border Style="{StaticResource CardStyle}">
+                <Grid ColumnSpacing="20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <PersonPicture Initials="{x:Bind ViewModel.Initials, Mode=OneWay}" Width="72" Height="72" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Style="{StaticResource SubtitleTextBlockStyle}">
+                            <Run Text="{x:Bind ViewModel.FirstName, Mode=OneWay}" />
+                            <Run Text="{x:Bind ViewModel.LastName, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Text="{x:Bind ViewModel.Phone, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" IsTextSelectionEnabled="True" />
+                        <TextBlock Style="{StaticResource SecondaryTextStyle}">
+                            <Run Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}" /><Run Text=": " /><Run Text="{x:Bind ViewModel.Role, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Text="{x:Bind ViewModel.TelegramText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TextBlock Text="Shaxsiy ma'lumotlar" Style="{StaticResource SectionHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBox Header="Ism" Text="{x:Bind ViewModel.FirstName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="64" />
+                    <TextBox Header="Familiya" Text="{x:Bind ViewModel.LastName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="64" />
+                    <TextBlock Text="Telefon raqami va rolni faqat administrator o'zgartiradi." Style="{StaticResource SecondaryTextStyle}" />
+                    <Button Style="{StaticResource AccentButtonStyle}" Content="Saqlash" Command="{x:Bind ViewModel.SaveProfileCommand}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Parol" Style="{StaticResource SectionHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="12">
+                    <PasswordBox Header="Joriy parol" Password="{x:Bind ViewModel.CurrentPassword, Mode=TwoWay}" Visibility="{x:Bind ViewModel.HasPassword, Mode=OneWay}" />
+                    <TextBlock Text="Siz Telegram orqali ro'yxatdan o'tgansiz — telefon raqami bilan kirish uchun parol o'rnating." Style="{StaticResource SecondaryTextStyle}"
+                               Visibility="{x:Bind ViewModel.HasPassword, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />
+                    <PasswordBox Header="Yangi parol" Password="{x:Bind ViewModel.NewPassword, Mode=TwoWay}" />
+                    <PasswordBox Header="Yangi parolni tasdiqlang" Password="{x:Bind ViewModel.ConfirmPassword, Mode=TwoWay}" />
+                    <TextBlock Text="Parol o'zgargach boshqa qurilmalardagi sessiyalar yopiladi." Style="{StaticResource SecondaryTextStyle}" />
+                    <Button Content="Parolni o'zgartirish" Command="{x:Bind ViewModel.ChangePasswordCommand}" />
+                </StackPanel>
+            </Border>
+
+            <Button Margin="0,12,0,0" Command="{x:Bind ViewModel.LogoutCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xF3B1;" FontSize="14" />
+                    <TextBlock Text="{x:Bind ViewModel.LogoutText, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </ScrollViewer>
+</local:ViewPage>
