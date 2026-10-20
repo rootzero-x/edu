@@ -166,3 +166,12 @@ a.contact:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
 .footerInner { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
 .status { display: inline-flex; align-items: center; gap: var(--space-2); }
 .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Yangiliklar */
+.news { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+.newsItem { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface, var(--card)); display: flex; flex-direction: column; }
+.newsImg { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.newsBody { padding: 18px; display: grid; gap: 6px; }
+.newsBody h3 { margin: 0; font-size: 1.05rem; }
+.newsBody p { margin: 0; color: var(--muted); white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.newsDate { font-size: .8rem; color: var(--muted); }

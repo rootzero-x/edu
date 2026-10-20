@@ -130,3 +130,9 @@ div.tg-row { cursor: default; }
 .tg-video { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; background: #000; }
 
 .tg-empty-icon { font-size: 2.4rem; line-height: 1; }
+.tg-news { display: grid; gap: 6px; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 12px 14px; cursor: pointer; }
+.tg-news-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.tg-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tg-news-img { width: 100%; border-radius: 10px; max-height: 240px; object-fit: cover; }
+html, body, * { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }

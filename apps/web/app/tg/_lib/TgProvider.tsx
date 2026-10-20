@@ -37,6 +37,10 @@ const FALLBACK: Record<string, string> = {
   loading: "Yuklanmoqda…",
   error: "Xatolik yuz berdi.",
   retry: "Qayta urinish",
+  nav_news: "Yangiliklar",
+  news_empty: "Hozircha yangiliklar yo'q.",
+  news_new: "Yangi",
+  news_pinned: "Muhim",
   open_in_telegram: "Bu sahifa Telegram ichida ochiladi.",
   go_to_bot: "Botga o'tish",
 };

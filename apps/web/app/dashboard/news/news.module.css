@@ -1,0 +1,14 @@
+.list { display: grid; gap: 12px; }
+.card { transition: box-shadow .15s, border-color .15s; }
+.unread { border-left: 3px solid var(--accent); }
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.title { background: none; border: 0; padding: 0; font: inherit; font-size: 1.05rem; font-weight: 650; color: inherit; text-align: left; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.title:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.pin { width: 16px; height: 16px; color: var(--accent); flex: none; }
+.meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.body { white-space: pre-wrap; line-height: 1.6; margin: 10px 0 0; overflow-wrap: anywhere; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.img { width: 100%; max-height: 360px; object-fit: cover; border-radius: 12px; margin-top: 12px; }
+.more { margin-top: 8px; background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.more svg { width: 16px; height: 16px; }
+@media (max-width: 560px) { .head { flex-direction: column; } .meta { justify-content: flex-start; } }

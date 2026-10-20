@@ -4,8 +4,9 @@ import {
   ArrowRight, Award, BarChart3, BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Clock, GraduationCap, Layers, Mail,
   MapPin, MessageCircle, Phone, Send, ShieldCheck, Users, Video, Wallet, type LucideIcon,
 } from "lucide-react";
-import { API_URL, publicCourses, publicSettings } from "@/lib/api";
-import { list, siteName, str } from "@/lib/settings";
+import { API_URL, publicCourses, publicNews, publicSettings } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
+import { list, siteName, str, timezone } from "@/lib/settings";
 import { ButtonLink } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import s from "./landing.module.css";
@@ -39,7 +40,7 @@ function telegramUrl(v: string) {
 }
 
 export default async function Home() {
-  const [st, courses, ok] = await Promise.all([publicSettings(), publicCourses(), apiStatus()]);
+  const [st, courses, ok, news] = await Promise.all([publicSettings(), publicCourses(), apiStatus(), publicNews()]);
   const name = siteName(st);
   const logo = str(st, "site.logo_url");
   const features = list<{ title: string; text: string; icon?: string }>(st, "site.features").filter((f) => f?.title);
@@ -200,6 +201,26 @@ export default async function Home() {
                       <div className={s.courseMeta}>
                         <span>{c.duration_months} oy · {c.modules_count} modul</span>
                       </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {news.length > 0 && (
+          <section id="news" className={s.section}>
+            <div className={s.container}>
+              <div className={s.sectionHead}><h2>{str(st, "news.title", "Yangiliklar")}</h2></div>
+              <div className={s.news}>
+                {news.map((n) => (
+                  <article className={s.newsItem} key={n.id}>
+                    {n.image_url && <img src={n.image_url} alt="" className={s.newsImg} loading="lazy" />}
+                    <div className={s.newsBody}>
+                      <time className={s.newsDate} dateTime={n.published_at}>{fmtDate(n.published_at, timezone(st))}</time>
+                      <h3>{n.pinned ? "📌 " : ""}{n.title}</h3>
+                      <p>{n.body}</p>
                     </div>
                   </article>
                 ))}

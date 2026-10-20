@@ -92,3 +92,16 @@ export async function publicCourses(): Promise<PublicCourse[]> {
     return [];
   }
 }
+
+export type PublicNews = { id: number; title: string; body: string; image_url: string | null; pinned: boolean; published_at: string };
+
+/** Ochiq yangiliklar (bosh sahifa). */
+export async function publicNews(): Promise<PublicNews[]> {
+  try {
+    const res = await fetch(`${API_URL}/v1/public/announcements`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return [];
+    return ((await res.json()) as { data: PublicNews[] }).data ?? [];
+  } catch {
+    return [];
+  }
+}

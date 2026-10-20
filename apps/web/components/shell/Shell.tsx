@@ -10,6 +10,7 @@ import { logout } from "@/components/LogoutButton";
 import { NAV, ROLE_LABELS } from "./nav";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { obj } from "@/lib/settings";
+import { call } from "@/lib/client";
 import s from "./Shell.module.css";
 
 type User = { first_name: string; last_name: string | null; role: string; phone: string; permissions: string[] };
@@ -23,6 +24,15 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
   const labels = obj<Record<string, string>>(st, "ui.nav_labels");
   const roles = { ...ROLE_LABELS, ...obj<Record<string, string>>(st, "telegram.role_labels") };
   useEffect(() => setOpen(false), [path]);
+  // O'qilmagan yangiliklar soni (menyuda belgi): sahifa almashganda va har daqiqada.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () => call<{ unread: number }>("GET", "announcements/unread").then((r) => alive && r.ok && setUnread(r.data.unread)).catch(() => {});
+    load();
+    const id = setInterval(() => document.visibilityState === "visible" && load(), 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, [path]);
   // Mobil: yopiq tortma klaviatura/ekran o'quvchi uchun ham yopiq (inert); ochilganda fokus ichkariga.
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
@@ -51,6 +61,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
     return (
       <Link key={n.href} href={n.href} className={s.link} aria-current={isActive(n.href, n.exact) ? "page" : undefined}>
         <Icon aria-hidden />{labels[n.href] || n.label}
+        {n.href === "/dashboard/news" && unread > 0 && <span className={s.count} aria-label={`${unread} ta o'qilmagan`}>{unread > 99 ? "99+" : unread}</span>}
       </Link>
     );
   };

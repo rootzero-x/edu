@@ -57,3 +57,5 @@
   .topbar { padding: 0 var(--space-3); }
   .content { padding: var(--space-5) var(--space-4) var(--space-12); }
 }
+
+.count { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-fg, #fff); font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }

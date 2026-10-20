@@ -25,6 +25,7 @@ export default function TgHome() {
   }
   if (parent) tiles.push({ href: "/tg/attendance", icon: "👨‍👩‍👧", label: t("nav_children") });
   tiles.push({ href: "/tg/certificates", icon: "🎓", label: t("nav_certificates") });
+  tiles.push({ href: "/tg/news", icon: "📢", label: t("nav_news") });
 
   return (
     <Page>
