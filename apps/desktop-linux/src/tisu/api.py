@@ -38,6 +38,8 @@ class ApiError(Exception):
 
 
 def _message_from(status, data):
+    if status == 429:
+        return "Juda ko'p so'rov. Birozdan keyin urinib ko'ring."
     if isinstance(data, dict):
         errors = data.get("errors")
         if isinstance(errors, dict):
@@ -50,8 +52,6 @@ def _message_from(status, data):
         return "Ruxsat yo'q."
     if status == 404:
         return "Topilmadi."
-    if status == 429:
-        return "Juda ko'p so'rov. Birozdan keyin urinib ko'ring."
     if status >= 500:
         return "Serverda xatolik. Birozdan keyin urinib ko'ring."
     return f"Xatolik ({status})."
@@ -109,7 +109,7 @@ class ApiClient:
         return url
 
     # ── Core ─────────────────────────────────────────────────
-    def request(self, method, path, callback, body=None, query=None, raw=False):
+    def request(self, method, path, callback, body=None, query=None, raw=False, retried=False):
         msg = Soup.Message.new(method, self.url(path, query))
         if msg is None:
             GLib.idle_add(lambda: callback(None, ApiError(ApiError.NETWORK, "Noto'g'ri manzil.")) and False)
@@ -145,6 +145,15 @@ class ApiClient:
                 data = {}
             if 200 <= status < 300:
                 callback(data, None)
+                return
+            if status == 429 and method == "GET" and not retried:
+                # Rate limited: retry a read once after the server's Retry-After (capped), silently.
+                try:
+                    wait = int(msg.get_response_headers().get_one("Retry-After") or 5)
+                except ValueError:
+                    wait = 5
+                GLib.timeout_add_seconds(min(max(wait, 1), 15), lambda: self.request(
+                    method, path, callback, body=body, query=query, raw=raw, retried=True) and False)
                 return
             callback(None, self._error(status, data))
 

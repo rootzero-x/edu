@@ -57,6 +57,12 @@
     <color type="primary" scheme_preference="dark">#1e3a8a</color>
   </branding>
   <releases>
+    <release version="1.2.0" date="2026-10-21">
+      <description>
+        <p>Leads (CRM), global search, user profiles, registration approval, duplicate merging,
+        student import, group membership actions, system status and setup checklist.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-10-21">
       <description>
         <p>Everything inside the app: users, settings, billing, course, quiz and announcement editing,

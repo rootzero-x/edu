@@ -16,6 +16,7 @@ class _MemorySettings:
         "run-in-background": False,
         "notified-announcements": [],
         "last-phone": "",
+        "setup-dismissed": False,
     }
 
     def __init__(self):

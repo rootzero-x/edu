@@ -18,6 +18,7 @@ from .widgets import Signal  # noqa: E402
 
 SHORTCUTS = [
     ("Umumiy", [
+        ("Qidirish", ["<Control>k"]),
         ("Yangilash", ["<Control>r", "F5"]),
         ("Asosiy menyu", ["F10"]),
         ("Klaviatura yorliqlari", ["<Control>question"]),
@@ -96,6 +97,7 @@ class TisuApplication(Adw.Application):
 
         add("refresh", lambda *_: win.refresh(), ["<Control>r", "F5"])
         add("logout", lambda *_: self.confirm_logout())
+        add("search", lambda *_: win.open_search(), ["<Control>k", "<Control>f"])
         sec = Gio.SimpleAction.new("section", GLib.VariantType.new("i"))
         sec.connect("activate", lambda _a, p: win.section_index(p.get_int32()))
         win.add_action(sec)

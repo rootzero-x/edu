@@ -8,7 +8,7 @@ from ..schedule import ScheduleEditor
 from ..widgets import (Page, done_toast, group, icon_button, join, label, menu_button, pill, prefs_page, row, status_css,
                        text_button)
 from .certificates import CertificateDetailPage, revoke_certificate
-from .users import search_students
+from .users import ImportPage, enrollment_label, search_students
 
 STATUSES = ["PRESENT", "LATE", "ABSENT", "EXCUSED"]
 
@@ -142,8 +142,11 @@ class GroupPage(Page):
 
     def fetch(self, done):
         today = fmt.now()
-        cb = join(done, ["group", "sessions", "?report"])
+        staff = self.win.has("group.manage") or self.win.has("attendance.mark")
+        cb = join(done, ["group", "sessions", "?report"] + (["?members"] if staff else []))
         self.api.get(f"groups/{self.group_id}", cb("group"))
+        if staff:
+            self.api.get(f"groups/{self.group_id}/members", cb("?members"))
         self.api.get(f"groups/{self.group_id}/sessions", cb("sessions"), query={
             "from": today.add_days(-45).format("%Y-%m-%d"), "to": today.add_days(21).format("%Y-%m-%d")})
         self.api.get(f"groups/{self.group_id}/attendance", cb("?report"))
@@ -178,6 +181,10 @@ class GroupPage(Page):
                        icon="x-office-calendar-symbolic", on_activate=self.generate))
             mg.add(row("Sertifikatlar", "Shartlarni tekshirish, berish va bekor qilish", icon="tisu-award-symbolic",
                        on_activate=lambda: self.push(GroupCertificatesPage(self.win, g))))
+            mg.add(row("O'quvchilarni import qilish", "Excel/CSV fayldan shu guruhga", icon="document-open-symbolic",
+                       on_activate=lambda: self.push(ImportPage(self.win, on_done=self.changed, group_id=g["id"]))))
+            mg.add(row("Kurs yakunlandi — hammasi bitirdi", "Faol o'quvchilar «bitirgan» deb belgilanadi", icon="tisu-award-symbolic",
+                       on_activate=self.graduate_all))
             mg.add(row("Guruhni yopish" if g.get("active", True) else "Guruhni qayta ochish", None,
                        icon="action-unavailable-symbolic" if g.get("active", True) else "object-select-symbolic",
                        on_activate=self.toggle_active))
@@ -204,6 +211,8 @@ class GroupPage(Page):
         students = group(f"O'quvchilar ({students_count})" if self.win.has("attendance.mark") else s.text("attendance_rate", "Davomat"),
                          suffix=add)
         phones = {st["id"]: st.get("phone") for st in g.get("students") or []}
+        members = {m["id"]: m for m in ((data.get("members") or {}).get("current") or [])}
+        self.members = members
         report = (data.get("report") or {}).get("data") or []
         people = report or [{"student_id": st["id"], "name": fmt.name(st)} for st in g.get("students") or []]
         for r in people:
@@ -211,15 +220,40 @@ class GroupPage(Page):
             sub = " · ".join(f"{s.status_label(k)} {c.get(k, 0)}" for k in STATUSES) if c else None
             if phones.get(r["student_id"]):
                 sub = f"{phones[r['student_id']]} · {sub}" if sub else phones[r["student_id"]]
+            m = members.get(r["student_id"]) or {}
             suffix = []
+            if m.get("status") == "FROZEN":
+                suffix.append(pill(f"muzlatilgan · {fmt.date(m.get('frozen_to'))} gacha", "accent"))
             if "rate" in r:
                 rate = r.get("rate")
                 suffix.append(pill(fmt.percent(rate), "success" if (rate or 0) >= 80 else "warning" if (rate or 0) >= 60 else "error"))
             if manage:
-                suffix.append(icon_button("list-remove-symbolic", "Guruhdan chiqarish", lambda r=r: self.remove_member(r)))
-            students.add(row(r["name"], sub, icon="avatar-default-symbolic", suffix=suffix))
+                frozen = m.get("status") == "FROZEN"
+                suffix.append(menu_button([
+                    ("Profil", lambda r=r: self.open_profile(r["student_id"], r["name"])),
+                    ("Muzlatishni bekor qilish" if frozen else "Muzlatish", (lambda r=r: self.unfreeze(r)) if frozen else (lambda r=r: self.freeze(r))),
+                    ("Boshqa guruhga o'tkazish", lambda r=r: self.transfer(r)),
+                    ("Bitirdi", lambda r=r: self.graduate(r)),
+                    ("A'zolik tarixi", lambda r=r: self.history(r)),
+                    ("Guruhdan chiqarish", lambda r=r: self.remove_member(r), True),
+                ]))
+                students.add(row(r["name"], sub, icon="avatar-default-symbolic", suffix=suffix))
+            else:
+                students.add(row(r["name"], sub, icon="avatar-default-symbolic", suffix=suffix,
+                                 on_activate=(lambda r=r: self.open_profile(r["student_id"], r["name"])) if self.win.has("attendance.mark") else None))
         if not people:
             students.add(row(s.text("sheet_empty", "Guruhda o'quvchi yo'q."), icon="avatar-default-symbolic"))
+        former = (data.get("members") or {}).get("former") or []
+        if former:
+            fg = group("Sobiq a'zolar")
+            for f in former:
+                st_ = f.get("status")
+                fg.add(row(fmt.name(f), " · ".join(x for x in [f.get("phone"), f.get("reason"), fmt.date(f.get("until") or f.get("left_at"))] if x and x != "—"),
+                           icon="avatar-default-symbolic", suffix=pill(enrollment_label(s, st_), "dim"),
+                           on_activate=lambda f=f: self.open_profile(f["id"], fmt.name(f))))
+            groups_.append(students)
+            groups_.append(fg)
+            return prefs_page(*groups_)
         groups_.append(students)
         return prefs_page(*groups_)
 
@@ -257,10 +291,100 @@ class GroupPage(Page):
         pick(self.win, "O'quvchi qo'shish", lambda q, done: search_students(self.api, q, done, exclude=existing), picked,
              placeholder="O'quvchi ismi yoki telefoni")
 
+    def _reasons(self, key):
+        v = self.settings.get(key, [])
+        return [(x, x) for x in v] if isinstance(v, list) and v else [("Boshqa", "Boshqa")]
+
+    def _member_post(self, r, action, body, ok_text, done):
+        def cb(data, err):
+            done(err)
+            if not err:
+                extra = f" (qaytarildi: {fmt.money(data['refunded'], self.settings.get('billing.currency', 'so‘m'))})" if (data or {}).get("refunded") else ""
+                self.win.toast(ok_text + extra)
+                self.changed()
+
+        self.api.post(f"groups/{self.group_id}/members/{r['student_id']}/{action}", body, cb)
+
+    def open_profile(self, uid, name):
+        from .users import UserPage
+
+        self.push(UserPage(self.win, {"id": uid, "first_name": name, "role": "STUDENT"}))
+
     def remove_member(self, r):
-        confirm(self.win, "Guruhdan chiqarilsinmi?", f"{r['name']} guruhdan chiqariladi (davomat tarixi saqlanadi).", "Chiqarish",
-                lambda: self.api.delete(f"groups/{self.group_id}/members/{r['student_id']}",
-                                        done_toast(self.win, "Guruhdan chiqarildi", self.changed)))
+        today = fmt.now().format("%Y-%m-%d")
+        form(self.win, f"Guruhdan chiqarish — {r['name']}", [
+            {"name": "reason", "label": "Sabab", "type": "choice", "options": self._reasons("enrollment.leave_reasons")},
+            {"name": "date", "label": "Sana (YYYY-MM-DD)", "type": "date", "value": today},
+            {"name": "note", "label": "Izoh (ixtiyoriy)"},
+        ], lambda v, done: self._member_post(r, "leave", {"reason": v["reason"], "date": v["date"] or None, "note": v["note"] or None},
+                                             "Guruhdan chiqarildi (davomat tarixi saqlanadi)", done), submit_label="Chiqarish")
+
+    def freeze(self, r):
+        today = fmt.now()
+        form(self.win, f"Muzlatish — {r['name']}", [
+            {"name": "from", "label": "Boshlanish (YYYY-MM-DD)", "type": "date", "value": today.format("%Y-%m-%d"), "required": True},
+            {"name": "to", "label": "Tugash (YYYY-MM-DD)", "type": "date", "value": today.add_days(13).format("%Y-%m-%d"), "required": True,
+             "hint": f"Ko'pi bilan {self.settings.int('enrollment.max_freeze_days', 90)} kun"},
+            {"name": "reason", "label": "Sabab", "type": "choice", "options": self._reasons("enrollment.freeze_reasons")},
+            {"name": "note", "label": "Izoh (ixtiyoriy)"},
+        ], lambda v, done: self._member_post(r, "freeze", {"from": v["from"], "to": v["to"], "reason": v["reason"], "note": v["note"] or None},
+                                             "Muzlatildi — bu kunlar uchun to'lov hisoblanmaydi", done), submit_label="Muzlatish")
+
+    def unfreeze(self, r):
+        self._member_post(r, "unfreeze", {}, "Muzlatish bekor qilindi", lambda err: err and self.win.toast(err.message, timeout=6))
+
+    def transfer(self, r):
+        def open_with(data):
+            others = [x for x in (data or {}).get("data") or [] if x.get("active") and x["id"] != self.group_id]
+            if not others:
+                self.win.toast("O'tkazish uchun boshqa faol guruh yo'q.")
+                return
+            form(self.win, f"Boshqa guruhga o'tkazish — {r['name']}", [
+                {"name": "to_group_id", "label": "Yangi guruh", "type": "choice",
+                 "options": [(x["id"], x["name"] + (f" · {x['course']['title']}" if x.get("course") else "")) for x in others]},
+                {"name": "date", "label": "Sana (YYYY-MM-DD)", "type": "date", "value": fmt.now().format("%Y-%m-%d")},
+                {"name": "reason", "label": "Sabab (ixtiyoriy)"},
+            ], lambda v, done: self._member_post(r, "transfer", {"to_group_id": v["to_group_id"], "date": v["date"] or None,
+                                                                 "reason": v["reason"] or None}, "O'tkazildi", done), submit_label="O'tkazish")
+
+        self.api.get("groups", lambda d, e: self.win.toast(e.message) if e else open_with(d))
+
+    def graduate(self, r):
+        confirm(self.win, "Bitirdi deb belgilansinmi?", f"{r['name']} kursni tugatgan sifatida guruhdan chiqadi.", "Belgilash",
+                lambda: self._member_post(r, "graduate", {}, "Bitirgan deb belgilandi", lambda err: err and self.win.toast(err.message)),
+                destructive=False)
+
+    def graduate_all(self):
+        confirm(self.win, "Hammasi bitirdimi?", "Guruhdagi barcha faol o'quvchilar «bitirgan» deb belgilanadi.", "Belgilash",
+                lambda: self.api.post(f"groups/{self.group_id}/graduate", {},
+                                      done_toast(self.win, None, lambda d: (self.win.toast(f"Bitirganlar: {d.get('graduated', 0)}"), self.changed()))),
+                destructive=False)
+
+    def history(self, r):
+        self.push(MemberHistoryPage(self.win, self.group_id, r))
+
+
+class MemberHistoryPage(Page):
+    def __init__(self, win, group_id, r):
+        super().__init__(win, f"{r['name']} — a'zolik tarixi")
+        self.group_id, self.r = group_id, r
+
+    def fetch(self, done):
+        self.api.get(f"groups/{self.group_id}/members/{self.r['student_id']}/history", done)
+
+    def render(self, data):
+        items = data.get("data") or []
+        if not items:
+            self.show_empty("document-open-recent-symbolic", "Tarix bo'sh")
+            return None
+        g = group()
+        for t in items:
+            period = fmt.date(t.get("starts_on")) + (f" — {fmt.date(t['ends_on'])}" if t.get("ends_on") else "")
+            bits = [period, t.get("reason"), t.get("note"), f"→ {t['transfer_group']}" if t.get("transfer_group") else None,
+                    t.get("created_by")]
+            g.add(row(enrollment_label(self.settings, t.get("status")).capitalize(), " · ".join(b for b in bits if b),
+                      icon="document-open-recent-symbolic"))
+        return prefs_page(g)
 
 
 BLOCKERS = {

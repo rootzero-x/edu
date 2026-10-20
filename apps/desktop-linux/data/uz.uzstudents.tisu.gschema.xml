@@ -27,6 +27,10 @@
       <default>[]</default>
       <summary>Announcements already shown as desktop notifications</summary>
     </key>
+    <key name="setup-dismissed" type="b">
+      <default>false</default>
+      <summary>Setup checklist hidden on the overview</summary>
+    </key>
     <key name="last-phone" type="s">
       <default>''</default>
       <summary>Phone number used for the last password sign-in</summary>

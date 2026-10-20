@@ -30,6 +30,7 @@ class SettingsPage(Page):
         self.groups = {}
         self.permissions = []
         self.draft = {}
+        self.pending_group = None  # open this group once loaded (navigation from the setup checklist)
         self.save_buttons = []
         self._add_save_buttons(self.header)
 
@@ -130,7 +131,17 @@ class SettingsPage(Page):
         self.permissions = data.get("permissions") or []
         self.draft = {k: v for k, v in self.draft.items() if k in self.by_key}
         self._dirty_changed()
+        if self.pending_group:
+            name, self.pending_group = self.pending_group, None
+            GLib.idle_add(lambda: self.open_group(name) and False)
         return self._build()
+
+    def open_group(self, name):
+        if not self.items:
+            self.pending_group = name
+            return
+        if any(i["group"] == name for i in self.items):
+            self.push(SettingsGroupPage(self, name))
 
     def ordered_groups(self):
         present = []

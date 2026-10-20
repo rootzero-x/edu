@@ -248,8 +248,9 @@ def prompt(win, heading, body, placeholder, action_label, on_text, min_len=1, de
 class PickerDialog(Adw.Dialog):
     """Search-as-you-type list. ``search(query, done)`` → done(list of (id, title, subtitle))."""
 
-    def __init__(self, win, title, search, on_pick, placeholder="Qidirish…"):
+    def __init__(self, win, title, search, on_pick, placeholder="Qidirish…", suffix_icon="list-add-symbolic"):
         super().__init__(title=title, content_width=460, content_height=560)
+        self.suffix_icon = suffix_icon
         self.search_fn = search
         self.on_pick = on_pick
         self._gen = 0
@@ -304,7 +305,7 @@ class PickerDialog(Adw.Dialog):
                 r = Adw.ActionRow(title=GLib.markup_escape_text(title), activatable=True)
                 if sub:
                     r.set_subtitle(GLib.markup_escape_text(sub))
-                r.add_suffix(Gtk.Image.new_from_icon_name("list-add-symbolic"))
+                r.add_suffix(Gtk.Image.new_from_icon_name(self.suffix_icon))
                 r.item_id = item_id
                 r.item_title = title
                 self.list.append(r)

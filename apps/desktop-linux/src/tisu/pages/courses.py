@@ -47,7 +47,7 @@ def material_form(page, lesson_id, material=None, on_done=None):
 class CoursesPage(Page):
     def __init__(self, win):
         super().__init__(win, win.public.nav_label("/dashboard/courses", "Kurslar"))
-        if win.has("course.manage"):
+        if win.has("course.manage") or win.has("course.author"):
             self.header.pack_start(icon_button("list-add-symbolic", "Yangi kurs", self.create, css=()))
 
     def fetch(self, done):
