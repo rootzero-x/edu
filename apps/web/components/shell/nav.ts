@@ -1,4 +1,4 @@
-import { Award, BarChart3, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Award, BarChart3, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, HeartHandshake, Inbox, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -6,6 +6,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Ko'rinishi uchun kerakli huquq (permissions ro'yxatidan). */
   perm?: string;
+  /** Faqat shu rollarga (masalan, "Farzandlarim" — ota-onaga). */
+  roles?: string[];
   exact?: boolean;
   section?: "main" | "admin";
   /** Shu bo'limga tegishli boshqa yo'llar (masalan, dars sahifasi "Kurslar" ostida). */
@@ -18,8 +20,10 @@ export type NavItem = {
  */
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/children", label: "Farzandlarim", icon: HeartHandshake, roles: ["PARENT"] },
   { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view", also: ["/dashboard/lessons", "/dashboard/quizzes"] },
   { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound, also: ["/dashboard/sessions"] },
+  { href: "/dashboard/leads", label: "Arizalar", icon: Inbox, perm: "lead.manage" },
   { href: "/dashboard/news", label: "Yangiliklar", icon: Megaphone },
   { href: "/dashboard/certificates", label: "Sertifikatlar", icon: Award },
   { href: "/dashboard/reports", label: "Hisobotlar", icon: BarChart3, perm: "report.view" },

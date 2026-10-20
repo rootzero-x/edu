@@ -5,9 +5,9 @@ import SettingsEditor, { type Item } from "./SettingsEditor";
 
 export const metadata: Metadata = { title: "Sozlamalar" };
 
-export default async function SettingsPage() {
-  const user = await me();
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ group?: string }> }) {
+  const [user, sp] = await Promise.all([me(), searchParams]);
   if (!user?.permissions.includes("settings.manage")) redirect("/dashboard");
   const { data } = await api<{ data: Item[]; permissions: string[]; groups?: Record<string, string> }>("/v1/settings");
-  return <SettingsEditor items={data.data ?? []} permissions={data.permissions ?? []} groupLabels={data.groups ?? {}} />;
+  return <SettingsEditor items={data.data ?? []} permissions={data.permissions ?? []} groupLabels={data.groups ?? {}} initialGroup={sp.group} />;
 }

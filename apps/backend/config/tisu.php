@@ -529,7 +529,7 @@ return [
             'name' => 'Ismingiz', 'phone' => 'Telefon raqamingiz', 'phone_hint' => '90 123 45 67', 'course' => 'Qaysi kurs qiziqtiradi?',
             'course_any' => 'Hali bilmayman', 'comment' => 'Izoh (ixtiyoriy)', 'button' => 'Ariza yuborish', 'sending' => 'Yuborilmoqda…',
             'phone_invalid' => "Telefon raqamini to'liq kiriting, masalan: 90 123 45 67", 'name_required' => 'Ismingizni kiriting',
-            'consent_required' => 'Davom etish uchun rozilik belgisini qo\'ying', 'error' => "Ariza yuborilmadi. Birozdan keyin qayta urinib ko'ring yoki qo'ng'iroq qiling.",
+            'consent_required' => 'Davom etish uchun rozilik belgisini qo\'ying', 'nav' => 'Ariza', 'course_apply' => 'Yozilish', 'error' => "Ariza yuborilmadi. Birozdan keyin qayta urinib ko'ring yoki qo'ng'iroq qiling.",
         ]],
         'leads.consent_required' => ['group' => 'leads', 'type' => 'bool', 'public' => true, 'label' => "Formada rozilik belgisi majburiy", 'default' => true],
         'leads.consent_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: rozilik matni', 'default' => "Ma'lumotlarim ariza bo'yicha men bilan bog'lanish uchun ishlatilishiga roziman."],

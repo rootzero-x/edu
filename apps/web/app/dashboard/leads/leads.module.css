@@ -1,0 +1,50 @@
+.toolbar { margin: var(--space-4) 0 var(--space-3); overflow-x: auto; }
+.filters { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: flex-end; margin-bottom: var(--space-4); }
+.filters select { width: auto; max-width: 220px; }
+.search { flex: 1 1 220px; max-width: 320px; }
+.row { cursor: pointer; }
+.row:hover td { background: var(--surface-2); }
+.nameBtn { display: flex; flex-direction: column; align-items: flex-start; border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.nameBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.nameBtn span { font-size: var(--text-sm); }
+.overdue { color: var(--danger); font-weight: 650; }
+.due { color: var(--warning); font-weight: 650; }
+.card { display: grid; gap: var(--space-4); min-width: 0; }
+.cardTop { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.grow { flex: 1; }
+.phone { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; font-size: var(--text-md, 16px); font-variant-numeric: tabular-nums; }
+.phone svg { width: 16px; height: 16px; color: var(--accent); }
+.facts { display: grid; gap: var(--space-3) var(--space-5); grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin: 0; }
+.facts dt { font-size: var(--text-xs); color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.03em; }
+.facts dd { margin: 2px 0 0; font-weight: 550; }
+.quote { margin: 0; padding: var(--space-3) var(--space-4); border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 var(--radius) var(--radius) 0; white-space: pre-wrap; }
+.notes, .hint { margin: 0; }
+.hint { padding: var(--space-2) var(--space-3); border-radius: var(--radius); background: var(--info-soft); }
+.actions, .composeBtns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.composeBtns { justify-content: flex-end; }
+.compose { display: grid; gap: var(--space-2); }
+.h3 { margin: 0; font-size: var(--text-base); }
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); max-height: 320px; overflow-y: auto; }
+.feed li { display: grid; gap: 2px; margin: 0; padding-left: var(--space-3); border-left: 2px solid var(--border); }
+.feed li[data-type="CALL"] { border-left-color: var(--accent); }
+.feed li[data-type="STATUS"] { border-left-color: var(--success); }
+.feedWhen { font-size: var(--text-xs); color: var(--fg-subtle); }
+.feedText { display: block; white-space: pre-wrap; }
+.dangerZone { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: var(--space-3); }
+.convert { display: grid; gap: var(--space-4); }
+.grid2 { display: grid; gap: var(--space-3); grid-template-columns: 1fr 1fr; }
+@media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+.fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); margin: 0; }
+.fieldset legend { padding: 0 6px; font-weight: 600; font-size: var(--text-sm); }
+.error { color: var(--danger); font-weight: 550; margin: 0; }
+.funnel { display: grid; gap: var(--space-5); margin-top: var(--space-4); min-width: 0; }
+.funnel .filters { margin: 0; }
+.stats { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); } }
+.conv { display: flex; align-items: center; gap: var(--space-3); min-width: 140px; }
+.conv > div { flex: 1; }
+.conv b { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+.reasons { list-style: none; margin: 0; padding: var(--space-3) var(--space-5); display: grid; gap: var(--space-3); }
+.reasons li { display: grid; grid-template-columns: minmax(120px, 220px) 1fr 40px; gap: var(--space-3); align-items: center; margin: 0; }
+.reasons b { text-align: right; }
+@media (max-width: 560px) { .reasons li { grid-template-columns: 1fr 40px; } .reasons li > div { grid-column: 1 / -1; grid-row: 2; } }

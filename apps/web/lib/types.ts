@@ -9,6 +9,8 @@ export type Summary = {
     today_sessions: number; today_marked: number; attendance_rate: number | null; attendance_days: number;
     attendance_counts: Record<string, number>; courses: number | null; groups: number; students: number | null; unmarked_sessions: number | null;
   };
+  /** Yangi admin uchun "Boshlash" ro'yxati (faqat foydalanuvchilarni boshqaruvchilarga). */
+  setup?: { steps: { key: string; done: boolean; href: string }[]; done: number; total: number } | null;
 };
 
 export type Person = { id: number; first_name: string; last_name: string | null; phone?: string };
