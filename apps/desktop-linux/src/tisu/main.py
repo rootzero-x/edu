@@ -24,7 +24,7 @@ SHORTCUTS = [
         ("Chiqish (ilovadan)", ["<Control>q"]),
     ]),
     ("Navigatsiya", [
-        ("Bo'limlar 1–7", ["<Control>1"]),
+        ("Bo'limlar 1–9", ["<Control>1"]),
         ("Orqaga", ["<Alt>Left", "Escape"]),
     ]),
 ]
@@ -96,11 +96,10 @@ class TisuApplication(Adw.Application):
 
         add("refresh", lambda *_: win.refresh(), ["<Control>r", "F5"])
         add("logout", lambda *_: self.confirm_logout())
-        add("open-web", lambda *_: win.open_web("/dashboard"))
         sec = Gio.SimpleAction.new("section", GLib.VariantType.new("i"))
         sec.connect("activate", lambda _a, p: win.section_index(p.get_int32()))
         win.add_action(sec)
-        for i in range(7):
+        for i in range(9):
             self.set_accels_for_action(f"win.section({i})", [f"<Control>{i + 1}"])
 
     def confirm_logout(self):

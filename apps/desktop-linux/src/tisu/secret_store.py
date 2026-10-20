@@ -18,16 +18,35 @@ def _attrs(api_url):
     return {"api": api_url}
 
 
-def lookup(api_url, callback):
-    """callback(token_or_None, error_message_or_None)"""
+def lookup(api_url, callback, timeout=8):
+    """callback(token_or_None, error_message_or_None) — called exactly once.
+
+    A missing or hung Secret Service must never leave the app on its loading screen,
+    so the lookup is abandoned after ``timeout`` seconds.
+    """
+    from gi.repository import Gio, GLib
+
+    state = {"done": False}
+    cancellable = Gio.Cancellable()
+
+    def finish(token, err):
+        if not state["done"]:
+            state["done"] = True
+            callback(token, err)
 
     def done(_src, result, _data):
         try:
-            callback(Secret.password_lookup_finish(result), None)
-        except Exception as e:  # GLib.Error: no secret service, locked keyring, ...
-            callback(None, str(e))
+            finish(Secret.password_lookup_finish(result), None)
+        except Exception as e:  # GLib.Error: no secret service, locked keyring, cancelled …
+            finish(None, str(e))
 
-    Secret.password_lookup(_SCHEMA, _attrs(api_url), None, done, None)
+    def expired():
+        cancellable.cancel()
+        finish(None, "Kalitlar xizmati javob bermadi")
+        return False
+
+    GLib.timeout_add_seconds(timeout, expired)
+    Secret.password_lookup(_SCHEMA, _attrs(api_url), cancellable, done, None)
 
 
 def store(api_url, token, callback=None):

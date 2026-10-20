@@ -27,7 +27,7 @@ Priority: optional
 Architecture: all
 Installed-Size: $size
 Depends: python3 (>= 3.10), python3-gi (>= 3.42), gir1.2-gtk-4.0 (>= 4.12), gir1.2-adw-1 (>= 1.5), gir1.2-soup-3.0, gir1.2-secret-1
-Recommends: gnome-keyring | kwalletmanager, xdg-desktop-portal-gnome | xdg-desktop-portal-gtk
+Recommends: gir1.2-webkit-6.0, gnome-keyring | kwalletmanager, xdg-desktop-portal-gnome | xdg-desktop-portal-gtk
 Maintainer: TISU Edu <rootzero.xz@gmail.com>
 Homepage: https://tisu.uzstudents.uz
 Description: TISU Edu education center desktop app

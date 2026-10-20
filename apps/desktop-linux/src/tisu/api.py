@@ -79,6 +79,27 @@ class ApiClient:
     def patch(self, path, body, callback):
         return self.request("PATCH", path, callback, body=body)
 
+    def delete(self, path, callback, body=None):
+        return self.request("DELETE", path, callback, body=body)
+
+    def fetch_bytes(self, absolute_url, callback, max_bytes=15 * 1024 * 1024):
+        """GET any https URL (e.g. an announcement image) → callback(bytes|None). No auth header is sent."""
+        msg = Soup.Message.new("GET", absolute_url) if absolute_url else None
+        if msg is None:
+            GLib.idle_add(lambda: callback(None) and False)
+            return
+
+        def done(session, result, _d):
+            try:
+                data = session.send_and_read_finish(result).get_data()
+            except GLib.Error:
+                callback(None)
+                return
+            ok = 200 <= msg.get_status() < 300 and len(data) <= max_bytes
+            callback(data if ok else None)
+
+        self.session.send_and_read_async(msg, GLib.PRIORITY_LOW, None, done, None)
+
     def url(self, path, query=None):
         url = f"{self.base_url}/v1/{path.lstrip('/')}"
         if query:

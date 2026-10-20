@@ -304,3 +304,38 @@ class Signal(GObject.Object):
         "unread-changed": (GObject.SignalFlags.RUN_FIRST, None, (int,)),
         "user-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
+
+
+def menu_button(items, tooltip="Amallar", icon="view-more-symbolic"):
+    """A flat "⋮" button with a popover of actions: ``items`` = [(label, callback, destructive?), ...]."""
+    mb = Gtk.MenuButton(icon_name=icon, tooltip_text=tooltip, valign=Gtk.Align.CENTER)
+    mb.add_css_class("flat")
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    pop = Gtk.Popover(child=box)
+    pop.add_css_class("menu")
+    for item in items:
+        text, cb = item[0], item[1]
+        b = Gtk.Button(label=text)
+        b.add_css_class("flat")
+        b.get_child().set_xalign(0)
+        if len(item) > 2 and item[2]:
+            b.add_css_class("error")
+        b.connect("clicked", lambda _b, cb=cb: (pop.popdown(), cb()))
+        box.append(b)
+    mb.set_popover(pop)
+    return mb
+
+
+def done_toast(win, ok_text, then=None):
+    """API callback that shows a toast and runs ``then()`` on success."""
+
+    def cb(data, err):
+        if err:
+            win.toast(err.message, timeout=6)
+            return
+        if ok_text:
+            win.toast(ok_text)
+        if then:
+            then(data)
+
+    return cb
