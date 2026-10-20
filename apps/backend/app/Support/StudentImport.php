@@ -63,7 +63,7 @@ final class StudentImport
             if ($r['first_name'] === '') {
                 $r['errors'][] = 'Ism kiritilmagan.';
             }
-            $r['phone'] = PhoneNormalizer::normalize($r['phone_raw']);
+            $r['phone'] = Phone::normalize($r['phone_raw']);
             if (! $r['phone']) {
                 $r['errors'][] = $r['phone_raw'] === '' ? 'Telefon kiritilmagan.' : "Telefon noto'g'ri: {$r['phone_raw']}";
             } elseif (isset($studentPhones[$r['phone']])) {
@@ -73,7 +73,7 @@ final class StudentImport
             }
             $r['parent_phone'] = null;
             if ($r['parent_phone_raw'] !== '') {
-                $r['parent_phone'] = PhoneNormalizer::normalize($r['parent_phone_raw']);
+                $r['parent_phone'] = Phone::normalize($r['parent_phone_raw']);
                 if (! $r['parent_phone']) {
                     $r['errors'][] = "Ota-ona telefoni noto'g'ri: {$r['parent_phone_raw']}";
                 } elseif ($r['parent_phone'] === $r['phone']) {

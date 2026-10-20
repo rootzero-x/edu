@@ -138,6 +138,19 @@ class TelegramBotTest extends TestCase
         $this->assertStringContainsString('Yakuniy (Ingliz tili) — 🆕', $this->last(102)['text']);
     }
 
+    public function test_student_sees_quizzes_of_own_unpublished_course(): void
+    {
+        // courses.published faqat katalog uchun: o'z guruhining kursi yopiq bo'lsa ham testlari ko'rinadi.
+        $course = Course::first();
+        $course->update(['published' => false]);
+        $course->quizzes()->create(['title' => 'Yakuniy', 'published' => true, 'pass_percent' => 60, 'max_attempts' => 3]);
+
+        $this->text(102, '📝 Testlarim');
+        $this->assertStringContainsString('Yakuniy (Ingliz tili)', $this->last(102)['text']);
+        $this->text(102, '📚 Kurslarim');
+        $this->assertStringContainsString('Ingliz tili', $this->last(102)['text']);
+    }
+
     public function test_menu_texts_and_layout_come_from_settings(): void
     {
         app(Settings::class)->set([
@@ -178,7 +191,7 @@ class TelegramBotTest extends TestCase
         $this->assertStringContainsString('ENG-1 (0/1)', $button['text']);
 
         $this->press(101, "a:s:$sid");
-        $this->assertSame("a:p:$sid:{$this->student->id}", $this->last(101)['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+        $this->assertSame("a:p:$sid:{$this->student->id}:0", $this->last(101)['reply_markup']['inline_keyboard'][0][0]['callback_data']);
 
         $this->press(101, "a:p:$sid:{$this->student->id}");
         $this->assertStringContainsString('Aziz K', $this->last(101)['text']);
@@ -262,7 +275,8 @@ class TelegramBotTest extends TestCase
 
     public function test_new_registration_notifies_admins(): void
     {
-        app(Settings::class)->set(['telegram.admin_chat_ids' => [self::ADMIN_CHAT]], null);
+        // Eski rejim (tasdiqsiz): darhol faol o'quvchi.
+        app(Settings::class)->set(['telegram.admin_chat_ids' => [self::ADMIN_CHAT], 'telegram.self_registration_approval' => false], null);
         $this->postJson('/v1/telegram/webhook', ['update_id' => 3, 'message' => [
             'message_id' => 1, 'chat' => ['id' => 777, 'type' => 'private'], 'from' => ['id' => 777, 'first_name' => 'Yangi', 'username' => 'yangi_u'],
             'contact' => ['phone_number' => '998935550000', 'user_id' => 777, 'first_name' => 'Yangi'],

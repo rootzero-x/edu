@@ -7,22 +7,65 @@ use App\Models\User;
 use App\Support\Settings;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /** Bot xabarlarini qayta ishlash. Barcha matnlar settings (telegram.text.*) dan. */
 class BotHandler
 {
     public function __construct(private TelegramClient $tg, private Settings $settings, private BotMenu $menu, private BotAdmin $admin, private BotLeads $leads) {}
 
+    /**
+     * Har qanday kutilmagan xato: log + foydalanuvchiga do'stona umumiy matn (xom API xatosi ko'rsatilmaydi),
+     * callback esa har doim javob oladi (tugmadagi "soat" osilib qolmasin).
+     */
     public function handle(array $update): void
+    {
+        $fromId = (int) ($update['callback_query']['from']['id'] ?? $update['message']['from']['id'] ?? 0);
+        if ($fromId) {
+            // Botga qayta yozgan foydalanuvchi endi "bloklagan" emas.
+            Outbox::unblock($fromId);
+        }
+        try {
+            $this->dispatch($update);
+        } catch (Throwable $e) {
+            report($e);
+            $this->apologize($update);
+        }
+    }
+
+    private function apologize(array $update): void
+    {
+        try {
+            $text = $this->settings->get('telegram.text.error_generic');
+            if (isset($update['callback_query']['id'])) {
+                try {
+                    $this->tg->answerCallback((string) $update['callback_query']['id'], $text, true);
+
+                    return;
+                } catch (Throwable) {
+                    // allaqachon javob berilgan — xabar sifatida yuboramiz
+                }
+            }
+            $chatId = (int) ($update['callback_query']['message']['chat']['id'] ?? $update['message']['chat']['id'] ?? 0);
+            if ($chatId && ($update['message']['chat']['type'] ?? 'private') === 'private') {
+                $this->tg->sendMessage($chatId, $text);
+            }
+        } catch (Throwable) {
+            // Telegram ishlamasa — jim.
+        }
+    }
+
+    private function dispatch(array $update): void
     {
         if (isset($update['callback_query'])) {
             $cq = $update['callback_query'];
-            if (str_starts_with((string) ($cq['data'] ?? ''), 'ld:')) {
+            $data = (string) ($cq['data'] ?? '');
+            if (str_starts_with($data, 'ld:')) {
                 $this->leads->onCallback($cq);
 
                 return;
             }
-            if (str_starts_with((string) ($cq['data'] ?? ''), 'lg:')) {
+            if (str_starts_with($data, 'lg:')) {
                 $this->onLoginCallback($cq);
 
                 return;
@@ -84,7 +127,7 @@ class BotHandler
             return;
         }
         if ($user) {
-            $this->say($chatId, 'telegram.text.account_blocked', [], ['remove_keyboard' => true]);
+            $this->say($chatId, $user->isPending() ? 'telegram.text.account_pending' : 'telegram.text.account_blocked', [], ['remove_keyboard' => true]);
 
             return;
         }
@@ -102,12 +145,18 @@ class BotHandler
         if ($this->leads->onContact($from, $chatId, $contact)) {
             return;
         }
-        $phone = Phone::normalize($contact['phone_number']);
-        $user = User::where('phone', $phone)->first();
+        // Yagona normalizatsiya (sayt va admin bilan bir xil). Eski, normalizatsiyadan oldingi yozuvlar ham topilsin.
+        $phone = \App\Support\Phone::normalize($contact['phone_number']);
+        $legacy = '+'.preg_replace('/\D+/', '', (string) $contact['phone_number']);
+        $user = User::whereIn('phone', array_unique(array_filter([$phone, $legacy])))->orderByRaw('phone = ? desc', [$phone ?? $legacy])->first();
         $remove = ['remove_keyboard' => true];
 
         if ($user && ! $user->active) {
-            $this->say($chatId, 'telegram.text.account_blocked', [], $remove);
+            // Ariza egasi Telegram'ni boshqa akkauntdan qayta ulasa ham bog'lab qo'yamiz — tasdiq xabari yetib borsin.
+            if ($user->isPending()) {
+                $this->link($user, $from, $chatId);
+            }
+            $this->say($chatId, $user->isPending() ? 'telegram.text.account_pending' : 'telegram.text.account_blocked', [], $remove);
 
             return;
         }
@@ -119,41 +168,70 @@ class BotHandler
 
             return;
         }
-        $isNew = false;
         if (! $user) {
             if (! $this->settings->bool('telegram.self_registration')) {
                 $this->say($chatId, 'telegram.text.registration_closed', [], $remove);
 
                 return;
             }
-            $user = User::create([
+            if ($phone === null) {
+                $this->say($chatId, 'telegram.text.phone_not_supported', [], $remove);
+
+                return;
+            }
+            $applicant = [
                 'phone' => $phone,
                 'first_name' => $contact['first_name'] ?? $from['first_name'] ?? 'Foydalanuvchi',
                 'last_name' => $contact['last_name'] ?? $from['last_name'] ?? null,
-                'role' => Role::Student,
-                'active' => true,
-            ]);
-            $isNew = true;
+            ];
+            $this->register($applicant, Role::Student, $from, $chatId);
+
+            return;
         }
 
+        $this->link($user, $from, $chatId);
+        DB::table('audit_logs')->insert([
+            'actor_id' => $user->id, 'action' => 'telegram.link', 'entity' => 'user',
+            'entity_id' => $user->id, 'data' => json_encode(['telegram_id' => $from['id']]), 'created_at' => now(),
+        ]);
+        $this->menu->sendMenu($user, $chatId, 'telegram.text.linked', ['name' => $user->first_name]);
+        $this->confirmPendingLogin((int) $from['id'], $user, $chatId);
+    }
+
+    /** Yangi akkaunt: ariza rejimida faol emas (pending_at), aks holda darhol faol. */
+    private function register(array $applicant, Role $role, array $from, int $chatId): void
+    {
+        $pending = $this->settings->bool('telegram.self_registration_approval');
+        $user = User::create($applicant + ['role' => $role, 'active' => ! $pending]);
+        if ($pending) {
+            $user->forceFill(['pending_at' => now()])->save();
+        }
+        $this->link($user, $from, $chatId);
+        DB::table('audit_logs')->insert([
+            'actor_id' => $user->id, 'action' => 'telegram.register', 'entity' => 'user',
+            'entity_id' => $user->id, 'data' => json_encode(['telegram_id' => $from['id'], 'pending' => $pending, 'role' => $role->value]), 'created_at' => now(),
+        ]);
+        if ($pending) {
+            $this->say($chatId, 'telegram.text.registration_pending', ['name' => $user->first_name], ['remove_keyboard' => true]);
+            $this->admin->notifyNewUser($user, $from['username'] ?? null);
+
+            return;
+        }
+        $this->menu->sendMenu($user, $chatId, 'telegram.text.registered', ['name' => $user->first_name]);
+        $this->admin->notifyNewUser($user, $from['username'] ?? null);
+        $this->confirmPendingLogin((int) $from['id'], $user, $chatId);
+    }
+
+    private function link(User $user, array $from, int $chatId): void
+    {
         DB::transaction(function () use ($user, $from, $chatId) {
             DB::table('telegram_links')->where('telegram_id', $from['id'])->where('user_id', '!=', $user->id)->delete();
             DB::table('telegram_links')->updateOrInsert(
                 ['user_id' => $user->id],
-                ['telegram_id' => $from['id'], 'chat_id' => $chatId, 'username' => $from['username'] ?? null, 'linked_at' => now()],
+                ['telegram_id' => $from['id'], 'chat_id' => $chatId, 'username' => $from['username'] ?? null, 'linked_at' => now(),
+                    'blocked_at' => null, 'blocked_reason' => null],
             );
         });
-        DB::table('audit_logs')->insert([
-            'actor_id' => $user->id, 'action' => $isNew ? 'telegram.register' : 'telegram.link', 'entity' => 'user',
-            'entity_id' => $user->id, 'data' => json_encode(['telegram_id' => $from['id']]), 'created_at' => now(),
-        ]);
-
-        $this->menu->sendMenu($user, $chatId, $isNew ? 'telegram.text.registered' : 'telegram.text.linked', ['name' => $user->first_name]);
-        if ($isNew) {
-            $this->admin->notifyNewUser($user, $from['username'] ?? null);
-        }
-
-        $this->confirmPendingLogin((int) $from['id'], $user, $chatId);
     }
 
     /** Telefon so'ralishidan oldin saytdan kirish havolasi bosilgan bo'lsa — endi tasdiq so'raymiz. */

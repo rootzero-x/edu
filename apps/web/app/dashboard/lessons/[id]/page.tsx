@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [r, st] = await Promise.all([api<Res | Denial>(`/v1/lessons/${id}`), publicSettings()]);
-  if (r.status === 403 && isDenial(r.data)) {
+  if (isDenial(r.data)) {
     const d = r.data;
     return (
       <>
@@ -35,7 +35,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       </>
     );
   }
-  if (r.status !== 200) return <NotFoundCard />;
+  if (r.status !== 200) return <NotFoundCard message={(r.data as { message?: string })?.message} />;
   const { lesson, nav, can_edit } = r.data as Res;
   const manage = Boolean(can_edit);
   const hosts = list<string>(st, "course.embed_hosts");

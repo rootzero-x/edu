@@ -4,7 +4,7 @@ namespace App\Telegram;
 
 use App\Models\Course;
 use App\Support\Leads;
-use App\Support\PhoneNormalizer;
+use App\Support\Phone;
 use App\Support\Settings;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -77,7 +77,7 @@ class BotLeads
         if (! is_array($state)) {
             return false;
         }
-        $phone = PhoneNormalizer::normalize((string) ($contact['phone_number'] ?? ''));
+        $phone = Phone::normalize((string) ($contact['phone_number'] ?? ''));
         if (! $phone) {
             return false;
         }

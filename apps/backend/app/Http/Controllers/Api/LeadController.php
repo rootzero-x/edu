@@ -10,7 +10,7 @@ use App\Models\LeadActivity;
 use App\Models\User;
 use App\Support\Audit;
 use App\Support\Leads;
-use App\Support\PhoneNormalizer;
+use App\Support\Phone;
 use App\Support\Settings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -260,7 +260,7 @@ class LeadController
             ->when(($data['due'] ?? null) === 'today', fn ($q) => $q->whereIn('status', Lead::OPEN)->whereNotNull('next_contact_on')->where('next_contact_on', '<=', today()->toDateString()))
             ->when(($data['due'] ?? null) === 'none', fn ($q) => $q->whereIn('status', Lead::OPEN)->whereNull('next_contact_on'));
         if ($s = trim((string) ($data['q'] ?? ''))) {
-            $digits = PhoneNormalizer::searchDigits($s);
+            $digits = Phone::searchDigits($s);
             $q->where(fn ($w) => $digits ? $w->where('phone', 'like', "%$digits%") : $w->where('name', 'like', '%'.addcslashes($s, '%_\\').'%'));
         }
 
@@ -282,7 +282,7 @@ class LeadController
             'notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
         if (isset($data['phone'])) {
-            $data['phone'] = PhoneNormalizer::normalize($data['phone'])
+            $data['phone'] = Phone::normalize($data['phone'])
                 ?? throw ValidationException::withMessages(['phone' => "Telefon raqami noto'g'ri. Masalan: 90 123 45 67"]);
         }
         if (! empty($data['owner_id'])) {

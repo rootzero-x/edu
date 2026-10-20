@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\User;
+use App\Support\Audit;
+use App\Support\Phone;
 use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,12 +21,18 @@ class AuthController
             'device' => ['nullable', 'string', 'max:64'],
         ]);
 
-        $user = User::where('phone', $data['phone'])->first();
+        // "90 123 45 67", "+998 90 …" — hammasi bitta akkaunt (eski, normalizatsiyadan oldingi yozuvlar ham topiladi).
+        $phone = Phone::normalize($data['phone']);
+        $legacy = '+'.preg_replace('/\D+/', '', $data['phone']); // normalizatsiyadan oldin saqlangan yozuvlar
+        $user = User::whereIn('phone', array_unique(array_filter([$phone, $data['phone'], $legacy])))
+            ->orderByRaw('phone = ? desc', [$phone ?? $data['phone']])->first();
         if (! $user || ! $user->active || ! $user->password || ! Hash::check($data['password'], $user->password)) {
+            Audit::as($user?->id, 'auth.login_failed', 'user', $user?->id, ['phone' => $phone ?? mb_substr($data['phone'], 0, 32)], $request->ip());
             throw ValidationException::withMessages(['phone' => __('Telefon yoki parol noto\'g\'ri.')]);
         }
 
         $token = $user->createToken($data['device'] ?? 'web', ['*'], now()->addDays($settings->int('auth.token_ttl_days')));
+        Audit::as($user->id, 'auth.login', 'user', $user->id, ['method' => 'password'], $request->ip());
 
         return response()->json(['token' => $token->plainTextToken, 'user' => $user->toApi()]);
     }
@@ -49,7 +57,7 @@ class AuthController
             'locale' => ['sometimes', 'string', 'in:uz,ru,en'],
         ]);
         $request->user()->update($data);
-        \App\Support\Audit::log('user.update_self', 'user', $request->user()->id, $data);
+        Audit::log('user.update_self', 'user', $request->user()->id, $data);
 
         return $this->me($request);
     }
@@ -57,6 +65,7 @@ class AuthController
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
+        Audit::log('auth.logout', 'user', $request->user()->id);
 
         return response()->json(['ok' => true]);
     }
@@ -77,6 +86,7 @@ class AuthController
         $user->update(['password' => $data['new_password']]);
         $current = $user->currentAccessToken()->id;
         $user->tokens()->where('id', '!=', $current)->delete();
+        Audit::log('auth.password_change', 'user', $user->id, ['first' => ! $hasPassword]);
 
         return response()->json(['ok' => true]);
     }

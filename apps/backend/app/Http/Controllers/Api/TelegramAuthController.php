@@ -64,8 +64,12 @@ class TelegramAuthController
     public function miniApp(Request $request, Settings $settings, TelegramClient $tg): JsonResponse
     {
         $data = $request->validate(['init_data' => ['required', 'string', 'max:8192']]);
-        $fields = InitData::verify($data['init_data'], $tg->token(), $settings->int('telegram.miniapp_auth_max_age_seconds'));
-        abort_unless($fields, 401, 'initData noto\'g\'ri yoki eskirgan.');
+        [$fields, $reason] = InitData::inspect($data['init_data'], $tg->token(), $settings->int('telegram.miniapp_auth_max_age_seconds'));
+        if (! $fields) {
+            // 'expired' — Mini App uzoq ochiq turgan: qayta urinish yordam bermaydi, ilovani qayta ochish kerak.
+            return response()->json(['status' => $reason, 'message' => $reason === 'expired'
+                ? 'Sessiya eskirgan. Ilovani yopib, qayta oching.' : 'initData noto\'g\'ri.'], 401);
+        }
 
         $userId = DB::table('telegram_links')->where('telegram_id', $fields['user']['id'])->value('user_id');
         if (! $userId) {

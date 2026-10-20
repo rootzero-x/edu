@@ -6,7 +6,7 @@ use App\Domain\Role;
 use App\Models\Course;
 use App\Models\Lead;
 use App\Models\User;
-use App\Support\PhoneNormalizer;
+use App\Support\Phone;
 use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +27,7 @@ class SearchController
         // Bir tur (masalan, o'quvchilar) butun ro'yxatni egallab olmasin.
         $per = max(3, intdiv($limit, 2));
         $like = '%'.addcslashes($q, '%_\\').'%';
-        $digits = PhoneNormalizer::searchDigits($q);
+        $digits = Phone::searchDigits($q);
         $staff = $user->hasPermission('attendance.mark') || $user->hasPermission('group.manage');
         $out = [];
         $roleLabels = (array) $settings->get('telegram.role_labels');

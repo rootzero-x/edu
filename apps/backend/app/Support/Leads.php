@@ -90,11 +90,11 @@ final class Leads
         if ($lead->status === Lead::ENROLLED && $lead->student_id) {
             throw ValidationException::withMessages(['lead' => "Bu ariza allaqachon o'quvchiga aylantirilgan."]);
         }
-        $phone = PhoneNormalizer::normalize($data['phone']);
+        $phone = Phone::normalize($data['phone']);
         if (! $phone) {
             throw ValidationException::withMessages(['phone' => "Telefon raqami noto'g'ri. Masalan: 90 123 45 67"]);
         }
-        $parentPhone = isset($data['parent_phone']) && trim((string) $data['parent_phone']) !== '' ? PhoneNormalizer::normalize($data['parent_phone']) : null;
+        $parentPhone = isset($data['parent_phone']) && trim((string) $data['parent_phone']) !== '' ? Phone::normalize($data['parent_phone']) : null;
         if (isset($data['parent_phone']) && trim((string) $data['parent_phone']) !== '' && ! $parentPhone) {
             throw ValidationException::withMessages(['parent_phone' => "Ota-ona telefoni noto'g'ri."]);
         }

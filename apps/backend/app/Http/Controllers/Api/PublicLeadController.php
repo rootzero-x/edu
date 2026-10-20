@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Course;
 use App\Support\Audit;
 use App\Support\Leads;
-use App\Support\PhoneNormalizer;
+use App\Support\Phone;
 use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,7 +42,7 @@ class PublicLeadController
         if (trim((string) ($data['website'] ?? '')) !== '' || ($data['fill_ms'] ?? 0) < $settings->int('leads.min_fill_seconds') * 1000) {
             return $ok;
         }
-        $phone = PhoneNormalizer::normalize($data['phone']);
+        $phone = Phone::normalize($data['phone']);
         if (! $phone) {
             throw ValidationException::withMessages(['phone' => $labels['phone_invalid'] ?? "Telefon raqami noto'g'ri."]);
         }
