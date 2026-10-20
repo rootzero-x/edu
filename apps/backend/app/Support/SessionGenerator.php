@@ -17,7 +17,8 @@ final class SessionGenerator
     public function generate(StudyGroup $group, ?string $from = null, ?string $to = null): array
     {
         $tz = new DateTimeZone(config('app.timezone'));
-        $today = new DateTimeImmutable('today', $tz);
+        // Ilova soati (Carbon) — testlarda va boshqa joylarda bir xil "bugun".
+        $today = DateTimeImmutable::createFromInterface(now($tz)->startOfDay());
         $start = max(new DateTimeImmutable($from ?? $today->format('Y-m-d'), $tz), new DateTimeImmutable($group->start_date->format('Y-m-d'), $tz));
         $end = new DateTimeImmutable($to ?? $today->modify('+'.$this->settings->int('attendance.sessions_ahead_days').' days')->format('Y-m-d'), $tz);
         if ($group->end_date) {
