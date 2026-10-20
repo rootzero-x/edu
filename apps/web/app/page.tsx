@@ -1,43 +1,43 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3100";
+import Link from "next/link";
+import { API_URL, publicSettings } from "@/lib/api";
 
-async function apiStatus(): Promise<"ok" | "down"> {
+export const revalidate = 60;
+
+async function apiStatus(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/health`, { cache: "no-store", signal: AbortSignal.timeout(3000) });
-    return res.ok ? "ok" : "down";
+    return res.ok;
   } catch {
-    return "down";
+    return false;
   }
 }
 
-export const dynamic = "force-dynamic";
-
-const FEATURES = [
-  { title: "Kurslar va darslar", text: "Video, fayl va matnli darslar, modullar bo'yicha." },
-  { title: "Testlar", text: "Vaqt cheklovi, urinishlar soni, avtomatik baholash." },
-  { title: "Guruhlar va davomat", text: "Jadval, davomat, ota-onaga xabar." },
-  { title: "To'lovlar", text: "Oylik to'lov, chegirma, qarzdorlik hisobi." },
-  { title: "Sertifikat", text: "Kursni tugatganlarga QR-kodli sertifikat." },
-  { title: "Telegram", text: "Bot va Mini App orqali kirish." },
-];
-
 export default async function Home() {
-  const status = await apiStatus();
+  const [s, ok] = await Promise.all([publicSettings(), apiStatus()]);
+  const features = Array.isArray(s?.["site.features"]) ? s!["site.features"] : [];
   return (
     <main>
-      <h1>TISU Edu</h1>
-      <p className="lead">O&apos;quv markazi platformasi. Tez orada ishga tushadi.</p>
+      <header className="top">
+        {s?.["site.logo_url"] ? <img src={s["site.logo_url"]} alt="" className="logo" /> : null}
+        <h1>{s?.["site.name"] ?? "TISU Edu"}</h1>
+        <Link href="/login" className="btn">Kirish</Link>
+      </header>
+      <p className="lead">{s?.["site.tagline"] ?? ""}</p>
       <div className="grid">
-        {FEATURES.map((f) => (
+        {features.map((f) => (
           <div className="card" key={f.title}>
             <h2>{f.title}</h2>
             <p>{f.text}</p>
           </div>
         ))}
       </div>
-      <p className="status">
-        <span className="dot" style={{ background: status === "ok" ? "#16a34a" : "#dc2626" }} />
-        API: {status === "ok" ? "ishlayapti" : "ulanmagan"}
-      </p>
+      <footer className="status">
+        <span className="dot" style={{ background: ok ? "#16a34a" : "#dc2626" }} />
+        API: {ok ? "ishlayapti" : "ulanmagan"}
+        {s?.["site.contact_phone"] ? <> · {s["site.contact_phone"]}</> : null}
+        {s?.["site.contact_telegram"] ? <> · {s["site.contact_telegram"]}</> : null}
+        {s?.["site.address"] ? <> · {s["site.address"]}</> : null}
+      </footer>
     </main>
   );
 }

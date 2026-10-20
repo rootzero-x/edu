@@ -21,7 +21,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // Limitlar sozlamalardan olinadi (security.*).
         RateLimiter::for('login', fn (Request $r) => Limit::perMinute(
-            app(Settings::class)->int('security.login_per_minute'))->by($r->ip()));
+            // Telefon + IP: bitta akkauntga parol tanlashni cheklaydi, umumiy proksi (Vercel) ortidagi boshqa foydalanuvchilarni bloklamaydi.
+            app(Settings::class)->int('security.login_per_minute'))->by(mb_strtolower((string) $r->input('phone')).'|'.$r->ip()));
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(
             app(Settings::class)->int('security.api_per_minute'))->by($r->user()?->id ?: $r->ip()));
     }
