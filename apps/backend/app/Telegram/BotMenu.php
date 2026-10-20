@@ -1,0 +1,532 @@
+<?php
+
+namespace App\Telegram;
+
+use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\CertificateController;
+use App\Http\Controllers\Api\GroupController;
+use App\Http\Controllers\Api\QuizController;
+use App\Models\ClassSession;
+use App\Models\Course;
+use App\Models\User;
+use App\Support\Settings;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Bot menyusi: rolga qarab reply-klaviatura va bo'limlar. Ma'lumotlar API controller'lari
+ * orqali (ApiBridge) olinadi — huquq va ko'rinish doirasi sayt bilan bir xil.
+ */
+class BotMenu
+{
+    /** Menyu amallari (telegram.menu sozlamasida ishlatiladi). */
+    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'profile', 'today', 'children', 'app'];
+
+    private const STATUS_CODES = ['P' => 'PRESENT', 'L' => 'LATE', 'A' => 'ABSENT', 'E' => 'EXCUSED'];
+
+    public function __construct(
+        private TelegramClient $tg,
+        private Settings $settings,
+        private Texts $t,
+        private ApiBridge $api,
+        private BotAdmin $admin,
+    ) {}
+
+    public function linkedUser(int $telegramId): ?User
+    {
+        $userId = DB::table('telegram_links')->where('telegram_id', $telegramId)->value('user_id');
+
+        return $userId ? User::find($userId) : null;
+    }
+
+    /** Rolga mos doimiy reply-klaviatura. */
+    public function keyboard(User $user, int $chatId): array
+    {
+        $layout = ((array) $this->settings->get('telegram.menu'))[$user->role->value] ?? [];
+        $rows = [];
+        foreach ((array) $layout as $row) {
+            $buttons = [];
+            foreach ((array) $row as $action) {
+                if (in_array($action, self::ACTIONS, true)) {
+                    $buttons[] = ['text' => $this->t->get("telegram.text.btn_$action")];
+                }
+            }
+            if ($buttons) {
+                $rows[] = $buttons;
+            }
+        }
+        if ($this->admin->isAdmin($chatId)) {
+            $rows[] = [['text' => $this->t->get('telegram.text.btn_admin')]];
+        }
+
+        return ['keyboard' => $rows, 'resize_keyboard' => true, 'is_persistent' => true];
+    }
+
+    public function sendMenu(User $user, int $chatId, string $textKey = 'telegram.text.menu', array $vars = []): void
+    {
+        $this->tg->sendMessage($chatId, $this->t->get($textKey, $vars), $this->keyboard($user, $chatId));
+    }
+
+    /** Matnli xabar. false — foydalanuvchi bog'lanmagan (telefon so'rash kerak). */
+    public function onText(int $chatId, array $from, string $text): bool
+    {
+        $command = null;
+        $arg = '';
+        if (preg_match('/^\/([A-Za-z0-9_]+)(?:@\S+)?\s*(.*)$/s', $text, $m)) {
+            $command = strtolower($m[1]);
+            $arg = trim($m[2]);
+            if ($command === 'cancel' && $this->admin->cancel($chatId)) {
+                return true;
+            }
+            if ($this->admin->onCommand($chatId, $command, $arg)) {
+                return true;
+            }
+        }
+        $action = $command !== null ? $this->commandAction($command) : $this->buttonAction($text);
+        if ($action === 'admin') {
+            return $this->admin->onCommand($chatId, 'admin', '');
+        }
+        if ($command === null && $action === null && $this->admin->onText($chatId, $text)) {
+            return true;
+        }
+
+        $user = $this->linkedUser((int) $from['id']);
+        if (! $user) {
+            return false;
+        }
+        if (! $user->active) {
+            $this->tg->sendMessage($chatId, $this->t->get('telegram.text.account_blocked'), ['remove_keyboard' => true]);
+
+            return true;
+        }
+        match ($action) {
+            null => $this->sendMenu($user, $chatId, 'telegram.text.unknown'),
+            'menu' => $this->sendMenu($user, $chatId),
+            'help' => $this->sendMenu($user, $chatId, 'telegram.text.help'),
+            default => $this->show($user, $chatId, $action),
+        };
+
+        return true;
+    }
+
+    /** Inline tugmalar. */
+    public function onCallback(array $cq): void
+    {
+        $data = (string) ($cq['data'] ?? '');
+        $chatId = (int) ($cq['message']['chat']['id'] ?? 0);
+        $messageId = (int) ($cq['message']['message_id'] ?? 0);
+        if (! $chatId || ! $messageId) {
+            $this->tg->answerCallback($cq['id']);
+
+            return;
+        }
+        if (str_starts_with($data, 'adm:')) {
+            $this->admin->onCallback($chatId, $messageId, $cq['id'], $data);
+
+            return;
+        }
+        $user = $this->linkedUser((int) $cq['from']['id']);
+        if (! $user) {
+            $this->tg->answerCallback($cq['id'], $this->t->get('telegram.text.not_own_contact'), true);
+
+            return;
+        }
+        try {
+            $parts = explode(':', $data);
+            $toast = match ($parts[0]) {
+                'm' => $this->show($user, $chatId, $parts[1] ?? 'menu', $messageId),
+                'a' => $this->attendanceCallback($user, $chatId, $messageId, $parts),
+                default => null,
+            };
+            $this->tg->answerCallback($cq['id'], $toast);
+        } catch (BotError $e) {
+            $this->tg->answerCallback($cq['id'], $e->getMessage(), true);
+        }
+    }
+
+    /** Bo'limni ko'rsatish (yangi xabar yoki mavjudini tahrirlash). */
+    private function show(User $user, int $chatId, string $action, ?int $messageId = null): ?string
+    {
+        try {
+            [$text, $markup] = match ($action) {
+                'courses' => $this->courses($user),
+                'schedule' => $this->schedule($user),
+                'attendance' => $this->myAttendance($user),
+                'quizzes' => $this->quizzes($user),
+                'certificates' => $this->certificates($user),
+                'profile' => $this->profile($user),
+                'today' => $this->today($user),
+                'children' => $this->children($user),
+                'app' => [$this->t->get('telegram.text.app_open'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])],
+                default => [$this->t->get('telegram.text.unknown'), null],
+            };
+        } catch (BotError $e) {
+            if ($messageId) {
+                throw $e;
+            }
+            [$text, $markup] = [$this->t->get('telegram.text.error', ['message' => $e->getMessage()]), null];
+        }
+        $messageId
+            ? $this->tg->editMessageText($chatId, $messageId, $text, $markup)
+            : $this->tg->sendMessage($chatId, $text, $markup);
+
+        return null;
+    }
+
+    // ── O'quvchi ─────────────────────────────────────────────
+
+    private function courses(User $user): array
+    {
+        $groups = GroupController::visible($user)->where('active', true)->with('course:id,title')
+            ->orderBy('name')->limit($this->limit())->get();
+        if ($groups->isEmpty()) {
+            return [$this->t->get('telegram.text.courses_empty'), null];
+        }
+        $lines = [$this->t->get('telegram.text.courses_title'), ''];
+        $buttons = [];
+        foreach ($groups->values() as $i => $g) {
+            $lines[] = $this->t->get('telegram.text.course_line', ['n' => $i + 1, 'course' => $g->course->title, 'group' => $g->name]);
+            $buttons[$g->course_id] ??= [$this->webAppRaw(($i + 1).'. '.$g->course->title, '/courses/'.$g->course_id)];
+        }
+
+        return [implode("\n", $lines), $this->inline(array_values($buttons))];
+    }
+
+    private function schedule(User $user): array
+    {
+        $days = $this->settings->int('telegram.schedule_days');
+        $groupIds = GroupController::visible($user)->where('active', true)->pluck('id');
+        $sessions = ClassSession::with('group:id,name,room')
+            ->whereIn('group_id', $groupIds)
+            ->where('starts_at', '>=', now()->startOfDay())
+            ->where('starts_at', '<', now()->startOfDay()->addDays($days))
+            ->orderBy('starts_at')->limit($this->limit() * 3)->get();
+        if ($sessions->isEmpty()) {
+            return [$this->t->get('telegram.text.schedule_empty'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '/schedule')]])];
+        }
+        $weekdays = (array) $this->settings->get('telegram.weekday_names');
+        $lines = [$this->t->get('telegram.text.schedule_title', ['days' => $days])];
+        foreach ($sessions->groupBy(fn ($s) => $s->starts_at->format('Y-m-d')) as $list) {
+            $first = $list->first()->starts_at;
+            $lines[] = '';
+            $lines[] = $this->t->get('telegram.text.schedule_day', [
+                'date' => $first->format('d.m'), 'weekday' => $weekdays[$first->isoWeekday() - 1] ?? '',
+            ]);
+            foreach ($list as $s) {
+                $lines[] = $this->t->get('telegram.text.schedule_line', [
+                    'time' => $s->starts_at->format('H:i'), 'end' => $s->ends_at->format('H:i'),
+                    'group' => $s->group->name, 'room' => $s->group->room ? ' · '.$s->group->room : '',
+                    'topic' => (string) $s->topic,
+                ]).($s->cancelled ? $this->t->get('telegram.text.schedule_cancelled') : '');
+            }
+        }
+
+        return [implode("\n", $lines), $this->inline([[$this->webApp('telegram.text.btn_open_app', '/schedule')]])];
+    }
+
+    private function myAttendance(User $user): array
+    {
+        $groupIds = DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->pluck('group_id');
+        $lines = $this->attendanceLines($user, $user->id, $groupIds->all());
+        if (! $lines) {
+            return [$this->t->get('telegram.text.attendance_empty'), null];
+        }
+
+        return [$this->t->get('telegram.text.attendance_title')."\n\n".implode("\n", $lines),
+            $this->inline([[$this->webApp('telegram.text.btn_open_app', '/attendance')]])];
+    }
+
+    /** Bitta o'quvchining guruhlar bo'yicha davomat qatorlari (AttendanceController::report orqali). */
+    private function attendanceLines(User $viewer, int $studentId, array $groupIds): array
+    {
+        $names = DB::table('study_groups')->whereIn('id', $groupIds)->pluck('name', 'id');
+        $lines = [];
+        foreach ($groupIds as $gid) {
+            $report = $this->api->call($viewer, [AttendanceController::class, 'report'], ['group' => (int) $gid]);
+            $row = collect($report['data'] ?? [])->firstWhere('student_id', $studentId);
+            if (! $row) {
+                continue;
+            }
+            $lines[] = $this->t->get('telegram.text.attendance_line', [
+                'group' => $names[$gid] ?? '', 'rate' => rtrim(rtrim(number_format((float) $row['rate'], 1, '.', ''), '0'), '.'),
+                'present' => $row['counts']['PRESENT'] ?? 0, 'late' => $row['counts']['LATE'] ?? 0,
+                'absent' => $row['counts']['ABSENT'] ?? 0, 'excused' => $row['counts']['EXCUSED'] ?? 0,
+            ]);
+        }
+
+        return $lines;
+    }
+
+    private function quizzes(User $user): array
+    {
+        if (! $user->hasPermission('quiz.take')) {
+            throw new BotError($this->t->get('telegram.text.no_permission'));
+        }
+        $courseIds = DB::table('group_members')
+            ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
+            ->where('group_members.student_id', $user->id)->whereNull('group_members.left_at')
+            ->where('study_groups.active', true)->distinct()->pluck('study_groups.course_id');
+        $lines = [];
+        $buttons = [];
+        foreach (Course::whereIn('id', $courseIds)->where('published', true)->get() as $course) {
+            $res = $this->api->call($user, [QuizController::class, 'index'], ['course' => $course], [], 'course.view');
+            foreach ($res['data'] ?? [] as $q) {
+                if (count($lines) >= $this->limit()) {
+                    break 2;
+                }
+                $n = count($lines) + 1;
+                $status = match (true) {
+                    (bool) ($q['my_passed'] ?? false) => $this->t->get('telegram.text.quiz_passed', ['percent' => $q['my_best_percent']]),
+                    ($q['my_attempts'] ?? 0) > 0 => $this->t->get('telegram.text.quiz_failed', [
+                        'percent' => $q['my_best_percent'], 'attempts' => $q['my_attempts'], 'max' => $q['max_attempts'],
+                    ]),
+                    default => $this->t->get('telegram.text.quiz_new'),
+                };
+                $lines[] = $this->t->get('telegram.text.quiz_line', ['n' => $n, 'title' => $q['title'], 'course' => $course->title, 'status' => $status]);
+                $buttons[] = [$this->webAppRaw($n.'. '.$q['title'], '/quizzes/'.$q['id'])];
+            }
+        }
+        if (! $lines) {
+            return [$this->t->get('telegram.text.quizzes_empty'), null];
+        }
+
+        return [$this->t->get('telegram.text.quizzes_title')."\n\n".implode("\n", $lines), $this->inline($buttons)];
+    }
+
+    private function certificates(User $user): array
+    {
+        $rows = array_slice($this->api->call($user, [CertificateController::class, 'index'])['data'] ?? [], 0, $this->limit());
+        if (! $rows) {
+            return [$this->t->get('telegram.text.certificates_empty'), null];
+        }
+        $base = rtrim((string) $this->settings->get('certificate.public_base_url'), '/');
+        $lines = array_map(fn ($c) => $this->t->get('telegram.text.certificate_line', [
+            'course' => $c['course'], 'name' => trim($c['first_name'].' '.$c['last_name']), 'code' => $c['code'],
+            'date' => Carbon::parse($c['issued_at'])->format('d.m.Y'), 'url' => $base.'/'.$c['code'],
+        ]), $rows);
+
+        return [$this->t->get('telegram.text.certificates_title')."\n\n".implode("\n\n", $lines), null];
+    }
+
+    private function profile(User $user): array
+    {
+        $text = $this->t->get('telegram.text.profile', [
+            'name' => trim($user->first_name.' '.$user->last_name),
+            'phone' => $user->phone,
+            'role' => ((array) $this->settings->get('telegram.role_labels'))[$user->role->value] ?? $user->role->value,
+            'groups' => GroupController::visible($user)->where('active', true)->count(),
+        ]);
+
+        return [$text, $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])];
+    }
+
+    // ── Ota-ona ──────────────────────────────────────────────
+
+    private function children(User $user): array
+    {
+        $children = User::whereIn('id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'))
+            ->orderBy('first_name')->get();
+        if ($children->isEmpty()) {
+            return [$this->t->get('telegram.text.children_empty'), null];
+        }
+        $emoji = (array) $this->settings->get('telegram.attendance_emoji');
+        $blocks = [];
+        foreach ($children as $child) {
+            $groupIds = DB::table('group_members')->where('student_id', $child->id)->whereNull('left_at')->pluck('group_id')->all();
+            $lines = $groupIds ? $this->attendanceLines($user, $child->id, $groupIds) : [$this->t->get('telegram.text.child_no_groups')];
+            $absences = DB::table('attendances')
+                ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
+                ->where('attendances.student_id', $child->id)->where('attendances.status', 'ABSENT')
+                ->orderByDesc('class_sessions.starts_at')->limit(3)->pluck('class_sessions.starts_at');
+            if ($absences->isNotEmpty()) {
+                $lines[] = $this->t->get('telegram.text.child_absences', [
+                    'dates' => $absences->map(fn ($d) => ($emoji['ABSENT'] ?? '').Carbon::parse($d)->format('d.m'))->implode(', '),
+                ]);
+            }
+            $blocks[] = $this->t->get('telegram.text.child_block', ['name' => trim($child->first_name.' '.$child->last_name), 'lines' => implode("\n", $lines)]);
+        }
+
+        return [$this->t->get('telegram.text.children_title')."\n\n".implode("\n\n", $blocks),
+            $this->inline([[$this->webApp('telegram.text.btn_open_app', '/attendance')]])];
+    }
+
+    // ── O'qituvchi: bugungi darslar va davomat ───────────────
+
+    private function today(User $user): array
+    {
+        if (! $user->hasPermission('attendance.mark')) {
+            throw new BotError($this->t->get('telegram.text.no_permission'));
+        }
+        $groups = GroupController::visible($user)->where('active', true)
+            ->when(! $user->hasPermission('group.manage'), fn ($q) => $q->where('teacher_id', $user->id))
+            ->withCount('students')->get()->keyBy('id');
+        $sessions = ClassSession::whereIn('group_id', $groups->keys())
+            ->whereDate('starts_at', now()->toDateString())->where('cancelled', false)
+            ->withCount('attendances')->orderBy('starts_at')->limit($this->limit())->get();
+        if ($sessions->isEmpty()) {
+            return [$this->t->get('telegram.text.today_empty'), null];
+        }
+        $rows = $sessions->map(fn ($s) => [['text' => $this->t->get('telegram.text.today_button', [
+            'time' => $s->starts_at->format('H:i'), 'group' => $groups[$s->group_id]->name,
+            'marked' => $s->attendances_count, 'total' => $groups[$s->group_id]->students_count,
+        ]), 'callback_data' => 'a:s:'.$s->id]])->all();
+        $rows[] = [['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => 'm:today']];
+
+        return [$this->t->get('telegram.text.today_title', ['date' => now()->format('d.m.Y')]), $this->inline($rows)];
+    }
+
+    private function attendanceCallback(User $user, int $chatId, int $messageId, array $p): ?string
+    {
+        if (! $user->hasPermission('attendance.mark')) {
+            throw new BotError($this->t->get('telegram.text.no_permission'));
+        }
+        $session = ClassSession::find((int) ($p[2] ?? 0));
+        if (! $session) {
+            throw new BotError($this->t->get('telegram.text.no_permission'));
+        }
+        switch ($p[1] ?? '') {
+            case 's':
+                $this->renderSheet($user, $chatId, $messageId, $session);
+
+                return null;
+            case 'p':
+                $this->renderPicker($user, $chatId, $messageId, $session, (int) ($p[3] ?? 0));
+
+                return null;
+            case 'm':
+                $status = self::STATUS_CODES[$p[4] ?? ''] ?? null;
+                if (! $status) {
+                    return null;
+                }
+                $toast = $this->mark($user, $session, [['student_id' => (int) ($p[3] ?? 0), 'status' => $status]]);
+                $this->renderSheet($user, $chatId, $messageId, $session);
+
+                return $toast;
+            case 'all':
+                $rows = $this->sheet($user, $session)['rows'] ?? [];
+                $items = array_values(array_map(fn ($r) => ['student_id' => $r['student_id'], 'status' => 'PRESENT'],
+                    array_filter($rows, fn ($r) => $r['status'] === null)));
+                if (! $items) {
+                    return $this->t->get('telegram.text.nothing_to_mark');
+                }
+                $toast = $this->mark($user, $session, $items);
+                $this->renderSheet($user, $chatId, $messageId, $session);
+
+                return $toast;
+        }
+
+        return null;
+    }
+
+    private function sheet(User $user, ClassSession $session): array
+    {
+        return $this->api->call($user, [AttendanceController::class, 'sheet'], ['session' => $session]);
+    }
+
+    private function mark(User $user, ClassSession $session, array $items): string
+    {
+        $res = $this->api->call($user, [AttendanceController::class, 'mark'], ['session' => $session], ['items' => $items], 'attendance.mark');
+
+        return ($res['notified'] ?? 0) > 0
+            ? $this->t->get('telegram.text.marked_notified', ['count' => $res['notified']])
+            : $this->t->get('telegram.text.marked');
+    }
+
+    private function renderSheet(User $user, int $chatId, int $messageId, ClassSession $session): void
+    {
+        $data = $this->sheet($user, $session);
+        $rows = $data['rows'] ?? [];
+        $emoji = (array) $this->settings->get('telegram.attendance_emoji');
+        $text = $this->t->get('telegram.text.sheet_title', [
+            'group' => $data['group']['name'] ?? '', 'date' => $session->starts_at->format('d.m.Y'), 'time' => $session->starts_at->format('H:i'),
+            'marked' => count(array_filter($rows, fn ($r) => $r['status'] !== null)), 'total' => count($rows),
+        ]);
+        if (! $rows) {
+            $text .= "\n\n".$this->t->get('telegram.text.sheet_empty');
+        }
+        $keyboard = array_map(fn ($r) => [[
+            'text' => ($emoji[$r['status'] ?? 'NONE'] ?? '').' '.$r['name'],
+            'callback_data' => "a:p:{$session->id}:{$r['student_id']}",
+        ]], array_slice($rows, 0, 90));
+        $keyboard[] = [
+            ['text' => $this->t->get('telegram.text.btn_all_present'), 'callback_data' => "a:all:{$session->id}"],
+            ['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => "a:s:{$session->id}"],
+        ];
+        $nav = [['text' => $this->t->get('telegram.text.btn_back'), 'callback_data' => 'm:today']];
+        if ($app = $this->webApp('telegram.text.btn_open_app', '/sessions/'.$session->id)) {
+            $nav[] = $app;
+        }
+        $keyboard[] = $nav;
+        $this->tg->editMessageText($chatId, $messageId, $text, ['inline_keyboard' => $keyboard]);
+    }
+
+    private function renderPicker(User $user, int $chatId, int $messageId, ClassSession $session, int $studentId): void
+    {
+        $row = collect($this->sheet($user, $session)['rows'] ?? [])->firstWhere('student_id', $studentId);
+        if (! $row) {
+            throw new BotError($this->t->get('telegram.text.no_permission'));
+        }
+        $emoji = (array) $this->settings->get('telegram.attendance_emoji');
+        $labels = (array) $this->settings->get('attendance.status_labels');
+        $buttons = [];
+        foreach (self::STATUS_CODES as $code => $status) {
+            $buttons[] = ['text' => ($emoji[$status] ?? '').' '.($labels[$status] ?? $status), 'callback_data' => "a:m:{$session->id}:$studentId:$code"];
+        }
+        $this->tg->editMessageText($chatId, $messageId, $this->t->get('telegram.text.pick_status', ['name' => $row['name']]), ['inline_keyboard' => [
+            array_slice($buttons, 0, 2), array_slice($buttons, 2, 2),
+            [['text' => $this->t->get('telegram.text.btn_back'), 'callback_data' => "a:s:{$session->id}"]],
+        ]]);
+    }
+
+    // ── Yordamchilar ─────────────────────────────────────────
+
+    private function commandAction(string $command): ?string
+    {
+        return match (true) {
+            $command === 'admin' => 'admin',
+            in_array($command, ['menu', 'help'], true) => $command,
+            in_array($command, self::ACTIONS, true) => $command,
+            default => null,
+        };
+    }
+
+    private function buttonAction(string $text): ?string
+    {
+        if ($text === $this->t->get('telegram.text.btn_admin')) {
+            return 'admin';
+        }
+        foreach (self::ACTIONS as $action) {
+            if ($text === $this->t->get("telegram.text.btn_$action")) {
+                return $action;
+            }
+        }
+
+        return null;
+    }
+
+    private function limit(): int
+    {
+        return $this->settings->int('telegram.list_limit');
+    }
+
+    /** Mini App tugmasi (manzil sozlanmagan bo'lsa null). */
+    private function webApp(string $textKey, string $path): ?array
+    {
+        return $this->webAppRaw($this->t->get($textKey), $path);
+    }
+
+    private function webAppRaw(string $text, string $path): ?array
+    {
+        $base = rtrim((string) $this->settings->get('telegram.miniapp_url'), '/');
+
+        return $base === '' ? null : ['text' => $text, 'web_app' => ['url' => $base.$path]];
+    }
+
+    /** null tugmalarni tashlab, bo'sh bo'lsa null qaytaradi. */
+    private function inline(array $rows): ?array
+    {
+        $rows = array_values(array_filter(array_map(fn ($r) => array_values(array_filter($r)), $rows)));
+
+        return $rows ? ['inline_keyboard' => $rows] : null;
+    }
+}
