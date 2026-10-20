@@ -19,4 +19,4 @@ export type GroupRow = {
 };
 export type GroupDetail = GroupRow & { students: Person[] };
 export type SessionRow = { id: number; starts_at: string; ends_at: string; cancelled: boolean; topic: string | null; marked_count: number };
-export type ReportRow = { student_id: number; name: string; counts: Record<string, number>; rate: number };
+export type ReportRow = { student_id: number; name: string; counts: Record<string, number>; rate: number; left?: boolean; left_at?: string | null };

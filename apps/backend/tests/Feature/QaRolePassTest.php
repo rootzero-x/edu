@@ -140,11 +140,15 @@ class QaRolePassTest extends TestCase
         $this->postJson("/v1/quizzes/$quizId/attempts")->assertOk();
 
         Sanctum::actingAs($this->teacher);
-        $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'a', 'is_correct' => false], ['text' => 'b', 'is_correct' => true]]])
-            ->assertStatus(409);
-        $this->assertTrue((bool) DB::table('question_options')->where('question_id', $q['id'])->where('text', 'a')->value('is_correct'));
+        // Matn tahriri — o'rnida (id'lar o'zgarmaydi).
         $this->patchJson("/v1/questions/{$q['id']}", ['text' => 'Savol?', 'options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false]]])
-            ->assertOk()->assertJsonPath('question.options.1.text', 'B');
+            ->assertOk()->assertJsonPath('versioned', false)->assertJsonPath('question.options.1.text', 'B');
+        // To'g'ri javobni almashtirish: eski savol (va topshirilgan javoblar bog'langan variantlar) o'zgarmaydi — yangi versiya.
+        $new = $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'a', 'is_correct' => false], ['text' => 'b', 'is_correct' => true]]])
+            ->assertOk()->assertJsonPath('versioned', true)->json('question');
+        $this->assertTrue((bool) DB::table('question_options')->where('question_id', $q['id'])->where('text', 'A')->value('is_correct'));
+        $this->assertNotSame($q['id'], $new['id']);
+        $this->assertTrue((bool) $new['options'][1]['is_correct']);
     }
 
     /** #7 (davomi): ball va matnli javob kaliti ham urinishdan keyin qulflanadi. */
@@ -158,11 +162,16 @@ class QaRolePassTest extends TestCase
         $this->postJson("/v1/quizzes/$quizId/attempts")->assertOk();
 
         Sanctum::actingAs($this->teacher);
-        $this->patchJson("/v1/questions/{$q['id']}", ['accepted_answers' => ['Toshkent', 'Tashkent']])->assertStatus(409);
-        $this->patchJson("/v1/questions/{$q['id']}", ['points' => 5])->assertStatus(409);
-        // Bir xil qiymatlar (katta-kichik harf/bo'shliq farqi) va matn tahriri — mumkin.
+        // Bir xil qiymatlar (katta-kichik harf/bo'shliq farqi) va matn tahriri — o'rnida.
         $this->patchJson("/v1/questions/{$q['id']}", ['text' => "O'zbekiston poytaxti?", 'points' => 2, 'accepted_answers' => [' toshkent ']])
-            ->assertOk()->assertJsonPath('question.text', "O'zbekiston poytaxti?");
+            ->assertOk()->assertJsonPath('versioned', false)->assertJsonPath('question.text', "O'zbekiston poytaxti?");
+        // Kalit yoki ball o'zgarsa (Sprint 1, #21): eski savol qulflangan holda arxivlanadi, yangi versiya yaratiladi.
+        $v2 = $this->patchJson("/v1/questions/{$q['id']}", ['accepted_answers' => ['Toshkent', 'Tashkent']])
+            ->assertOk()->assertJsonPath('versioned', true)->json('question');
+        $this->assertSame(['toshkent'], json_decode((string) DB::table('questions')->where('id', $q['id'])->value('accepted_answers'), true));
+        $this->patchJson("/v1/questions/{$q['id']}", ['points' => 5])->assertStatus(409); // eski versiya endi tahrirlanmaydi
+        $this->patchJson("/v1/questions/{$v2['id']}", ['points' => 5])->assertOk()->assertJsonPath('versioned', true)->assertJsonPath('question.points', 5);
+        $this->assertSame(2, (int) DB::table('questions')->where('id', $v2['id'])->value('points'));
     }
 
     /** #3 (davomi): guruhdagi o'quvchining roli o'zgarmaydi. */

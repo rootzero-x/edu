@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronsUpDown, LogOut, Menu, UserRound } from "lucide-react";
-import { Avatar, Button, Dropdown, cx } from "@/components/ui";
+import { Avatar, Button, Dropdown, SafeImage, cx } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import { logout } from "@/components/LogoutButton";
 import { NAV, ROLE_LABELS } from "./nav";
@@ -60,9 +60,11 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
   const link = (n: (typeof items)[number]) => {
     const Icon = n.icon;
     return (
-      <Link key={n.href} href={n.href} className={s.link} aria-current={inSection(n) ? "page" : undefined}>
+      <Link key={n.href} href={n.href} className={s.link} aria-current={inSection(n) ? "page" : undefined}
+        aria-label={n.href === "/dashboard/news" && unread > 0 ? `${labels[n.href] || n.label}, ${unread} ta o'qilmagan` : undefined}>
         <Icon aria-hidden />{labels[n.href] || n.label}
-        {n.href === "/dashboard/news" && unread > 0 && <span className={s.count} aria-label={`${unread} ta o'qilmagan`}>{unread > 99 ? "99+" : unread}</span>}
+        {/* Nishon ko'rinadigan raqam; ekran o'quvchi uchun nom havolaning o'zida (span'dagi aria-label o'qilmaydi). */}
+        {n.href === "/dashboard/news" && unread > 0 && <span className={s.count} aria-hidden>{unread > 99 ? "99+" : unread}</span>}
       </Link>
     );
   };
@@ -80,7 +82,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
         {...(mobile && open ? { role: "dialog", "aria-modal": true } : {})}
       >
         <Link href="/dashboard" className={s.brand}>
-          <span className={s.brandMark} aria-hidden>{logoUrl ? <img src={logoUrl} alt="" /> : siteName.slice(0, 1)}</span>
+          <span className={s.brandMark} aria-hidden><SafeImage src={logoUrl} fallback={siteName.slice(0, 1)} /></span>
           <span className={s.brandName}>{siteName}</span>
         </Link>
         <nav className={s.nav}>

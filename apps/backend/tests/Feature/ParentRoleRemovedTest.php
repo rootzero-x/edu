@@ -88,7 +88,7 @@ class ParentRoleRemovedTest extends TestCase
             ['key' => 'telegram.profile.commands', 'value' => json_encode(['default' => [['command' => 'children', 'description' => 'F'], ['command' => 'menu', 'description' => 'M']]]), 'updated_at' => now()],
         ]);
 
-        (require database_path('migrations/2026_10_23_000001_remove_parent_role.php'))->up();
+        (require database_path('migrations/2026_10_23_000002_remove_parent_role.php'))->up();
 
         $this->assertDatabaseHas('users', ['id' => $id, 'role' => 'STUDENT', 'active' => false]);
         $this->assertDatabaseMissing('settings', ['key' => 'attendance.notify_parents']);

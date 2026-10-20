@@ -78,7 +78,8 @@ class DashboardController
                 'attendance_days' => $days,
                 'attendance_counts' => array_count_values($statuses) + array_fill_keys([Attendance::PRESENT, Attendance::LATE, Attendance::ABSENT, Attendance::EXCUSED], 0),
                 'courses' => $user->hasPermission('course.view')
-                    ? Course::query()->when(! $user->hasPermission('course.manage'), fn ($q) => $q->where('published', true))->count()
+                    ? Course::query()->when(! $user->hasPermission('course.manage'), fn ($q) => $q->where(fn ($w) => $w->where('published', true)
+                        ->when($user->hasPermission('course.author'), fn ($a) => $a->orWhere('created_by', $user->id))))->count()
                     : null,
                 'groups' => count($groupIds),
                 'students' => $marker

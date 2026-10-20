@@ -66,3 +66,23 @@ export function personName(u: { first_name: string; last_name?: string | null })
 export function scheduleText(list: { weekday: number; start_time: string; end_time?: string }[]) {
   return list.map((x) => `${WEEKDAYS[x.weekday]} ${x.start_time.slice(0, 5)}${x.end_time ? `–${x.end_time.slice(0, 5)}` : ""}`).join(", ");
 }
+
+/**
+ * Telefonni +998XXXXXXXXX shakliga keltirish (backend App\Support\Phone bilan bir xil qoidalar):
+ * "90 123 45 67", "8 90 …", "998 90 …", "+998 (90) …" → "+998901234567". Tanilmasa — kiritilgani o'zgarmaydi
+ * (server xorijiy raqamlarni sozlamaga qarab tekshiradi).
+ */
+export function normalizePhone(raw: string): string {
+  const v = raw.trim();
+  let d = v.replace(/\D+/g, "");
+  if (v.startsWith("00")) d = d.slice(2);
+  if (d.length === 9) d = `998${d}`;
+  else if (!v.startsWith("+") && d.length === 10 && d.startsWith("8")) d = `998${d.slice(1)}`;
+  return /^998\d{9}$/.test(d) ? `+${d}` : v;
+}
+
+/** "+998901234567" → "+998 90 123 45 67" (faqat ko'rsatish uchun). */
+export function fmtPhone(phone: string): string {
+  const m = /^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/.exec(phone);
+  return m ? `+998 ${m[1]} ${m[2]} ${m[3]} ${m[4]}` : phone;
+}

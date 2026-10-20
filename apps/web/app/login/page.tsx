@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { TOKEN_COOKIE, me, publicSettings } from "@/lib/api";
 import { list, siteName, str } from "@/lib/settings";
 import ThemeToggle from "@/components/ThemeToggle";
+import { SafeImage } from "@/components/ui";
 import LoginForm from "./LoginForm";
 import s from "./login.module.css";
 
@@ -28,7 +29,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const points = list<string>(st, "login.side_points").filter((p) => typeof p === "string" && p);
   const telegramEnabled = Boolean(str(st, "telegram.bot_username"));
   const lead = telegramEnabled ? str(st, "login.subtitle") : str(st, "login.subtitle_password");
-  const mark = <span className={s.mark} aria-hidden>{logo ? <img src={logo} alt="" /> : name.slice(0, 1)}</span>;
+  const mark = <span className={s.mark} aria-hidden><SafeImage src={logo} fallback={name.slice(0, 1)} /></span>;
 
   return (
     <div className={s.wrap}>

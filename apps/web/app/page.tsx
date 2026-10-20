@@ -7,7 +7,7 @@ import {
 import { API_URL, publicCourses, publicNews, publicSettings } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { list, siteName, str, timezone } from "@/lib/settings";
-import { ButtonLink } from "@/components/ui";
+import { ButtonLink, SafeImage } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import s from "./landing.module.css";
 
@@ -75,7 +75,7 @@ export default async function Home() {
       <header className={s.header}>
         <div className={`${s.container} ${s.headerInner}`}>
           <Link href="/" className={s.brand}>
-            <span className={s.mark} aria-hidden>{logo ? <img src={logo} alt="" /> : name.slice(0, 1)}</span>
+            <span className={s.mark} aria-hidden><SafeImage src={logo} fallback={name.slice(0, 1)} /></span>
             <span>{name}</span>
           </Link>
           <nav className={s.nav} aria-label={name}>
@@ -120,7 +120,7 @@ export default async function Home() {
               )}
             </div>
             <div className={s.visual} aria-hidden>
-              {heroImage ? <img src={heroImage} alt="" /> : (
+              <SafeImage src={heroImage} fallback={(
                 <>
                   <div className={s.mock}>
                     <div className={s.mockBar}><i /><i /><i /></div>
@@ -135,7 +135,7 @@ export default async function Home() {
                   <div className={`${s.chip} ${s.chipA}`}><span className={s.chipIcon}><CheckCircle2 /></span><div><b /><b /></div></div>
                   <div className={`${s.chip} ${s.chipB}`}><span className={s.chipIcon}><Send /></span><div><b /><b /></div></div>
                 </>
-              )}
+              )} />
             </div>
           </div>
         </section>
@@ -194,7 +194,7 @@ export default async function Home() {
               <div className={s.courses}>
                 {courses.map((c) => (
                   <article className={s.course} key={c.id}>
-                    <div className={s.cover} aria-hidden>{c.cover_url ? <img src={c.cover_url} alt="" /> : <GraduationCap />}</div>
+                    <div className={s.cover} aria-hidden><SafeImage src={c.cover_url} fallback={<GraduationCap />} /></div>
                     <div className={s.courseBody}>
                       <h3>{c.title}</h3>
                       {c.description && <p>{c.description}</p>}

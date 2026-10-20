@@ -184,7 +184,7 @@ class TelegramBotTest extends TestCase
         $this->assertStringContainsString('ENG-1 (0/1)', $button['text']);
 
         $this->press(101, "a:s:$sid");
-        $this->assertSame("a:p:$sid:{$this->student->id}", $this->last(101)['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+        $this->assertSame("a:p:$sid:{$this->student->id}:0", $this->last(101)['reply_markup']['inline_keyboard'][0][0]['callback_data']);
 
         $this->press(101, "a:p:$sid:{$this->student->id}");
         $this->assertStringContainsString('Aziz K', $this->last(101)['text']);
@@ -267,7 +267,8 @@ class TelegramBotTest extends TestCase
 
     public function test_new_registration_notifies_admins(): void
     {
-        app(Settings::class)->set(['telegram.admin_chat_ids' => [self::ADMIN_CHAT]], null);
+        // Eski rejim (tasdiqsiz): darhol faol o'quvchi.
+        app(Settings::class)->set(['telegram.admin_chat_ids' => [self::ADMIN_CHAT], 'telegram.self_registration_approval' => false], null);
         $this->postJson('/v1/telegram/webhook', ['update_id' => 3, 'message' => [
             'message_id' => 1, 'chat' => ['id' => 777, 'type' => 'private'], 'from' => ['id' => 777, 'first_name' => 'Yangi', 'username' => 'yangi_u'],
             'contact' => ['phone_number' => '998935550000', 'user_id' => 777, 'first_name' => 'Yangi'],

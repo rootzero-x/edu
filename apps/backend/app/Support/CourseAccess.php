@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Kurs kontentiga (dars materiallari, testlar) kirish huquqi.
  * Kurs ro'yxati va tuzilmasi hammaga ko'rinadi; ichini faqat:
- *  - xodimlar (course.manage huquqi: admin, o'qituvchi), kurs muallifi,
+ *  - adminlar va course.manage huquqi borlar, kurs muallifi,
  *  - kursning faol guruhi o'qituvchisi,
  *  - kursning faol guruhiga a'zo o'quvchi ochadi.
  *
@@ -48,11 +48,14 @@ final class CourseAccess
     /** @return list<int> foydalanuvchi kontentini ocha oladigan kurs id'lari */
     public function grantedCourseIds(User $user): array
     {
-        return DB::table('group_members')
+        $own = DB::table('courses')->where('created_by', $user->id)->pluck('id')
+            ->merge(DB::table('study_groups')->where('teacher_id', $user->id)->where('active', true)->pluck('course_id'));
+
+        return $own->merge(DB::table('group_members')
             ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
             ->whereNull('group_members.left_at')->where('study_groups.active', true)
             ->where('group_members.student_id', $user->id)
-            ->distinct()->pluck('study_groups.course_id')->map(fn ($id) => (int) $id)->all();
+            ->distinct()->pluck('study_groups.course_id'))->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
     /** Kursni (tuzilmasi bilan) ochish mumkinmi: e'lon qilingan yoki foydalanuvchining kontentga huquqi bor. */

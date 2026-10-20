@@ -25,7 +25,8 @@ class QuizController
     public function index(Request $request, CourseAccess $access, Course $course): JsonResponse
     {
         $user = $request->user();
-        $manage = $user->hasPermission('quiz.manage');
+        // Boshqaruv ko'rinishi (yashirin testlar ham): admin, kurs muallifi yoki shu kursning o'qituvchisi.
+        $manage = $user->hasPermission('quiz.manage') && ($user->isAdmin() || CourseController::isOwnOrTaught($user, $course));
         if (! $manage) {
             $access->assertOpen($user, $course);
         }
@@ -66,7 +67,7 @@ class QuizController
     public function show(Request $request, CourseAccess $access, Settings $settings, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
-        // Javob kaliti faqat kursga aloqador xodimga (admin, muallif, shu kursdagi guruh o'qituvchisi).
+        // Javob kaliti faqat admin va kurs muallifiga (boshqa o'qituvchilar — faqat o'z o'quvchilari natijalarini ko'radi).
         if ($user->hasPermission('quiz.manage') && $this->canSeeKey($user, $quiz)) {
             return response()->json(['quiz' => $quiz->load('questions.options', 'course:id,title,created_by'),
                 'can_edit' => CourseController::canEdit($user, $quiz->course)]);
@@ -123,67 +124,90 @@ class QuizController
 
             return $q;
         });
+        Audit::log('question.create', 'question', $question->id, ['quiz_id' => $quiz->id]);
 
         return response()->json(['question' => $question->load('options')], 201);
     }
 
+    /**
+     * Savolni tahrirlash. Variant id'lari barqaror: variantlar o'rnida yangilanadi (o'chirib qayta yaratilmaydi).
+     * Test topshirilgan bo'lsa va o'zgarish natijaga ta'sir qilsa (variantlar soni, to'g'ri javob, ball, turi) —
+     * eski savol arxivlanadi va yangi versiya yaratiladi: topshirilgan javoblar eski variantlarga bog'liqligicha qoladi.
+     */
     public function updateQuestion(Request $request, Question $question): JsonResponse
     {
+        abort_if($question->archived_at !== null, 409, "Bu savolning eski versiyasi. Sahifani yangilang.");
         CourseController::authorizeEdit($request->user(), $question->quiz->course);
         $data = $this->validateQuestion($request, $question->type);
         $attempted = QuizAttempt::where('quiz_id', $question->quiz_id)->exists();
-        if ($attempted) {
-            // Ball va matnli javoblar kaliti saqlangan natijalarni (o'tdi/o'tmadi, sertifikat sharti) belgilaydi.
-            abort_if(isset($data['points']) && (int) $data['points'] !== (int) $question->points, 409,
-                "Testni topshirganlar bor: savol balini o'zgartirib bo'lmaydi. Yangi test yarating.");
-            $norm = fn (array $a) => collect($a)->map(fn ($v) => mb_strtolower(trim((string) $v)))->filter(fn ($v) => $v !== '')->unique()->sort()->values()->all();
-            abort_if($question->type === 'TEXT' && isset($data['accepted_answers'])
-                && $norm($data['accepted_answers']) !== $norm((array) $question->accepted_answers), 409,
-                "Testni topshirganlar bor: qabul qilinadigan javoblarni o'zgartirib bo'lmaydi (savol matnini tahrirlash mumkin). Yangi test yarating.");
+        $options = $question->options()->orderBy('position')->orderBy('id')->get()->values();
+        // Matnli javoblar: katta-kichik harf, bo'shliq va tartib farqi — o'zgarish emas (baholash ham shunday solishtiradi).
+        $norm = fn (array $a) => collect($a)->map(fn ($v) => mb_strtolower(trim((string) $v)))->filter(fn ($v) => $v !== '')->unique()->sort()->values()->all();
+        $gradingChanged = (isset($data['options']) && (count($data['options']) !== $options->count()
+                || $options->map(fn ($o) => (bool) $o->is_correct)->all() !== array_map(fn ($o) => (bool) $o['is_correct'], array_values($data['options']))))
+            || (isset($data['points']) && (int) $data['points'] !== (int) $question->points)
+            || ($question->type === 'TEXT' && isset($data['accepted_answers']) && $norm($data['accepted_answers']) !== $norm((array) $question->accepted_answers));
+
+        if ($attempted && $gradingChanged) {
+            $new = DB::transaction(function () use ($question, $data, $options) {
+                $question->forceFill(['archived_at' => now()])->save();
+                $copy = $question->quiz->questions()->create([
+                    'type' => $question->type, 'text' => $data['text'] ?? $question->text, 'points' => $data['points'] ?? $question->points,
+                    'position' => $data['position'] ?? $question->position, 'replaces_id' => $question->id,
+                    'accepted_answers' => $question->type === 'TEXT' ? array_values($data['accepted_answers'] ?? (array) $question->accepted_answers) : null,
+                ]);
+                $source = $data['options'] ?? $options->map(fn ($o) => ['text' => $o->text, 'is_correct' => (bool) $o->is_correct])->all();
+                foreach (array_values($source) as $i => $o) {
+                    $copy->options()->create(['text' => $o['text'], 'is_correct' => (bool) $o['is_correct'], 'position' => $i + 1]);
+                }
+
+                return $copy;
+            });
+            Audit::log('question.version', 'question', $new->id, ['quiz_id' => $question->quiz_id, 'replaces_id' => $question->id]);
+
+            return response()->json(['question' => $new->load('options'), 'versioned' => true]);
         }
-        if ($attempted && isset($data['options'])) {
-            // Topshirilgan javoblar variant id'lariga bog'langan: variantlar o'chirilib qayta yaratilmaydi.
-            abort_if(count($data['options']) !== $question->options()->count(), 409,
-                "Testni topshirganlar bor: variantlar sonini o'zgartirib bo'lmaydi (matnini tahrirlash mumkin).");
-            // To'g'ri javobni almashtirish saqlangan natijalarni (o'tdi/o'tmadi, sertifikat sharti) eskirtirib qo'yadi.
-            $current = $question->options()->orderBy('position')->orderBy('id')->pluck('is_correct')->map(fn ($v) => (bool) $v)->all();
-            abort_if($current !== array_map(fn ($o) => (bool) $o['is_correct'], array_values($data['options'])), 409,
-                "Testni topshirganlar bor: to'g'ri javobni o'zgartirib bo'lmaydi (variant matnini tahrirlash mumkin). Yangi test yarating.");
-        }
-        DB::transaction(function () use ($question, $data, $attempted) {
+
+        DB::transaction(function () use ($question, $data, $options) {
             $question->update(array_filter([
                 'text' => $data['text'] ?? null, 'points' => $data['points'] ?? null, 'position' => $data['position'] ?? null,
                 'accepted_answers' => $question->type === 'TEXT' && isset($data['accepted_answers']) ? array_values($data['accepted_answers']) : null,
             ], fn ($v) => $v !== null));
-            if (isset($data['options']) && $attempted) {
-                foreach ($question->options()->orderBy('position')->orderBy('id')->get()->values() as $i => $opt) {
-                    $opt->update(['text' => $data['options'][$i]['text'], 'is_correct' => (bool) $data['options'][$i]['is_correct']]);
+            if (isset($data['options'])) {
+                $incoming = array_values($data['options']);
+                foreach ($incoming as $i => $o) {
+                    $fields = ['text' => $o['text'], 'is_correct' => (bool) $o['is_correct'], 'position' => $i + 1];
+                    isset($options[$i]) ? $options[$i]->update($fields) : $question->options()->create($fields);
                 }
-            } elseif (isset($data['options'])) {
-                $question->options()->delete();
-                foreach ($data['options'] as $i => $o) {
-                    $question->options()->create(['text' => $o['text'], 'is_correct' => (bool) $o['is_correct'], 'position' => $i + 1]);
-                }
+                // Ortiqcha variantlar (faqat hali topshirilmagan testda — aks holda yuqorida versiya yaratiladi).
+                $options->slice(count($incoming))->each->delete();
             }
         });
+        Audit::log('question.update', 'question', $question->id, ['quiz_id' => $question->quiz_id]);
 
-        return response()->json(['question' => $question->fresh()->load('options')]);
+        return response()->json(['question' => $question->fresh()->load('options'), 'versioned' => false]);
     }
 
+    /** Topshirilgan testdagi savol o'chirilmaydi — arxivlanadi (yangi urinishlarda ko'rinmaydi, tarix saqlanadi). */
     public function destroyQuestion(Request $request, Question $question): JsonResponse
     {
         CourseController::authorizeEdit($request->user(), $question->quiz->course);
-        abort_if(QuizAttempt::where('quiz_id', $question->quiz_id)->exists(), 409,
-            "Testni topshirganlar bor: savolni o'chirib bo'lmaydi. Yangi test yarating yoki testni yashiring.");
-        $question->delete();
+        if (QuizAttempt::where('quiz_id', $question->quiz_id)->exists()) {
+            $question->forceFill(['archived_at' => now()])->save();
+            Audit::log('question.archive', 'question', $question->id, ['quiz_id' => $question->quiz_id]);
 
-        return response()->json(['ok' => true]);
+            return response()->json(['ok' => true, 'archived' => true]);
+        }
+        $question->delete();
+        Audit::log('question.delete', 'question', $question->id, ['quiz_id' => $question->quiz_id]);
+
+        return response()->json(['ok' => true, 'archived' => false]);
     }
 
     public function results(Request $request, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
-        abort_unless($this->canSeeKey($user, $quiz), 403, 'Ruxsat yo\'q.');
+        abort_unless($this->canSeeKey($user, $quiz) || $this->teachesCourse($user, $quiz), 403, 'Ruxsat yo\'q.');
         // Admin va kurs muallifi — hammasini; boshqa o'qituvchi — faqat o'z guruhlari o'quvchilarini.
         $limitToOwn = ! $user->isAdmin() && (int) $quiz->course->created_by !== (int) $user->id;
         $rows = QuizAttempt::where('quiz_id', $quiz->id)->whereNotNull('submitted_at')
@@ -264,13 +288,20 @@ class QuizController
 
     // ── Yordamchilar ─────────────────────────────────────────
 
-    /** O'quvchi shu kursning faol guruhida bo'lishi kerak. */
+    /** Javob kaliti: admin yoki kurs muallifi. */
     private function canSeeKey(User $user, Quiz $quiz): bool
     {
-        return $user->isAdmin() || (int) $quiz->course->created_by === (int) $user->id
-            || DB::table('study_groups')->where(['course_id' => $quiz->course_id, 'teacher_id' => $user->id])->exists();
+        return $user->isAdmin() || (int) $quiz->course->created_by === (int) $user->id;
     }
 
+    /** Shu kurs guruhining o'qituvchisi (natijalarni faqat o'z o'quvchilari bo'yicha ko'radi). */
+    private function teachesCourse(User $user, Quiz $quiz): bool
+    {
+        return $user->hasPermission('quiz.manage')
+            && DB::table('study_groups')->where(['course_id' => $quiz->course_id, 'teacher_id' => $user->id])->exists();
+    }
+
+    /** O'quvchi shu kursning faol guruhida bo'lishi kerak. */
     private function eligible(User $user, Quiz $quiz): bool
     {
         return $user->hasPermission('quiz.take') && app(CourseAccess::class)->enrolledStudent($user, (int) $quiz->course_id);

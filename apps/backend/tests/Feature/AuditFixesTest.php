@@ -68,8 +68,9 @@ class AuditFixesTest extends TestCase
         $quizId = $this->postJson("/v1/courses/{$this->course->id}/quizzes", ['title' => 'T', 'published' => true])->json('quiz.id');
         $this->getJson("/v1/quizzes/$quizId")->assertJsonStructure(['quiz' => ['questions']]);
 
+        // Kursga aloqasi yo'q o'qituvchi: kontentga ruxsat yo'q (course.manage endi o'qituvchida yo'q), kalit ham, natija ham ko'rinmaydi.
         Sanctum::actingAs(User::factory()->role(Role::Teacher)->create());
-        $this->getJson("/v1/quizzes/$quizId")->assertOk()->assertJsonMissingPath('quiz.questions');
+        $this->getJson("/v1/quizzes/$quizId")->assertForbidden()->assertJsonMissingPath('quiz.questions');
         $this->getJson("/v1/quizzes/$quizId/results")->assertForbidden();
     }
 

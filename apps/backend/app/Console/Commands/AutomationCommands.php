@@ -8,10 +8,15 @@ use Illuminate\Support\Facades\DB;
 
 class AutomationCommands
 {
-    /** Xabar shu foydalanuvchiga shu turda oldin yuborilganmi (yoki --skip bilan o'tkazilganmi). */
+    /**
+     * Xabar shu foydalanuvchiga shu turda oldin yuborilganmi, navbatda turibdimi yoki doimiy sabab bilan
+     * o'tkazilganmi (ulanmagan, bloklagan, --skip). Vaqtinchalik xato bilan yuborilmaganlari keyingi safar qayta uriniladi.
+     */
     public static function alreadySent(int $userId, string $kind): bool
     {
-        return DB::table('notifications_log')->where(['user_id' => $userId, 'kind' => $kind])->exists();
+        return DB::table('notifications_log')->where(['user_id' => $userId, 'kind' => $kind])
+            ->where(fn ($w) => $w->whereNotNull('sent_at')->orWhereIn('error', Notifier::FINAL_ERRORS))->exists()
+            || DB::table('telegram_outbox')->where(['user_id' => $userId, 'kind' => $kind, 'status' => 'pending'])->exists();
     }
 
     /**
