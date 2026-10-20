@@ -19,7 +19,7 @@ class BotAdmin
 {
     private const STATE_TTL = 900;
 
-    public function __construct(private TelegramClient $tg, private Settings $settings, private Texts $t) {}
+    public function __construct(private TelegramClient $tg, private Settings $settings, private Texts $t, private Outbox $outbox) {}
 
     /**
      * Admin: chat sozlamadagi ro'yxatda VA unga bog'langan akkaunt faol hamda user.manage huquqiga ega
@@ -61,23 +61,57 @@ class BotAdmin
         if (! $this->settings->bool('telegram.admin_notify_registrations')) {
             return;
         }
-        $text = $this->t->get('telegram.text.admin_new_user', [
+        $pending = $user->pending_at !== null;
+        $text = $this->t->get($pending ? 'telegram.text.admin_new_applicant' : 'telegram.text.admin_new_user', [
             'name' => trim($user->first_name.' '.$user->last_name),
             'phone' => $user->phone,
             'role' => $this->roleLabel($user->role->value),
             'username' => $username ? '@'.$username : '',
         ]);
+        // Ariza: tasdiqlash tugmalari (so'ralgan rol birinchi).
+        $markup = null;
+        if ($pending) {
+            $roles = $user->role === Role::Parent ? [Role::Parent, Role::Student] : [Role::Student, Role::Parent];
+            $markup = ['inline_keyboard' => [
+                array_map(fn (Role $r) => ['text' => $this->t->get('telegram.text.admin_btn_approve', ['role' => $this->roleLabel($r->value)]),
+                    'callback_data' => "adm:ap:{$user->id}:".($r === Role::Parent ? 'P' : 'S')], $roles),
+                [['text' => $this->t->get('telegram.text.admin_btn_reject'), 'callback_data' => "adm:rj:{$user->id}"]],
+            ]];
+        }
         foreach ((array) $this->settings->get('telegram.admin_chat_ids') as $chatId) {
             // Ro'yxatda qolib ketgan, lekin endi admin bo'lmagan chatga telefon raqamlari ketmasin.
             if (! $this->isAdmin((int) $chatId)) {
                 continue;
             }
             try {
-                $this->tg->sendMessage((int) $chatId, $text);
+                $this->tg->sendMessage((int) $chatId, $text, $markup);
             } catch (Throwable $e) {
                 report($e);
             }
         }
+    }
+
+    /** Arizani bot orqali tasdiqlash / rad etish ("adm:ap:{id}:S|P", "adm:rj:{id}"). */
+    private function decideApplicant(int $chatId, int $messageId, array $parts): void
+    {
+        $user = User::find((int) ($parts[2] ?? 0));
+        $actorId = DB::table('telegram_links')->where('chat_id', $chatId)->value('user_id');
+        $registration = app(\App\Support\Registration::class);
+        if (! $user) {
+            $this->tg->editMessageText($chatId, $messageId, $this->t->get('telegram.text.admin_applicant_done'));
+
+            return;
+        }
+        $vars = ['name' => trim($user->first_name.' '.$user->last_name), 'phone' => $user->phone];
+        if ($parts[1] === 'ap') {
+            $role = ($parts[3] ?? 'S') === 'P' ? Role::Parent : Role::Student;
+            $ok = $registration->approve($user, $role, $actorId ? (int) $actorId : null);
+            $text = $ok ? $this->t->get('telegram.text.admin_applicant_approved', $vars + ['role' => $this->roleLabel($role->value)]) : null;
+        } else {
+            $ok = $registration->reject($user, $actorId ? (int) $actorId : null);
+            $text = $ok ? $this->t->get('telegram.text.admin_applicant_rejected', $vars) : null;
+        }
+        $this->tg->editMessageText($chatId, $messageId, $text ?? $this->t->get('telegram.text.admin_applicant_done'));
     }
 
     /** Admin buyrug'i: /admin, /stats, /find, /broadcast, /cancel. true — qayta ishlandi. */
@@ -153,6 +187,7 @@ class BotAdmin
             'to' => $this->askText($chatId, $messageId, $parts[2] ?? ''),
             'ok' => $this->confirm($chatId, $messageId, $parts[2] ?? ''),
             'no' => $this->drop($chatId, $messageId),
+            'ap', 'rj' => $this->decideApplicant($chatId, $messageId, $parts),
             default => null,
         };
     }
@@ -247,7 +282,7 @@ class BotAdmin
     {
         return DB::table('telegram_links')
             ->join('users', 'users.id', '=', 'telegram_links.user_id')
-            ->where('users.active', true)
+            ->where('users.active', true)->whereNull('telegram_links.blocked_at')
             ->when($audience !== 'all', fn ($q) => $q->where('users.role', $audience))
             ->select('telegram_links.user_id', 'telegram_links.chat_id');
     }
@@ -319,6 +354,15 @@ class BotAdmin
         $total = $this->recipients($draft['audience'])->count();
         $this->tg->editMessageText($chatId, $messageId, $this->t->get('telegram.text.admin_broadcast_started', ['count' => $total]));
 
+        // Navbat orqali: cron har daqiqada davom ettiradi (uzilib qolsa ham qolgan qismidan), natija adminga keladi.
+        if ($this->outbox->enabled()) {
+            $this->outbox->createBatch('broadcast', $this->recipients($draft['audience'])->orderBy('telegram_links.user_id')->cursor(),
+                $draft['text'], $chatId, DB::table('telegram_links')->where('chat_id', $chatId)->value('user_id'), ['audience' => $draft['audience']]);
+            $this->outbox->kick();
+
+            return;
+        }
+
         // Webhook'ga darhol javob qaytadi, yuborish javobdan keyin davom etadi.
         $once = false;
         app()->terminating(function () use (&$once, $chatId, $draft) {
@@ -329,7 +373,7 @@ class BotAdmin
         });
     }
 
-    /** Yuborish: har bir xabar notifications_log ga yoziladi. */
+    /** Navbatsiz (telegram.outbox_enabled o'chiq) yuborish: har bir xabar notifications_log ga yoziladi. */
     public function broadcast(int $adminChatId, string $audience, string $text): array
     {
         @set_time_limit(0);
