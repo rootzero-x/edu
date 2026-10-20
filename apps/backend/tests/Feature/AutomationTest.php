@@ -61,14 +61,60 @@ class AutomationTest extends TestCase
         $this->artisan('tisu:generate-sessions');
         $this->artisan('tisu:remind-lessons')->assertSuccessful();
         $this->artisan('tisu:remind-lessons')->assertSuccessful();
-        Http::assertSentCount(1);
-        Http::assertSent(fn ($r) => str_contains((string) $r['text'], 'Ali') && str_contains($r['text'], '14:00') && str_contains($r['text'], '101'));
+        Http::assertSentCount(2); // o'quvchi + o'qituvchi, bir martadan
+        Http::assertSent(fn ($r) => (int) $r['chat_id'] === 101 && str_contains((string) $r['text'], 'Ali') && str_contains($r['text'], '14:00') && str_contains($r['text'], '101'));
 
         // Oyna sozlamadan: 20 daqiqa bo'lsa, 14:00 dagi dars hali oynaga kirmaydi.
         DB::table('notifications_log')->delete();
         app(Settings::class)->set(['automation.lesson_reminder_minutes' => 20], null);
         $this->artisan('tisu:remind-lessons');
+        Http::assertSentCount(2);
+    }
+
+    public function test_teacher_lesson_reminder_with_room_and_students(): void
+    {
+        $this->artisan('tisu:generate-sessions');
+        app(Settings::class)->set(['automation.lesson_reminder' => false], null);
+        $this->artisan('tisu:remind-lessons')->assertSuccessful();
         Http::assertSentCount(1);
+        Http::assertSent(fn ($r) => (int) $r['chat_id'] === 100
+            && $r['text'] === "📋 Ustoz, bugun 14:00 da «ENG-1» guruhida darsingiz bor. Xona: 101. O'quvchilar: 1 ta.");
+
+        // Sozlamadan o'chiriladi; o'quvchisiz guruhda o'qituvchiga ham yuborilmaydi.
+        DB::table('notifications_log')->delete();
+        app(Settings::class)->set(['automation.lesson_reminder_teachers' => false], null);
+        $this->artisan('tisu:remind-lessons');
+        app(Settings::class)->set(['automation.lesson_reminder_teachers' => true], null);
+        DB::table('group_members')->update(['left_at' => now()]);
+        $this->artisan('tisu:remind-lessons');
+        Http::assertSentCount(1);
+    }
+
+    public function test_dry_run_sends_and_writes_nothing(): void
+    {
+        $this->artisan('tisu:generate-sessions');
+        $this->artisan('tisu:remind-lessons', ['--dry-run' => true])
+            ->expectsOutputToContain('Yuboriladi (dry-run): 2')->assertSuccessful();
+        Carbon::setTestNow('2026-10-21 15:40:00');
+        $this->artisan('tisu:remind-unmarked', ['--dry-run' => true])
+            ->expectsOutputToContain('Yuboriladi (dry-run): 1')->assertSuccessful();
+        Http::assertNothingSent();
+        $this->assertSame(0, DB::table('notifications_log')->count());
+    }
+
+    public function test_skip_silences_current_queue_but_not_future_lessons(): void
+    {
+        $this->artisan('tisu:generate-sessions');
+        // Cron yoqilishidan oldin: hozirgi navbat jim o'tkaziladi.
+        $this->artisan('tisu:remind-lessons', ['--skip' => true])->assertSuccessful();
+        $this->artisan('tisu:remind-lessons')->assertSuccessful();
+        Http::assertNothingSent();
+        $this->assertSame(2, DB::table('notifications_log')->where('error', 'skipped')->count());
+
+        // Keyingi hafta darsi — odatdagidek yuboriladi.
+        Carbon::setTestNow('2026-10-28 13:30:00');
+        $this->artisan('tisu:remind-lessons')->assertSuccessful();
+        Http::assertSentCount(2);
     }
 
     public function test_unmarked_reminder_to_teacher(): void
@@ -79,6 +125,13 @@ class AutomationTest extends TestCase
         $this->artisan('tisu:remind-unmarked');
         Http::assertSentCount(1);
         Http::assertSent(fn ($r) => str_contains((string) $r['text'], 'Ustoz') && str_contains($r['text'], 'ENG-1'));
+
+        // Faol bo'lmagan o'qituvchiga eslatma yuborilmaydi.
+        DB::table('notifications_log')->delete();
+        $this->teacher->update(['active' => false]);
+        $this->artisan('tisu:remind-unmarked');
+        Http::assertSentCount(1);
+        $this->teacher->update(['active' => true]);
 
         // Belgilangan dars uchun eslatma bo'lmaydi.
         DB::table('notifications_log')->delete();

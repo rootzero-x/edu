@@ -457,10 +457,12 @@ return [
         'automation.lesson_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars oldidan o'quvchilarga Telegram eslatma", 'default' => true],
         'automation.lesson_reminder_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 5, 'max' => 1440, 'label' => 'Eslatma necha daqiqa oldin yuborilsin', 'default' => 60],
         'automation.lesson_reminder_parents' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars eslatmasi ota-onalarga ham", 'default' => false],
+        'automation.lesson_reminder_teachers' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars oldidan o'qituvchiga ham eslatma", 'default' => true],
         'automation.unmarked_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Davomat belgilanmasa o'qituvchiga eslatma", 'default' => true],
         'automation.unmarked_after_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 0, 'max' => 1440, 'label' => "Dars tugaganidan necha daqiqa keyin eslatilsin", 'default' => 30],
         'automation.cleanup_days' => ['group' => 'automation', 'type' => 'int', 'min' => 7, 'max' => 3650, 'label' => 'Bildirishnoma jurnali necha kun saqlansin', 'default' => 180],
         'telegram.text.lesson_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: dars eslatmasi ({name}, {group}, {time}, {room}, {topic})', 'default' => "⏰ {name}, bugun {time} da «{group}» darsi bor. Xona: {room}."],
+        'telegram.text.lesson_reminder_teacher' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga dars eslatmasi ({name}, {group}, {time}, {room}, {topic}, {students})", 'default' => "📋 {name}, bugun {time} da «{group}» guruhida darsingiz bor. Xona: {room}. O'quvchilar: {students} ta."],
         'telegram.text.unmarked_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga davomat eslatmasi ({name}, {group}, {time})", 'default' => "📋 {name}, «{group}» guruhining {time} dagi darsi uchun davomat hali belgilanmagan."],
 
         // ── Zaxira va ogohlantirishlar ───────────────────────
