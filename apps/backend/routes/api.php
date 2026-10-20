@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BranchController;
@@ -26,6 +27,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/telegram/miniapp', [TelegramAuthController::class, 'miniApp'])->middleware('throttle:login');
     Route::post('/telegram/webhook', [TelegramAuthController::class, 'webhook']);
     Route::get('/public/certificates/{code}', [CertificateController::class, 'verify'])->middleware('throttle:api');
+    Route::get('/public/announcements', [AnnouncementController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/courses', [LandingController::class, 'courses'])->middleware('throttle:api');
 
@@ -78,6 +80,17 @@ Route::prefix('v1')->group(function () {
             Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);
             Route::delete('/groups/{group}/members/{student}', [GroupController::class, 'removeMember']);
             Route::post('/groups/{group}/sessions/generate', [GroupController::class, 'generateSessions']);
+        });
+
+        // Yangiliklar va e'lonlar
+        Route::get('/announcements', [AnnouncementController::class, 'index']);
+        Route::get('/announcements/unread', [AnnouncementController::class, 'unread']);
+        Route::post('/announcements/{announcement}/read', [AnnouncementController::class, 'markRead'])->whereNumber('announcement');
+        Route::middleware('perm:announcement.manage')->group(function () {
+            Route::post('/announcements', [AnnouncementController::class, 'store']);
+            Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update']);
+            Route::post('/announcements/{announcement}/publish', [AnnouncementController::class, 'publish']);
+            Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
         });
 
         // Hisobotlar

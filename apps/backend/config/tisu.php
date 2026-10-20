@@ -12,7 +12,7 @@
 
 $allPermissions = [
     'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
-    'report.view', 'user.manage', 'settings.manage',
+    'report.view', 'user.manage', 'settings.manage', 'announcement.manage',
 ];
 
 return [
@@ -21,7 +21,7 @@ return [
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
         'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
-        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'reports' => 'Hisobotlar', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
         'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
     ],
 
@@ -245,9 +245,9 @@ return [
         // Har rol uchun reply-klaviatura: qatorlar → amallar.
         // Amallar: courses, schedule, attendance, quizzes, certificates, profile, today, children, app
         'telegram.menu' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot menyusi (rol → tugmalar qatorlari)', 'default' => [
-            'STUDENT' => [['courses', 'schedule'], ['attendance', 'quizzes'], ['certificates', 'profile'], ['app']],
-            'TEACHER' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
-            'PARENT' => [['children', 'schedule'], ['certificates', 'profile'], ['app']],
+            'STUDENT' => [['courses', 'schedule'], ['attendance', 'quizzes'], ['news', 'certificates'], ['profile', 'app']],
+            'TEACHER' => [['today', 'unmarked'], ['schedule', 'courses'], ['news', 'profile'], ['app']],
+            'PARENT' => [['children', 'schedule'], ['news', 'certificates'], ['profile', 'app']],
             'ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
             'SUPER_ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
         ]],
@@ -439,6 +439,15 @@ return [
         'reports.risk_threshold_percent' => ['group' => 'reports', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Davomati shundan past o'quvchi xavf ostida (%)", 'default' => 75],
         'reports.max_days' => ['group' => 'reports', 'type' => 'int', 'min' => 31, 'max' => 3650, 'label' => 'Hisobotning maksimal davri (kun)', 'default' => 366],
 
+        // ── Yangiliklar ──────────────────────────────────────
+        'news.public_on_home' => ['group' => 'news', 'type' => 'bool', 'public' => true, 'label' => "Ochiq yangiliklar bosh sahifada ko'rinsin", 'default' => true],
+        'news.home_limit' => ['group' => 'news', 'type' => 'int', 'min' => 1, 'max' => 20, 'public' => true, 'label' => 'Bosh sahifadagi yangiliklar soni', 'default' => 3],
+        'news.title' => ['group' => 'news', 'type' => 'string', 'public' => true, 'label' => 'Yangiliklar bo\'limi sarlavhasi', 'default' => 'Yangiliklar va e\'lonlar'],
+        'telegram.text.announcement' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: yangi e'lon ({title}, {body}, {url})", 'default' => "📢 {title}\n\n{body}\n\n{url}"],
+        'telegram.text.btn_news' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: yangiliklar', 'default' => '📢 Yangiliklar'],
+        'telegram.text.news_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: yangiliklar sarlavhasi', 'default' => "📢 So'nggi yangiliklar:"],
+        'telegram.text.news_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: yangilik yo'q", 'default' => "Hozircha yangiliklar yo'q."],
+
         // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──
         'automation.generate_sessions' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni jadvaldan darslarni oldindan yaratish', 'default' => true],
         'automation.lesson_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars oldidan o'quvchilarga Telegram eslatma", 'default' => true],
@@ -464,7 +473,7 @@ return [
         // ── Interfeys ────────────────────────────────────────
         'ui.nav_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => 'Panel menyusi nomlari (manzil → nom)', 'default' => [
             '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
-            '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/profile' => 'Profil',
+            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/profile' => 'Profil',
             '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/branches' => 'Filiallar', '/dashboard/settings' => 'Sozlamalar',
         ]],
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
@@ -475,8 +484,8 @@ return [
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
             'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
-                'report.view', 'user.manage'],
-            'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view'],
+                'report.view', 'user.manage', 'announcement.manage'],
+            'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
             'STUDENT' => ['course.view', 'quiz.take'],
             'PARENT' => ['course.view'],
         ]],

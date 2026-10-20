@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 class BotMenu
 {
     /** Menyu amallari (telegram.menu sozlamasida ishlatiladi). */
-    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'profile', 'today', 'unmarked', 'children', 'app'];
+    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'profile', 'today', 'unmarked', 'children', 'news', 'app'];
 
     private const STATUS_CODES = ['P' => 'PRESENT', 'L' => 'LATE', 'A' => 'ABSENT', 'E' => 'EXCUSED'];
 
@@ -157,6 +157,7 @@ class BotMenu
                 'profile' => $this->profile($user),
                 'today' => $this->today($user),
                 'unmarked' => $this->unmarked($user),
+                'news' => $this->news($user),
                 'children' => $this->children($user),
                 'app' => [$this->t->get('telegram.text.app_open'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])],
                 default => [$this->t->get('telegram.text.unknown'), null],
@@ -375,6 +376,24 @@ class BotMenu
             ['text' => $this->t->get('telegram.text.btn_unmarked'), 'callback_data' => 'm:unmarked']];
 
         return [$this->t->get('telegram.text.today_title', ['date' => now()->format('d.m.Y')]), $this->inline($rows)];
+    }
+
+    /** Foydalanuvchiga ko'rinadigan so'nggi e'lonlar (AnnouncementController::visibleTo). */
+    private function news(User $user): array
+    {
+        $items = \App\Http\Controllers\Api\AnnouncementController::visibleTo($user)
+            ->orderByDesc('pinned')->orderByDesc('published_at')->limit($this->limit())->get(['id', 'title', 'body', 'pinned', 'published_at']);
+        if ($items->isEmpty()) {
+            return [$this->t->get('telegram.text.news_empty'), null];
+        }
+        $lines = [$this->t->get('telegram.text.news_title'), ''];
+        foreach ($items as $a) {
+            $lines[] = ($a->pinned ? '📌 ' : '• ').$a->title.' — '.$a->published_at->format('d.m');
+            $lines[] = mb_strimwidth(preg_replace('/\s+/u', ' ', $a->body), 0, 160, '…');
+            $lines[] = '';
+        }
+
+        return [implode("\n", $lines), $this->inline([[$this->webApp('telegram.text.btn_open_app', '/news')]])];
     }
 
     /** O'tgan, davomati to'liq belgilanmagan darslar (AttendanceController::unmarked orqali). */
