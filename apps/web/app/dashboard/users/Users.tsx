@@ -10,22 +10,17 @@ import { ROLE_LABELS } from "@/components/shell/nav";
 import { call, errorText } from "@/lib/client";
 import { personName } from "@/lib/format";
 
-export type UserRow = { id: number; phone: string; first_name: string; last_name: string | null; role: string; active: boolean; branch_id?: number | null };
-export type BranchOpt = { id: number; name: string };
+export type UserRow = { id: number; phone: string; first_name: string; last_name: string | null; role: string; active: boolean };
 const ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"];
 const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", PARENT: "neutral", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
-export default function Users({ rows: initialRows, meta, role, q, actorRole, selfId, branches = [] }: {
-  rows: UserRow[]; meta: { total: number; page: number; pages: number }; role: string; q: string; actorRole: string; selfId: number; branches?: BranchOpt[];
+export default function Users({ rows: initialRows, meta, role, q, actorRole, selfId }: {
+  rows: UserRow[]; meta: { total: number; page: number; pages: number }; role: string; q: string; actorRole: string; selfId: number;
 }) {
   // Rol nomlari sozlamalardan (telegram.role_labels) — bot, Mini App va sayt bir xil ko'rsatadi.
   const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels") };
   const confirm = useConfirm();
   const [kids, setKids] = useState<{ parent: UserRow; list: UserRow[] } | null>(null);
-  const branchField = (value?: number | null) => branches.length ? [{
-    name: "branch_id", label: "Filial", type: "select" as const, defaultValue: value ? String(value) : "",
-    options: [{ value: "", label: "— tanlanmagan —" }, ...branches.map((b) => ({ value: String(b.id), label: b.name }))],
-  }] : [];
   const router = useRouter();
   const path = usePathname();
   const toast = useToast();
@@ -60,12 +55,11 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
       { name: "first_name", label: "Ism", required: true },
       { name: "last_name", label: "Familiya" },
       { name: "role", label: "Rol", type: "select", required: true, defaultValue: role || "STUDENT", options: roles.map((r) => ({ value: r, label: roleNames[r] ?? r })) },
-      ...branchField(),
       { name: "password", label: "Parol", type: "password", hint: "Ixtiyoriy — Telegram orqali kirish uchun shart emas", autoComplete: "new-password" },
     ],
     submitText: "Qo'shish",
     onSubmit: async (v) => {
-      const r = await call("POST", "users", { ...v, last_name: v.last_name || null, password: v.password || undefined, branch_id: v.branch_id ? Number(v.branch_id) : null });
+      const r = await call("POST", "users", { ...v, last_name: v.last_name || null, password: v.password || undefined });
       if (!r.ok) return errorText(r.data);
       toast.success("Foydalanuvchi qo'shildi", `${v.first_name} · ${v.phone}`);
       router.refresh();
@@ -79,11 +73,9 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
       { name: "last_name", label: "Familiya", defaultValue: u.last_name ?? "" },
       { name: "phone", label: "Telefon", type: "tel", required: true, defaultValue: u.phone },
       { name: "role", label: "Rol", type: "select", required: true, defaultValue: u.role, options: roles.map((r) => ({ value: r, label: roleNames[r] ?? r })) },
-      ...branchField(u.branch_id),
     ],
     onSubmit: async (v) => {
       const body: Record<string, unknown> = { first_name: v.first_name, last_name: v.last_name || null, phone: v.phone };
-      if (branches.length) body.branch_id = v.branch_id ? Number(v.branch_id) : null;
       if (v.role !== u.role) body.role = v.role;
       const r = await call("PATCH", `users/${u.id}`, body);
       if (!r.ok) return errorText(r.data);

@@ -41,7 +41,7 @@ class GroupController
     public function index(Request $request): JsonResponse
     {
         $groups = self::visible($request->user())
-            ->with(['course:id,title', 'teacher:id,first_name,last_name', 'branch:id,name', 'schedules'])
+            ->with(['course:id,title', 'teacher:id,first_name,last_name', 'schedules'])
             ->withCount('students')
             ->orderByDesc('active')->orderBy('name')
             ->get();
@@ -55,9 +55,13 @@ class GroupController
         $staff = $request->user()->hasPermission('attendance.mark') || $request->user()->hasPermission('group.manage');
         $teacherPhone = $staff || app(Settings::class)->bool('security.teacher_phone_visible');
         $g = self::findVisible($request->user(), $group)
-            ->load(['course:id,title', 'teacher:id,first_name,last_name'.($teacherPhone ? ',phone' : ''), 'branch:id,name', 'schedules',
+            ->load(['course:id,title', 'teacher:id,first_name,last_name'.($teacherPhone ? ',phone' : ''), 'schedules',
                 'students' => fn ($q) => $q->select(array_merge(['users.id', 'first_name', 'last_name'],
                     $staff ? ['phone'] : []))->orderBy('first_name')]);
+        if (! $staff) {
+            // A'zolik tafsilotlari (chegirma, qo'shilgan sana) — faqat xodimlarga.
+            $g->students->each->makeHidden('pivot');
+        }
 
         return response()->json(['group' => $g]);
     }
@@ -198,7 +202,6 @@ class GroupController
         return [
             'name' => [$req, 'string', 'max:120'],
             'course_id' => [$req, 'integer', 'exists:courses,id'],
-            'branch_id' => [$req, 'integer', 'exists:branches,id'],
             'teacher_id' => [$req, 'integer', 'exists:users,id'],
             'start_date' => [$req, 'date'],
             'end_date' => ['sometimes', 'nullable', 'date', 'after_or_equal:start_date'],

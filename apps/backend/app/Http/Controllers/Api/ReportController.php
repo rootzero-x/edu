@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Attendance;
+use App\Support\Csv;
 use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,9 +39,11 @@ class ReportController
         $risk = $students->filter(fn ($s) => $s['rate'] !== null && $s['rate'] < $threshold)
             ->sortBy([['rate', 'asc'], ['counts.ABSENT', 'desc']])->take($settings->int('reports.top_n'))->values();
 
+        // Belgilanmagan = belgilanganlar faol a'zolardan kam (AttendanceController::unmarked qoidasi).
         $unmarked = DB::table('class_sessions')->whereIn('group_id', $groupIds)->where('cancelled', false)
             ->whereBetween('starts_at', [$from, min($to, now())])
-            ->whereNotExists(fn ($q) => $q->from('attendances')->whereColumn('attendances.session_id', 'class_sessions.id'))
+            ->whereRaw('(select count(*) from attendances where attendances.session_id = class_sessions.id)
+                < (select count(*) from group_members where group_members.group_id = class_sessions.group_id and group_members.left_at is null)')
             ->count();
 
         return response()->json([
@@ -61,7 +64,10 @@ class ReportController
     {
         [$from, $to, $groupIds] = $this->scope($request, $settings);
         $courseIds = DB::table('study_groups')->whereIn('id', $groupIds)->distinct()->pluck('course_id');
-        $studentIds = DB::table('group_members')->whereIn('group_id', $groupIds)->distinct()->pluck('student_id');
+        // Guruhdan chiqqan o'quvchilar standart bo'yicha hisobga olinmaydi (include_left=1 — ular ham).
+        $includeLeft = $request->boolean('include_left');
+        $studentIds = DB::table('group_members')->whereIn('group_id', $groupIds)
+            ->when(! $includeLeft, fn ($q) => $q->whereNull('left_at'))->distinct()->pluck('student_id');
 
         $data = DB::table('quiz_attempts')
             ->join('quizzes', 'quizzes.id', '=', 'quiz_attempts.quiz_id')
@@ -108,27 +114,22 @@ class ReportController
         $rows = $this->attendanceRows($groupIds, $from, $to);
         $labels = (array) $settings->get('attendance.status_labels');
         $name = 'davomat_'.$from->format('Ymd').'_'.$to->format('Ymd').'.csv';
+        $locale = (string) $settings->get('site.default_locale');
 
-        return response()->streamDownload(function () use ($rows, $labels) {
+        return response()->streamDownload(function () use ($rows, $labels, $locale) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, array_merge(['Guruh', "O'quvchi", 'Telefon'], array_map(fn ($s) => $labels[$s] ?? $s, self::STATUSES), ['Davomat %']), ';');
             foreach ($rows->groupBy(fn ($r) => $r->group_id.':'.$r->student_id) as $c) {
                 $sum = $this->summarize($c->pluck('status')->all());
                 fputcsv($out, array_merge(
-                    array_map(self::cell(...), [$c->first()->group_name, trim($c->first()->s_first.' '.$c->first()->s_last), (string) $c->first()->s_phone]),
+                    array_map(Csv::cell(...), [$c->first()->group_name, trim($c->first()->s_first.' '.$c->first()->s_last), (string) $c->first()->s_phone]),
                     array_map(fn ($s) => $sum['counts'][$s], self::STATUSES),
-                    [$sum['rate'] ?? ''],
+                    [Csv::decimal($sum['rate'], $locale)],
                 ), ';');
             }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
-
-    /** Excel formula injection'dan himoya: =, @, +, - bilan boshlanuvchi matn (oddiy telefon raqamidan tashqari) qiymat sifatida yoziladi. */
-    private static function cell(string $v): string
-    {
-        return preg_match('/^[=@\t\r]|^[+\-](?!\d+$)/', $v) ? "'".$v : $v;
     }
 
     /** @return array{0:Carbon,1:Carbon,2:list<int>} */
@@ -137,7 +138,7 @@ class ReportController
         $data = $request->validate([
             'from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from'],
             'group_id' => ['nullable', 'integer'], 'teacher_id' => ['nullable', 'integer'],
-            'branch_id' => ['nullable', 'integer'], 'course_id' => ['nullable', 'integer'],
+            'course_id' => ['nullable', 'integer'],
         ]);
         $to = isset($data['to']) ? Carbon::parse($data['to'])->endOfDay() : now()->endOfDay();
         $from = isset($data['from']) ? Carbon::parse($data['from'])->startOfDay() : $to->copy()->subDays($settings->int('reports.default_days') - 1)->startOfDay();
@@ -148,7 +149,6 @@ class ReportController
             ->when(! $user->hasPermission('group.manage'), fn ($q) => $q->where('teacher_id', $user->id))
             ->when($data['group_id'] ?? null, fn ($q, $v) => $q->where('id', $v))
             ->when($data['teacher_id'] ?? null, fn ($q, $v) => $q->where('teacher_id', $v))
-            ->when($data['branch_id'] ?? null, fn ($q, $v) => $q->where('branch_id', $v))
             ->when($data['course_id'] ?? null, fn ($q, $v) => $q->where('course_id', $v))
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
 

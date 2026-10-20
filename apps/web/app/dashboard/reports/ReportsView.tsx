@@ -14,9 +14,8 @@ import { usePolling } from "@/lib/usePolling";
 import s from "./reports.module.css";
 
 export type Refs = {
-  groups: { id: number; name: string; course_id: number; branch_id: number; teacher_id: number }[];
+  groups: { id: number; name: string; course_id: number; teacher_id: number }[];
   courses: { id: number; title: string }[];
-  branches: { id: number; name: string }[];
   teachers: { id: number; first_name: string; last_name: string | null }[];
 };
 type Counts = Record<string, number>;
@@ -47,9 +46,9 @@ export default function ReportsView({ refs }: { refs: Refs }) {
   const defaultDays = Math.min(num(st, "reports.default_days", 30), maxDays);
   const PRESETS = PRESET_DAYS.filter((n) => n <= maxDays).map((n): [string, number] => [`${n} kun`, n - 1]);
   const [error, setError] = useState<string | null>(null);
-  const [f, setF] = useState({ from: daysAgo(defaultDays - 1), to: iso(new Date()), group_id: "", course_id: "", branch_id: "", teacher_id: "" });
+  const [f, setF] = useState({ from: daysAgo(defaultDays - 1), to: iso(new Date()), group_id: "", course_id: "", teacher_id: "" });
   const [showFilters, setShowFilters] = useState(false);
-  const activeFilters = [f.group_id, f.course_id, f.branch_id, f.teacher_id].filter(Boolean).length;
+  const activeFilters = [f.group_id, f.course_id, f.teacher_id].filter(Boolean).length;
   const [data, setData] = useState<Data | null>(null);
   const [tab, setTab] = useState("groups");
   const qs = useMemo(() => new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]).toString(), [f]);
@@ -73,7 +72,7 @@ export default function ReportsView({ refs }: { refs: Refs }) {
   }, [qs]);
   const live = usePolling(fetcher, setData, { seconds: refreshSeconds(st), immediate: true });
 
-  const groups = refs.groups.filter((g) => (!f.course_id || g.course_id === +f.course_id) && (!f.branch_id || g.branch_id === +f.branch_id) && (!f.teacher_id || g.teacher_id === +f.teacher_id));
+  const groups = refs.groups.filter((g) => (!f.course_id || g.course_id === +f.course_id) && (!f.teacher_id || g.teacher_id === +f.teacher_id));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value, ...(k !== "group_id" ? { group_id: "" } : {}) }));
   const att = data?.att;
   const totalMarks = att ? Object.values(att.total.counts).reduce((a, b) => a + b, 0) : 0;
@@ -106,9 +105,6 @@ export default function ReportsView({ refs }: { refs: Refs }) {
         <div id="report-filters" className={s.grid} data-open={showFilters || undefined}>
           <Field label="Boshlanish"><Input type="date" value={f.from} max={f.to} onChange={set("from")} /></Field>
           <Field label="Tugash"><Input type="date" value={f.to} min={f.from} onChange={set("to")} /></Field>
-          {refs.branches.length > 1 && (
-            <Field label="Filial"><Select value={f.branch_id} onChange={set("branch_id")}><option value="">Barchasi</option>{refs.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field>
-          )}
           <Field label="Kurs"><Select value={f.course_id} onChange={set("course_id")}><option value="">Barchasi</option>{refs.courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</Select></Field>
           {refs.teachers.length > 0 && (
             <Field label="O'qituvchi"><Select value={f.teacher_id} onChange={set("teacher_id")}><option value="">Barchasi</option>{refs.teachers.map((t) => <option key={t.id} value={t.id}>{[t.first_name, t.last_name].filter(Boolean).join(" ")}</option>)}</Select></Field>

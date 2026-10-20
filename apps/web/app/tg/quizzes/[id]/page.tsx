@@ -13,6 +13,7 @@ type Info = {
   quiz: { id: number; title: string; is_final: boolean; pass_percent: number; max_attempts: number; time_limit_sec: number | null; questions_count: number; course: { title: string } };
   attempts: { id: number; started_at: string; submitted_at: string | null; percent: number | null; passed: boolean | null }[];
   can_take: boolean;
+  can_start?: boolean;
 };
 type Question = { id: number; type: "SINGLE" | "MULTIPLE" | "TEXT"; text: string; points: number; options: { id: number; text: string }[] };
 type Attempt = { id: number; deadline: string | null; quiz: { id: number; title: string }; questions: Question[] };
@@ -74,7 +75,7 @@ export default function TgQuiz() {
 
   return (
     <Async q={info}>
-      {({ quiz, attempts, can_take }) => {
+      {({ quiz, attempts, can_take, can_start }) => {
         // Boshqaruvchilar (javob kalitini ko'radiganlar) uchun API urinishlarsiz to'liq testni qaytaradi.
         if (!Array.isArray(attempts)) {
           const site = String(settings["site.url"] ?? "").replace(/\/$/, "");
@@ -89,13 +90,15 @@ export default function TgQuiz() {
         const open = attempts.find((a) => !a.submitted_at);
         const best = Math.max(-1, ...attempts.filter((a) => a.percent !== null).map((a) => a.percent!));
         const left = quiz.max_attempts - used;
+        // O'tgan testni qayta boshlash — faqat sozlama ruxsat bersa (server can_start da hisoblaydi).
+        const canStart = can_start ?? (can_take && (Boolean(open) || (left > 0 && !attempts.some((a) => a.passed))));
         return (
           <Page title={quiz.title} subtitle={quiz.course?.title}>
             <Section>
               <Row icon="❓" title={t("quiz_questions", { n: quiz.questions_count })} />
               <Row icon="⏱" title={quiz.time_limit_sec ? t("quiz_time", { min: Math.round(quiz.time_limit_sec / 60) }) : t("quiz_no_time")} />
               <Row icon="🎯" title={t("quiz_pass", { percent: quiz.pass_percent })} />
-              <Row icon="🔁" title={t("quiz_attempts", { used, max: quiz.max_attempts })} />
+              {can_take && <Row icon="🔁" title={t("quiz_attempts", { used, max: quiz.max_attempts })} />}
               {best >= 0 && <Row icon="🏆" title={t("quiz_best", { percent: best })} />}
             </Section>
             {attempts.filter((a) => a.submitted_at).length > 0 && (
@@ -111,7 +114,7 @@ export default function TgQuiz() {
               text={open ? t("quiz_continue") : t("quiz_start")}
               onClick={start}
               progress={busy}
-              hidden={!can_take || (!open && left <= 0)}
+              hidden={!canStart}
             />
           </Page>
         );
@@ -218,23 +221,24 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
       </div>
       <Section>
         <div className="tg-question">
-          <h3>{q.text}</h3>
+          <h3 id={`tgq${q.id}`}>{q.text}</h3>
           {q.type === "TEXT" ? (
-            <input className="tg-input" placeholder={t("quiz_text_answer")} value={chosen[0] ?? ""}
+            <input className="tg-input" placeholder={t("quiz_text_answer")} aria-labelledby={`tgq${q.id}`} value={chosen[0] ?? ""}
               onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: [e.target.value] }))} />
           ) : (
-            <>
+            <div role={q.type === "SINGLE" ? "radiogroup" : "group"} aria-labelledby={`tgq${q.id}`}>
               {q.type === "MULTIPLE" && <p className="tg-hint" style={{ marginBottom: 10 }}>{t("quiz_multiple_hint")}</p>}
               {q.options.map((o) => {
                 const on = chosen.includes(String(o.id));
                 return (
-                  <button key={o.id} className={`tg-option${q.type === "MULTIPLE" ? " multi" : ""}${on ? " on" : ""}`} onClick={() => toggle(String(o.id))}>
-                    <span className="mark">{on ? "✓" : ""}</span>
+                  <button key={o.id} type="button" role={q.type === "SINGLE" ? "radio" : "checkbox"} aria-checked={on}
+                    className={`tg-option${q.type === "MULTIPLE" ? " multi" : ""}${on ? " on" : ""}`} onClick={() => toggle(String(o.id))}>
+                    <span className="mark" aria-hidden>{on ? "✓" : ""}</span>
                     <span>{o.text}</span>
                   </button>
                 );
               })}
-            </>
+            </div>
           )}
         </div>
       </Section>
@@ -276,7 +280,7 @@ function ResultView({ res, attempt, answers, onBack }: { res: Result; attempt: A
         return (
           <Section key={q.id} title={t("question", { n: n + 1, total: attempt.questions.length })} right={<Badge tone={ok ? "ok" : "bad"}>{ok ? t("correct") : t("wrong")}</Badge>}>
             <div className="tg-question">
-              <h3>{q.text}</h3>
+              <h3 id={`tgq${q.id}`}>{q.text}</h3>
               {q.type === "TEXT" ? (
                 <>
                   <div className={`tg-option ${ok ? "correct" : "wrong"}`}><span>{given[0] || "—"}</span></div>

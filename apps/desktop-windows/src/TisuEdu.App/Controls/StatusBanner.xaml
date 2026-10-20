@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="TisuEdu.App.Controls.StatusBanner"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Sahifa holati: yuklanmoqda, xato (qayta urinish), oflayn kesh, natija xabari. -->
+    <StackPanel Spacing="8">
+        <ProgressBar IsIndeterminate="True" Visibility="{x:Bind Model.IsLoading, Mode=OneWay, FallbackValue=Collapsed}" />
+        <InfoBar Severity="Error" IsClosable="False" Title="Xatolik"
+                 IsOpen="{x:Bind Model.HasError, Mode=OneWay, FallbackValue=False}" Message="{x:Bind Model.Error, Mode=OneWay}">
+            <InfoBar.ActionButton>
+                <Button Content="{x:Bind Model.RetryText, Mode=OneWay}" Command="{x:Bind Model.RefreshCommand, Mode=OneWay}" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+        <InfoBar Severity="Warning" IsClosable="False"
+                 IsOpen="{x:Bind Model.IsStale, Mode=OneWay, FallbackValue=False}" Message="{x:Bind Model.OfflineNote, Mode=OneWay}">
+            <InfoBar.ActionButton>
+                <Button Content="{x:Bind Model.RetryText, Mode=OneWay}" Command="{x:Bind Model.RefreshCommand, Mode=OneWay}" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+        <InfoBar Severity="Error" IsClosable="False"
+                 IsOpen="{x:Bind Model.HasActionError, Mode=OneWay, FallbackValue=False}" Message="{x:Bind Model.ActionError, Mode=OneWay}" />
+        <InfoBar Severity="Success" IsClosable="False"
+                 IsOpen="{x:Bind Model.HasNotice, Mode=OneWay, FallbackValue=False}" Message="{x:Bind Model.Notice, Mode=OneWay}">
+            <InfoBar.ActionButton>
+                <Button Content="Yopish" Command="{x:Bind Model.DismissNoticeCommand, Mode=OneWay}" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+    </StackPanel>
+</UserControl>

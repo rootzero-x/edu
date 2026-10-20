@@ -44,7 +44,7 @@ class AuthController
     public function updateMe(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'first_name' => ['sometimes', 'string', 'min:1', 'max:64'],
+            'first_name' => ['sometimes', 'bail', 'required', 'string', 'max:64'],
             'last_name' => ['sometimes', 'nullable', 'string', 'max:64'],
             'locale' => ['sometimes', 'string', 'in:uz,ru,en'],
         ]);

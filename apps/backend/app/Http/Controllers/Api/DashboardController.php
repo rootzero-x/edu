@@ -72,7 +72,8 @@ class DashboardController
             'today' => $today,
             'stats' => [
                 'today_sessions' => $today->where('cancelled', false)->count(),
-                'today_marked' => $today->where('cancelled', false)->where('marked_count', '>', 0)->count(),
+                // To'liq belgilangan darslar (qisman belgilangan — belgilanmagan hisoblanadi, /attendance/unmarked kabi).
+                'today_marked' => $today->where('cancelled', false)->filter(fn ($s) => $s['marked_count'] >= $s['students_count'])->count(),
                 'attendance_rate' => $statuses ? Attendance::rate($statuses) : null,
                 'attendance_days' => $days,
                 'attendance_counts' => array_count_values($statuses) + array_fill_keys([Attendance::PRESENT, Attendance::LATE, Attendance::ABSENT, Attendance::EXCUSED], 0),

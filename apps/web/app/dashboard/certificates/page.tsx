@@ -13,12 +13,20 @@ export default async function CertificatesPage() {
   const [{ data }, user] = await Promise.all([api<{ data: Row[] }>("/v1/certificates"), me()]);
   const manage = Boolean(user?.permissions.includes("group.manage"));
   const rows = data.data ?? [];
+  // Bo'sh holat matni rolga mos: kim beradi va bu yerda nima ko'rinadi.
+  const empty = manage
+    ? "Kursni tamomlab, shartlarni bajargan o'quvchilarga sertifikat guruh sahifasidan beriladi."
+    : user?.permissions.includes("attendance.mark")
+      ? "Siz o'qitayotgan guruhlar o'quvchilariga berilgan sertifikatlar shu yerda ko'rinadi. Sertifikatni administrator beradi."
+      : user?.role === "PARENT"
+        ? "Farzandingiz kursni tamomlab, shartlarni bajargach, sertifikati shu yerda paydo bo'ladi."
+        : "Kursni tamomlab, shartlarni bajarganingizdan so'ng sertifikatingiz shu yerda paydo bo'ladi.";
   return (
     <>
       <PageHeader title="Sertifikatlar" description={`${rows.length} ta`} />
       <Card>
         {rows.length === 0 ? (
-          <EmptyState icon={<Award />} title="Sertifikatlar yo'q">Kursni tamomlab, shartlarni bajargan o&apos;quvchilarga sertifikat guruh sahifasidan beriladi.</EmptyState>
+          <EmptyState icon={<Award />} title="Sertifikatlar yo'q">{empty}</EmptyState>
         ) : (
           <Table stack>
             <thead><tr><Th>Raqam</Th><Th>O&apos;quvchi</Th><Th>Kurs</Th><Th>Guruh</Th><Th>Sana</Th>{manage && <Th />}</tr></thead>

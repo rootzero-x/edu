@@ -61,7 +61,7 @@ class QuizController
     }
 
     /** Boshqaruvchi uchun to'liq (to'g'ri javoblar bilan). */
-    public function show(Request $request, CourseAccess $access, Quiz $quiz): JsonResponse
+    public function show(Request $request, CourseAccess $access, Settings $settings, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
         // Javob kaliti faqat kursga aloqador xodimga (admin, muallif, shu kursdagi guruh o'qituvchisi).
@@ -72,6 +72,7 @@ class QuizController
         abort_unless($quiz->published && $quiz->course->published, 404);
         $access->authorize($user, $quiz->course);
         $attempts = QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id])->orderByDesc('id')->get();
+        $eligible = $this->eligible($user, $quiz);
 
         return response()->json([
             'quiz' => $quiz->only(['id', 'title', 'is_final', 'pass_percent', 'max_attempts', 'time_limit_sec', 'course_id']) + [
@@ -79,7 +80,10 @@ class QuizController
                 'course' => $quiz->course->only(['id', 'title']),
             ],
             'attempts' => $attempts->map(fn ($a) => $a->only(['id', 'started_at', 'submitted_at', 'score', 'max_score', 'percent', 'passed'])),
-            'can_take' => $this->eligible($user, $quiz),
+            'can_take' => $eligible,
+            // Hozir urinish boshlash/davom ettirish mumkinmi (limit va "o'tgan bo'lsa qayta topshirish" sozlamasi hisobga olingan).
+            'can_start' => $eligible && ($attempts->contains(fn ($a) => ! $a->submitted_at && ! $this->expired($quiz, $a))
+                || ($attempts->count() < $quiz->max_attempts && ($settings->bool('quiz.allow_retake_after_pass') || ! $attempts->contains('passed', true)))),
         ]);
     }
 
@@ -127,10 +131,23 @@ class QuizController
         CourseController::authorizeEdit($request->user(), $question->quiz->course);
         $data = $this->validateQuestion($request, $question->type);
         $attempted = QuizAttempt::where('quiz_id', $question->quiz_id)->exists();
+        if ($attempted) {
+            // Ball va matnli javoblar kaliti saqlangan natijalarni (o'tdi/o'tmadi, sertifikat sharti) belgilaydi.
+            abort_if(isset($data['points']) && (int) $data['points'] !== (int) $question->points, 409,
+                "Testni topshirganlar bor: savol balini o'zgartirib bo'lmaydi. Yangi test yarating.");
+            $norm = fn (array $a) => collect($a)->map(fn ($v) => mb_strtolower(trim((string) $v)))->filter(fn ($v) => $v !== '')->unique()->sort()->values()->all();
+            abort_if($question->type === 'TEXT' && isset($data['accepted_answers'])
+                && $norm($data['accepted_answers']) !== $norm((array) $question->accepted_answers), 409,
+                "Testni topshirganlar bor: qabul qilinadigan javoblarni o'zgartirib bo'lmaydi (savol matnini tahrirlash mumkin). Yangi test yarating.");
+        }
         if ($attempted && isset($data['options'])) {
             // Topshirilgan javoblar variant id'lariga bog'langan: variantlar o'chirilib qayta yaratilmaydi.
             abort_if(count($data['options']) !== $question->options()->count(), 409,
                 "Testni topshirganlar bor: variantlar sonini o'zgartirib bo'lmaydi (matnini tahrirlash mumkin).");
+            // To'g'ri javobni almashtirish saqlangan natijalarni (o'tdi/o'tmadi, sertifikat sharti) eskirtirib qo'yadi.
+            $current = $question->options()->orderBy('position')->orderBy('id')->pluck('is_correct')->map(fn ($v) => (bool) $v)->all();
+            abort_if($current !== array_map(fn ($o) => (bool) $o['is_correct'], array_values($data['options'])), 409,
+                "Testni topshirganlar bor: to'g'ri javobni o'zgartirib bo'lmaydi (variant matnini tahrirlash mumkin). Yangi test yarating.");
         }
         DB::transaction(function () use ($question, $data, $attempted) {
             $question->update(array_filter([
@@ -199,6 +216,9 @@ class QuizController
             }
             $done = QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id])->count();
             abort_if($done >= $quiz->max_attempts, 422, 'Urinishlar tugagan.');
+            abort_if(! app(Settings::class)->bool('quiz.allow_retake_after_pass')
+                && QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id, 'passed' => true])->exists(),
+                422, 'Siz bu testdan allaqachon o\'tgansiz.');
 
             return QuizAttempt::create(['quiz_id' => $quiz->id, 'student_id' => $user->id, 'started_at' => now()]);
         });

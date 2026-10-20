@@ -1,0 +1,17 @@
+.stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); margin-bottom: 16px; }
+.filters { display: grid; gap: 12px; margin-bottom: 16px; }
+.filterRow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.search { flex: 1 1 260px; min-width: 0; max-width: 360px; }
+.select { flex: 0 1 220px; min-width: 0; width: auto; }
+.money { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.neg { color: var(--danger); }
+.pos { color: var(--success); }
+.voided { text-decoration: line-through; color: var(--fg-subtle, var(--fg-muted)); }
+.period { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
+.period > * { flex: 0 1 180px; min-width: 0; }
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); margin-bottom: 16px; }
+.reason { display: block; font-size: .8rem; color: var(--fg-muted); overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .search, .select { flex: 1 1 100%; max-width: none; }
+  .period > * { flex: 1 1 45%; }
+}

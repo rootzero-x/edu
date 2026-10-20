@@ -45,7 +45,7 @@ export default function TelegramAuth({ next, buttonText, explain, waitingText, q
     setPending(null);
     if (ok) {
       setPhase("success");
-      setTimeout(() => router.replace(next), 700);
+      setTimeout(() => { router.refresh(); router.replace(next); }, 700);
     } else {
       setPhase("error");
       setError(message ?? "Havola eskirdi. Qaytadan urinib ko'ring.");

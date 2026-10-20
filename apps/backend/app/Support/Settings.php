@@ -95,6 +95,9 @@ final class Settings
             throw ValidationException::withMessages($errors);
         }
         DB::transaction(function () use ($clean, $actorId) {
+            if (array_key_exists('billing.monthly_fee', $clean)) {
+                Billing::recordFeeChange($this->int('billing.monthly_fee'), (int) $clean['billing.monthly_fee'], $actorId);
+            }
             foreach ($clean as $key => $value) {
                 DB::table('settings')->updateOrInsert(
                     ['key' => $key],
@@ -109,7 +112,12 @@ final class Settings
     /** Sozlamani default qiymatga qaytarish. */
     public function reset(string $key): void
     {
-        DB::table('settings')->where('key', $key)->delete();
+        DB::transaction(function () use ($key) {
+            if ($key === 'billing.monthly_fee') {
+                Billing::recordFeeChange($this->int($key), (int) self::definitions()[$key]['default'], request()?->user()?->id);
+            }
+            DB::table('settings')->where('key', $key)->delete();
+        });
         Cache::forget(self::CACHE_KEY);
         $this->loaded = null;
     }
@@ -135,7 +143,21 @@ final class Settings
             case 'bool':
                 return is_bool($v) ? null : 'true yoki false bo\'lishi kerak.';
             case 'string':
-                return is_string($v) && mb_strlen($v) <= 500 ? null : 'Satr (500 belgigacha) bo\'lishi kerak.';
+                if (! is_string($v) || mb_strlen($v) > 500) {
+                    return 'Satr (500 belgigacha) bo\'lishi kerak.';
+                }
+                // format: date — YYYY-MM-DD yoki bo'sh satr.
+                if (($def['format'] ?? null) === 'date' && $v !== ''
+                    && (($d = \DateTimeImmutable::createFromFormat('!Y-m-d', $v)) === false || $d->format('Y-m-d') !== $v)) {
+                    return "Sana YYYY-MM-DD formatida bo'lishi kerak.";
+                }
+                // Rasm manzillari (logo, hero, fon, avatar) — faqat https (aralash kontent va boshqa sxemalar yo'q).
+                if ($v !== '' && preg_match('/(logo|image|background|photo)_url$/', $key)
+                    && (! filter_var($v, FILTER_VALIDATE_URL) || strtolower((string) parse_url($v, PHP_URL_SCHEME)) !== 'https')) {
+                    return 'Rasm manzili https:// bilan boshlanadigan to\'g\'ri havola bo\'lishi kerak.';
+                }
+
+                return null;
             case 'text':
                 return is_string($v) && mb_strlen($v) <= 20000 ? null : 'Matn (20000 belgigacha) bo\'lishi kerak.';
             case 'list':

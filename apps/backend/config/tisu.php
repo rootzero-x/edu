@@ -12,7 +12,7 @@
 
 $allPermissions = [
     'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
-    'report.view', 'user.manage', 'settings.manage', 'announcement.manage',
+    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage',
 ];
 
 return [
@@ -21,7 +21,7 @@ return [
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
         'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
-        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'billing' => "To'lovlar", 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
         'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
     ],
 
@@ -112,6 +112,7 @@ return [
         'quiz.default_pass_percent' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Yangi test uchun o'tish foizi", 'default' => 60],
         'quiz.default_max_attempts' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Yangi test uchun urinishlar soni', 'default' => 3],
         'quiz.show_correct_answers' => ['group' => 'quiz', 'type' => 'bool', 'label' => "Topshirgandan keyin to'g'ri javoblarni ko'rsatish", 'default' => true],
+        'quiz.allow_retake_after_pass' => ['group' => 'quiz', 'type' => 'bool', 'label' => "O'tilgan testni qayta topshirishga ruxsat", 'default' => false],
         'quiz.submit_grace_seconds' => ['group' => 'quiz', 'type' => 'int', 'min' => 0, 'max' => 600, 'label' => "Vaqt tugagach qo'shimcha soniyalar", 'default' => 15],
 
         // ── Sertifikat ───────────────────────────────────────
@@ -145,6 +146,8 @@ return [
         'telegram.text.share_phone_button' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: telefon tugmasi', 'default' => '📱 Telefon raqamni yuborish'],
         'telegram.text.registered' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxatdan o'tdi", 'default' => "Rahmat, {name}! Siz ro'yxatdan o'tdingiz."],
         'telegram.text.linked' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: akkaunt bog\'landi', 'default' => "Rahmat, {name}! Telegram akkauntingiz bog'landi."],
+        'telegram.text.welcome_back' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: bog'langan foydalanuvchi /start bosganda ({name})", 'default' => "Assalomu alaykum, {name}! 👋\nKerakli bo'limni pastdagi menyudan tanlang."],
+        'telegram.text.need_phone' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: bog'lanmagan foydalanuvchiga eslatma", 'default' => "Davom etish uchun avval pastdagi tugma orqali telefon raqamingizni yuboring 👇"],
         'telegram.text.registration_closed' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxat yopiq", 'default' => "Bu raqam tizimda topilmadi. Ro'yxatdan o'tish uchun administratorga murojaat qiling."],
         'telegram.text.not_own_contact' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: begona kontakt", 'default' => "Iltimos, pastdagi tugma orqali o'z raqamingizni yuboring."],
         'telegram.text.login_confirm' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: saytga kirishni tasdiqlash so'rovi ({name}, {ip}, {time})", 'default' => "🔐 {name}, saytga kirish so'rovi.\nIP: {ip}\nVaqt: {time}\n\nAgar bu siz bo'lsangiz — tasdiqlang. Siz bo'lmasangiz — rad eting va havolani hech kimga bermang."],
@@ -178,6 +181,7 @@ return [
                 ['command' => 'attendance', 'description' => 'Davomatim'],
                 ['command' => 'quizzes', 'description' => 'Testlarim'],
                 ['command' => 'certificates', 'description' => 'Sertifikatlarim'],
+                ['command' => 'balance', 'description' => "To'lovlar va balans"],
                 ['command' => 'today', 'description' => "Bugungi darslar (o'qituvchi)"],
                 ['command' => 'children', 'description' => 'Farzandlarim (ota-ona)'],
                 ['command' => 'profile', 'description' => 'Profil'],
@@ -191,6 +195,7 @@ return [
                 ['command' => 'attendance', 'description' => 'Моя посещаемость'],
                 ['command' => 'quizzes', 'description' => 'Мои тесты'],
                 ['command' => 'certificates', 'description' => 'Мои сертификаты'],
+                ['command' => 'balance', 'description' => 'Оплата и баланс'],
                 ['command' => 'today', 'description' => 'Уроки на сегодня (учитель)'],
                 ['command' => 'children', 'description' => 'Мои дети (родитель)'],
                 ['command' => 'profile', 'description' => 'Профиль'],
@@ -204,6 +209,7 @@ return [
                 ['command' => 'attendance', 'description' => 'My attendance'],
                 ['command' => 'quizzes', 'description' => 'My quizzes'],
                 ['command' => 'certificates', 'description' => 'My certificates'],
+                ['command' => 'balance', 'description' => 'Payments and balance'],
                 ['command' => 'today', 'description' => "Today's classes (teacher)"],
                 ['command' => 'children', 'description' => 'My children (parent)'],
                 ['command' => 'profile', 'description' => 'Profile'],
@@ -245,11 +251,11 @@ return [
         'telegram.schedule_days' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 31, 'label' => 'Botdagi jadval necha kunlik', 'default' => 7],
         'telegram.list_limit' => ['group' => 'telegram', 'type' => 'int', 'min' => 3, 'max' => 50, 'label' => "Bot ro'yxatlaridagi elementlar soni", 'default' => 15],
         // Har rol uchun reply-klaviatura: qatorlar → amallar.
-        // Amallar: courses, schedule, attendance, quizzes, certificates, profile, today, children, app
+        // Amallar: courses, schedule, attendance, quizzes, certificates, balance, profile, today, children, app
         'telegram.menu' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot menyusi (rol → tugmalar qatorlari)', 'default' => [
-            'STUDENT' => [['courses', 'schedule'], ['attendance', 'quizzes'], ['news', 'certificates'], ['profile', 'app']],
+            'STUDENT' => [['courses', 'schedule'], ['attendance', 'quizzes'], ['news', 'certificates'], ['balance', 'profile'], ['app']],
             'TEACHER' => [['today', 'unmarked'], ['schedule', 'courses'], ['news', 'profile'], ['app']],
-            'PARENT' => [['children', 'schedule'], ['news', 'certificates'], ['profile', 'app']],
+            'PARENT' => [['children', 'schedule'], ['news', 'certificates'], ['balance', 'profile'], ['app']],
             'ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
             'SUPER_ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
         ]],
@@ -432,6 +438,16 @@ return [
             'teacher' => "O'qituvchi",
             'room' => 'Xona',
             'quiz_back' => 'Test sahifasiga qaytish',
+            'nav_balance' => 'Balans',
+            'balance_title' => "To'lovlar va balans",
+            'balance' => 'Balans',
+            'balance_debt' => 'Qarzdorlik: {debt}',
+            'balance_ok' => "Qarzdorlik yo'q",
+            'balance_month' => 'Shu oy hisoblandi: {amount}',
+            'balance_last_payment' => "Oxirgi to'lov: {amount} · {date}",
+            'balance_recent' => "So'nggi yozuvlar",
+            'balance_empty' => "To'lovlar bo'yicha ma'lumot yo'q.",
+            'balance_voided' => 'bekor qilingan',
         ]],
 
         // ── Kurs maxfiyligi ──────────────────────────────────
@@ -457,6 +473,40 @@ return [
         'telegram.text.btn_news' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: yangiliklar', 'default' => '📢 Yangiliklar'],
         'telegram.text.news_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: yangiliklar sarlavhasi', 'default' => "📢 So'nggi yangiliklar:"],
         'telegram.text.news_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: yangilik yo'q", 'default' => "Hozircha yangiliklar yo'q."],
+
+        // ── To'lovlar ────────────────────────────────────────
+        // Har bir faol guruh a'zoligi uchun har kuni: oylik narx / oydagi kunlar (qoldiq oyning oxirgi kuniga).
+        'billing.enabled' => ['group' => 'billing', 'type' => 'bool', 'public' => true, 'label' => "To'lovlar tizimi yoqilgan (kunlik hisoblash, balans, eslatmalar)", 'default' => true],
+        'billing.monthly_fee' => ['group' => 'billing', 'type' => 'int', 'min' => 0, 'max' => 100000000, 'label' => "Kursning oylik narxi (so'm). O'zgarsa — faqat o'zgargan kundan boshlab qo'llanadi", 'default' => 400000],
+        'billing.currency' => ['group' => 'billing', 'type' => 'string', 'public' => true, 'label' => 'Valyuta nomi', 'default' => "so'm"],
+        'billing.accrual_start_date' => ['group' => 'billing', 'type' => 'string', 'format' => 'date', 'label' => "Hisoblash boshlanadigan sana (YYYY-MM-DD; bo'sh bo'lsa — birinchi ishga tushgan kun)", 'default' => ''],
+        'billing.catchup_days' => ['group' => 'billing', 'type' => 'int', 'min' => 1, 'max' => 62, 'label' => "Server ishlamay qolsa, necha kun orqaga qarab hisoblab qo'yiladi", 'default' => 7],
+        'billing.method_labels' => ['group' => 'billing', 'type' => 'object', 'public' => true, 'label' => "To'lov usullari (kalit → nom)", 'default' => [
+            'CASH' => 'Naqd', 'CARD' => 'Karta', 'TRANSFER' => "O'tkazma",
+        ]],
+        'billing.type_labels' => ['group' => 'billing', 'type' => 'object', 'public' => true, 'label' => 'Yozuv turlari nomlari', 'default' => [
+            'CHARGE' => 'Hisoblandi', 'PAYMENT' => "To'lov", 'ADJUSTMENT' => 'Tuzatish',
+        ]],
+        'billing.max_payment' => ['group' => 'billing', 'type' => 'int', 'min' => 1000, 'max' => 1000000000, 'label' => "Bitta to'lov/tuzatishning maksimal summasi (xatolardan himoya)", 'default' => 20000000],
+        'billing.max_backdate_days' => ['group' => 'billing', 'type' => 'int', 'min' => 0, 'max' => 3650, 'label' => "To'lov sanasini necha kun orqaga yozish mumkin", 'default' => 31],
+        'billing.history_limit' => ['group' => 'billing', 'type' => 'int', 'min' => 3, 'max' => 50, 'label' => "Bot va Mini App'da so'nggi yozuvlar soni", 'default' => 10],
+        'billing.notify_payment' => ['group' => 'billing', 'type' => 'bool', 'label' => "To'lov qabul qilinganda o'quvchiga Telegram xabar", 'default' => true],
+        'billing.notify_parents' => ['group' => 'billing', 'type' => 'bool', 'label' => "To'lov va qarz xabarlari ota-onaga ham", 'default' => true],
+        'billing.debt_reminder' => ['group' => 'billing', 'type' => 'bool', 'label' => "Qarzdorlarga Telegram eslatma (har kuni 10:00 da tekshiriladi)", 'default' => false],
+        'billing.debt_reminder_min' => ['group' => 'billing', 'type' => 'int', 'min' => 1, 'max' => 100000000, 'label' => "Eslatma yuboriladigan minimal qarz (so'm)", 'default' => 1],
+        'billing.debt_reminder_every_days' => ['group' => 'billing', 'type' => 'int', 'min' => 1, 'max' => 60, 'label' => 'Qarz eslatmasi necha kunda bir marta', 'default' => 7],
+        'telegram.text.billing_payment' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchiga to'lov qabul qilindi ({name}, {amount}, {method}, {date}, {balance})", 'default' => "✅ {name}, {date} kuni {amount} to'lov qabul qilindi ({method}).\nJoriy balans: {balance}"],
+        'telegram.text.billing_payment_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ota-onaga to'lov qabul qilindi ({child}, {amount}, {method}, {date}, {balance})", 'default' => "✅ {child} uchun {date} kuni {amount} to'lov qabul qilindi ({method}).\nJoriy balans: {balance}"],
+        'telegram.text.billing_debt_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchiga qarz eslatmasi ({name}, {debt}, {balance}, {fee})", 'default' => "💳 {name}, o'qish uchun qarzdorligingiz: {debt}. Iltimos, to'lovni amalga oshiring."],
+        'telegram.text.billing_debt_reminder_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ota-onaga qarz eslatmasi ({child}, {debt}, {balance}, {fee})", 'default' => "💳 {child} ning o'qish uchun qarzdorligi: {debt}. Iltimos, to'lovni amalga oshiring."],
+        'telegram.text.btn_balance' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: balans', 'default' => '💰 Balans'],
+        'telegram.text.balance_title' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: balans sarlavhasi', 'default' => "💰 To'lovlar"],
+        'telegram.text.balance_block' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchi balansi ({name}, {balance}, {status}, {month}, {lines})", 'default' => "👤 {name}\nBalans: {balance}\n{status}\nShu oy hisoblandi: {month}\n{lines}"],
+        'telegram.text.balance_debt' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: qarz holati ({debt})', 'default' => '❗️ Qarzdorlik: {debt}'],
+        'telegram.text.balance_ok' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: qarz yo'q holati", 'default' => "✅ Qarzdorlik yo'q"],
+        'telegram.text.balance_recent' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: so'nggi yozuvlar sarlavhasi", 'default' => "So'nggi to'lovlar:"],
+        'telegram.text.balance_line' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: yozuv qatori ({date}, {type}, {amount}, {method})", 'default' => '• {date} · {type} · {amount} {method}'],
+        'telegram.text.balance_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: balans ma'lumoti yo'q", 'default' => "To'lovlar bo'yicha ma'lumot yo'q."],
 
         // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──
         'automation.generate_sessions' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni jadvaldan darslarni oldindan yaratish', 'default' => true],
@@ -485,8 +535,8 @@ return [
         // ── Interfeys ────────────────────────────────────────
         'ui.nav_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => 'Panel menyusi nomlari (manzil → nom)', 'default' => [
             '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
-            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/profile' => 'Profil',
-            '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/branches' => 'Filiallar', '/dashboard/settings' => 'Sozlamalar',
+            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/billing' => "To'lovlar", '/dashboard/profile' => 'Profil',
+            '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/settings' => 'Sozlamalar',
         ]],
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
         'ui.refresh_seconds' => ['group' => 'ui', 'type' => 'int', 'min' => 0, 'max' => 3600, 'public' => true, 'label' => "Avtomatik yangilanish oralig'i, soniya (0 — o'chiq)", 'default' => 20],
@@ -496,7 +546,7 @@ return [
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
             'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
-                'report.view', 'user.manage', 'announcement.manage'],
+                'report.view', 'user.manage', 'announcement.manage', 'billing.manage'],
             'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
             'STUDENT' => ['course.view', 'quiz.take'],
             'PARENT' => ['course.view'],

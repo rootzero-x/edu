@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.NewsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels"
+    xmlns:models="using:TisuEdu.Core.Models">
+    <Grid Padding="{StaticResource PagePadding}" RowSpacing="12" MaxWidth="{StaticResource PageMaxWidth}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <Button HorizontalAlignment="Right" Command="{x:Bind ViewModel.MarkAllReadCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE8FB;" FontSize="14" />
+                    <TextBlock Text="Hammasini o'qilgan deb belgilash" />
+                </StackPanel>
+            </Button>
+        </Grid>
+        <StackPanel Grid.Row="1" Spacing="8">
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+            <TextBlock Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+        </StackPanel>
+        <Grid Grid.Row="2" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" MinWidth="280" />
+                <ColumnDefinition Width="3*" />
+            </Grid.ColumnDefinitions>
+            <ListView x:Name="NewsList" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="Single"
+                      SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay, Converter={StaticResource ItemPassThrough}}">
+                <ListView.Footer>
+                    <Button Content="Ko'proq yuklash" HorizontalAlignment="Stretch" Margin="0,8" Command="{x:Bind ViewModel.LoadMoreCommand}"
+                            Visibility="{x:Bind ViewModel.CanLoadMore, Mode=OneWay}" />
+                </ListView.Footer>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:NewsItem">
+                        <Grid Padding="4,12" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="8" Height="8" Fill="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Top" Margin="0,7,0,0"
+                                     Visibility="{x:Bind IsUnread, Mode=OneWay}" />
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE840;" FontSize="12" Visibility="{x:Bind Pinned}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <TextBlock Text="{x:Bind Preview}" Style="{StaticResource SecondaryTextStyle}" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind Meta}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}" Padding="24">
+                <Grid>
+                    <TextBlock Text="O'qish uchun e'lonni tanlang" Style="{StaticResource SecondaryTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Selected.Pinned, Mode=OneWay, FallbackValue=Collapsed}">
+                                <Border Style="{StaticResource PillStyle}" Background="{ThemeResource AccentFillColorDefaultBrush}">
+                                    <TextBlock Text="{x:Bind ViewModel.Selected.PinnedText, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind ViewModel.Selected.Title, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                            <TextBlock Text="{x:Bind ViewModel.Selected.Meta, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+                            <Image x:Name="NewsImage" MaxHeight="320" Stretch="Uniform" HorizontalAlignment="Left" />
+                            <TextBlock Text="{x:Bind ViewModel.Selected.Body, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource BodyTextBlockStyle}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</local:ViewPage>

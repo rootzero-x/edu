@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TisuEdu.App.Views.ShellPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Key="Left" Modifiers="Menu" Invoked="Back_Invoked" />
+        <KeyboardAccelerator Key="GoBack" Invoked="Back_Invoked" />
+        <KeyboardAccelerator Key="F5" Invoked="Reload_Invoked" />
+        <KeyboardAccelerator Key="R" Modifiers="Control" Invoked="Reload_Invoked" />
+    </Page.KeyboardAccelerators>
+
+    <NavigationView
+        x:Name="Nav"
+        PaneDisplayMode="Auto"
+        IsTitleBarAutoPaddingEnabled="False"
+        IsBackButtonVisible="Visible"
+        IsSettingsVisible="True"
+        OpenPaneLength="288"
+        CompactModeThresholdWidth="640"
+        ExpandedModeThresholdWidth="1100"
+        BackRequested="Nav_BackRequested"
+        ItemInvoked="Nav_ItemInvoked">
+
+        <NavigationView.PaneHeader>
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="4,4,0,8" Visibility="{x:Bind Nav.IsPaneOpen, Mode=OneWay}">
+                <PersonPicture Initials="{x:Bind ViewModel.UserInitials, Mode=OneWay}" Width="40" Height="40" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.UserName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                    <TextBlock Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+                </StackPanel>
+            </StackPanel>
+        </NavigationView.PaneHeader>
+
+        <NavigationView.MenuItems>
+            <NavigationViewItem x:Name="HomeItem" Tag="Dashboard" Content="{x:Bind ViewModel.NavHome, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="CoursesItem" Tag="Courses" Content="{x:Bind ViewModel.NavCourses, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanCourses, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE7BE;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="GroupsItem" Tag="Groups" Content="{x:Bind ViewModel.NavGroups, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE716;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="AttendanceItem" Tag="Attendance" Content="{x:Bind ViewModel.NavAttendance, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanAttendance, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D5;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="NewsItem" Tag="News" Content="{x:Bind ViewModel.NavNews, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE789;" /></NavigationViewItem.Icon>
+                <NavigationViewItem.InfoBadge>
+                    <InfoBadge Value="{x:Bind ViewModel.Unread, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasUnread, Mode=OneWay}" />
+                </NavigationViewItem.InfoBadge>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="CertificatesItem" Tag="Certificates" Content="{x:Bind ViewModel.NavCertificates, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xEB95;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="ReportsItem" Tag="Reports" Content="{x:Bind ViewModel.NavReports, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanReports, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D2;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.MenuItems>
+
+        <NavigationView.FooterMenuItems>
+            <!-- Admin bo'limlari saytdagi boshqaruv panelida ochiladi. -->
+            <NavigationViewItem Content="Boshqaruv (saytda)" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.HasAdmin, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE7EF;" /></NavigationViewItem.Icon>
+                <NavigationViewItem.MenuItems>
+                    <NavigationViewItem Tag="web:/dashboard/users" Content="{x:Bind ViewModel.NavUsers, Mode=OneWay}" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.CanUsers, Mode=OneWay}">
+                        <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FA;" /></NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                    <NavigationViewItem Tag="web:/dashboard/branches" Content="{x:Bind ViewModel.NavBranches, Mode=OneWay}" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.CanUsers, Mode=OneWay}">
+                        <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;" /></NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                    <NavigationViewItem Tag="web:/dashboard/settings" Content="{x:Bind ViewModel.NavSettings, Mode=OneWay}" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.CanSettings, Mode=OneWay}">
+                        <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;" /></NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                </NavigationViewItem.MenuItems>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="ProfileItem" Tag="Profile" Content="{x:Bind ViewModel.NavProfile, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE77B;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem Tag="logout" Content="{x:Bind ViewModel.LogoutText, Mode=OneWay}" SelectsOnInvoked="False">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xF3B1;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.FooterMenuItems>
+
+        <Frame x:Name="ContentFrame" />
+    </NavigationView>
+</Page>

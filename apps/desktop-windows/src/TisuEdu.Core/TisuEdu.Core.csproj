@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platformadan mustaqil qatlam: API mijozi, modellar va ViewModel'lar.
+       Linux/CI'da ham quriladi va testlanadi; WinUI ilovasi shu kutubxonaga tayanadi. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>TisuEdu.Core</RootNamespace>
+    <!-- CS9124: primary-constructor parametri xususiyatga ham beriladi (ataylab, faqat o'qish uchun). -->
+    <NoWarn>$(NoWarn);CS9124</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="TisuEdu.Core.Tests" />
+  </ItemGroup>
+</Project>

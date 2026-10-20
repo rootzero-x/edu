@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // API: mehmonni login sahifasiga yo'naltirmaslik, 401 JSON qaytarish.
         $middleware->redirectGuestsTo(fn () => null);
         $middleware->alias(['perm' => \App\Http\Middleware\RequirePermission::class]);
+        // Huquq tekshiruvi model binding'dan oldin: ruxsati yo'q foydalanuvchi 404/403 farqidan ID mavjudligini bilolmaydi.
+        $middleware->prependToPriorityList(\Illuminate\Routing\Middleware\SubstituteBindings::class, \App\Http\Middleware\RequirePermission::class);
         $middleware->prepend(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

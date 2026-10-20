@@ -6,6 +6,9 @@ import SiteProvider from "@/components/SiteProvider";
 import { themeScript } from "@/components/ThemeToggle";
 import "./globals.css";
 
+// Server render API (Germaniya) yoniga — Frankfurt: har API chaqiruvi okean orqali emas, ~5 ms.
+export const preferredRegion = ["fra1"];
+
 const inter = Inter({ subsets: ["latin", "cyrillic"], display: "swap", variable: "--font-inter" });
 
 export async function generateMetadata(): Promise<Metadata> {

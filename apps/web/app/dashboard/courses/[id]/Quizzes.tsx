@@ -25,6 +25,7 @@ export default function Quizzes({ courseId, quizzes, canManage }: { courseId: nu
       const r = await call("POST", `courses/${courseId}/quizzes`, { title: v.title });
       if (!r.ok) return errorText(r.data);
       toast.success("Test yaratildi", v.title);
+      router.refresh(); // sahifalar keshi yangilansin
       router.push(`/dashboard/quizzes/${r.data.quiz.id}/edit`);
     },
   });

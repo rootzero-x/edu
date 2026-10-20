@@ -141,4 +141,32 @@ class TelegramTest extends TestCase
             ->assertUnauthorized();
         $this->assertNull(InitData::verify($initData, self::TOKEN, 3600, time() + 7200));
     }
+
+    public function test_start_for_linked_user_greets_without_relinking_message(): void
+    {
+        $user = User::factory()->create(['phone' => '+998906666666', 'first_name' => 'Khayrullayevich']);
+        $this->update(['contact' => ['phone_number' => '998906666666', 'user_id' => 555]]);
+        Http::assertSent(fn ($r) => str_contains((string) ($r['text'] ?? ''), "Telegram akkauntingiz bog'landi"));
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'telegram.link')->count());
+
+        // Har bir /start va kontaktni qayta yuborish — salomlashish + menyu, "bog'landi" emas.
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []])]);
+        $this->update(['text' => '/start']);
+        $this->update(['text' => '/start']);
+        $this->update(['contact' => ['phone_number' => '998906666666', 'user_id' => 555]]);
+        Http::assertNotSent(fn ($r) => str_contains((string) ($r['text'] ?? ''), "bog'landi"));
+        Http::assertSent(fn ($r) => str_starts_with((string) ($r['text'] ?? ''), 'Assalomu alaykum, Khayrullayevich!')
+            && isset($r['reply_markup']['keyboard']));
+        Http::assertSentCount(3);
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'telegram.link')->count());
+        $this->assertSame($user->id, (int) DB::table('telegram_links')->where('telegram_id', 555)->value('user_id'));
+    }
+
+    public function test_unlinked_user_text_gets_short_phone_prompt(): void
+    {
+        $this->update(['text' => 'salom']);
+        Http::assertSent(fn ($r) => str_starts_with((string) ($r['text'] ?? ''), 'Davom etish uchun avval')
+            && ($r['reply_markup']['keyboard'][0][0]['request_contact'] ?? false));
+        Http::assertNotSent(fn ($r) => str_contains((string) ($r['text'] ?? ''), 'xush kelibsiz'));
+    }
 }

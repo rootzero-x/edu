@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -25,9 +26,20 @@ export type Me = {
   permissions: string[];
 };
 
+/**
+ * Bitta so'rov (render) ichida bir xil GET faqat bir marta yuboriladi: layout, generateMetadata va sahifa
+ * ko'pincha bir xil ma'lumotni (masalan, /v1/auth/me yoki kursni) so'raydi — har biri API'ga alohida borardi.
+ */
+const cachedGet = cache((path: string, token: string | undefined) => send(path, {}, token));
+
 /** Server tomonda API chaqiruvi (token cookie'dan). */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<{ status: number; data: T }> {
   const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+  const plainGet = (init.method ?? "GET").toUpperCase() === "GET" && !init.body && !init.signal && !init.headers;
+  return (plainGet ? cachedGet(path, token) : send(path, init, token)) as Promise<{ status: number; data: T }>;
+}
+
+async function send(path: string, init: RequestInit, token: string | undefined): Promise<{ status: number; data: unknown }> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -42,9 +54,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<{ st
       },
     });
   } catch {
-    return { status: 503, data: { message: "API bilan aloqa yo'q." } as T };
+    return { status: 503, data: { message: "API bilan aloqa yo'q." } };
   }
-  const data = (await res.json().catch(() => ({}))) as T;
+  const data = await res.json().catch(() => ({}));
   return { status: res.status, data };
 }
 
@@ -60,6 +72,7 @@ export async function publicSettings(): Promise<PublicSettings | null> {
 }
 
 export async function me(): Promise<Me | null> {
+  // api() GET'lari so'rov ichida keshlanadi: layout va sahifa birgalikda bitta /auth/me yuboradi.
   const { status, data } = await api<{ user: Me }>("/v1/auth/me");
   return status === 200 ? data.user : null;
 }
