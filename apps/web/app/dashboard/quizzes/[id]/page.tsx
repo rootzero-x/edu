@@ -28,7 +28,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
   if (res.status === 200 && ("can_edit" in res.data || Array.isArray((res.data as ManageRes).quiz?.questions))) {
     redirect(`/dashboard/quizzes/${id}/edit`);
   }
-  if (res.status === 403 && isDenial(res.data)) {
+  if (isDenial(res.data)) {
     const d = res.data;
     return (
       <>
@@ -37,7 +37,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
       </>
     );
   }
-  if (res.status !== 200) return <NotFoundCard />;
+  if (res.status !== 200) return <NotFoundCard message={(res.data as { message?: string })?.message} />;
   const { quiz, attempts, can_take } = res.data as Res;
   const tz = timezone(st);
   const done = attempts.filter((a) => a.submitted_at);

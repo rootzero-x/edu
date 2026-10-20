@@ -99,7 +99,10 @@ class FileController
                 abort_unless($material, 404);
                 $lesson = $material->lesson;
                 $course = $lesson->module->course;
-                if (! $user->hasPermission('course.manage') && (! $lesson->published || ! $course->published)) {
+                // Darsni ko'rish qoidasi bilan bir xil (CurriculumController::showLesson).
+                $manage = $user->hasPermission('course.manage') || ($user->hasPermission('course.author') && CourseController::isOwnOrTaught($user, $course));
+                $access->assertOpen($user, $course);
+                if (! $manage && ! $lesson->published) {
                     abort(404);
                 }
                 $access->authorize($user, $course);

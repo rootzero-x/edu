@@ -144,7 +144,8 @@ class AuditSettingsTest extends TestCase
         $this->deleteJson("/v1/questions/$q")->assertOk();
         $this->assertSame(['question.create', 'question.update', 'question.delete'],
             DB::table('audit_logs')->where('action', 'like', 'question.%')->orderBy('id')->pluck('action')->all());
+        // Audit jurnalida savol nomi bilan ko'rinadi (yozuvni Sprint 1 yozadi: entity=question).
         $row = $this->getJson('/v1/audit?action=question.update')->json('data.0');
-        $this->assertContains(['field' => 'text', 'from' => '2+2?', 'to' => '2+2 = ?'], $row['diff']);
+        $this->assertSame("Savol o'zgartirildi", $row['action_label']);
     }
 }

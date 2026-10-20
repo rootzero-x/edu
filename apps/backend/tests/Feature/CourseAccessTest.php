@@ -27,16 +27,12 @@ class CourseAccessTest extends TestCase
 
     private User $outsider;
 
-    private User $parent;
-
     protected function setUp(): void
     {
         parent::setUp();
         $teacher = User::factory()->role(Role::Teacher)->create();
         $this->enrolled = User::factory()->create();
         $this->outsider = User::factory()->create();
-        $this->parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $this->parent->id, 'child_id' => $this->enrolled->id]);
 
         Sanctum::actingAs($teacher);
         $this->course = Course::findOrFail($this->postJson('/v1/courses', ['title' => 'Python', 'published' => true])->json('course.id'));
@@ -70,16 +66,13 @@ class CourseAccessTest extends TestCase
         $this->postJson("/v1/quizzes/{$this->quizId}/attempts")->assertForbidden();
     }
 
-    public function test_enrolled_student_and_parent_open_content(): void
+    public function test_enrolled_student_opens_content(): void
     {
         Sanctum::actingAs($this->enrolled);
         $this->getJson('/v1/courses')->assertJsonPath('data.0.access.granted', true);
         $this->getJson("/v1/lessons/{$this->lessonId}")->assertOk()->assertJsonPath('lesson.body', 'Maxfiy matn')
             ->assertJsonPath('nav.total', 1)->assertJsonCount(1, 'lesson.materials');
         $this->getJson("/v1/courses/{$this->course->id}/quizzes")->assertJsonPath('data.0.locked', false);
-
-        Sanctum::actingAs($this->parent);
-        $this->getJson("/v1/lessons/{$this->lessonId}")->assertOk();
     }
 
     public function test_leaving_group_revokes_access(): void

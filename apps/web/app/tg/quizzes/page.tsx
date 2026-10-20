@@ -4,18 +4,30 @@ import { useEffect, useState } from "react";
 import { tg } from "../_lib/api";
 import { useTg } from "../_lib/TgProvider";
 import type { Group } from "../_lib/data";
-import { Async, Empty, Loading, Page, Row, Section, useApi } from "../_ui/ui";
+import { Async, Empty, Failed, Loading, Page, Row, Section, useApi } from "../_ui/ui";
 import { QuizStatus, type QuizItem } from "../_ui/quiz";
 
 function CourseQuizzes({ courses }: { courses: { id: number; title: string }[] }) {
   const { t } = useTg();
-  const [lists, setLists] = useState<{ course: { id: number; title: string }; quizzes: QuizItem[] }[] | null>(null);
+  const [lists, setLists] = useState<{ course: { id: number; title: string }; quizzes: QuizItem[] }[] | null | "error">(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    let cancelled = false;
+    setLists(null);
     Promise.all(courses.map(async (c) => {
       const r = await tg<{ data: QuizItem[] }>("GET", `courses/${c.id}/quizzes`);
+      // 403 (kursga ruxsat yo'q) — bo'sh ro'yxat; tarmoq/server xatosi — "test yo'q" deb ko'rsatilmasin.
+      if (!r.ok && r.status !== 403) throw new Error(String(r.status));
       return { course: c, quizzes: r.ok ? r.data.data : [] };
-    })).then(setLists);
-  }, [courses.map((c) => c.id).join(",")]);
+    }))
+      .then((x) => !cancelled && setLists(x))
+      .catch(() => !cancelled && setLists("error"));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courses.map((c) => c.id).join(","), attempt]);
+  if (lists === "error") return <Failed onRetry={() => setAttempt((n) => n + 1)} />;
   if (!lists) return <Loading />;
   const nonEmpty = lists.filter((l) => l.quizzes.length > 0);
   if (nonEmpty.length === 0) return <Empty text={t("quizzes_empty")} icon="📝" />;

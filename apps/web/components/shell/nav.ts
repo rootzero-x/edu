@@ -1,4 +1,4 @@
-import { Award, BarChart3, Bell, CalendarDays, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, LayoutDashboard, NotebookPen, ScrollText, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Award, BarChart3, Bell, CalendarDays, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, Inbox, LayoutDashboard, NotebookPen, ScrollText, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -6,6 +6,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Ko'rinishi uchun kerakli huquq (permissions ro'yxatidan). */
   perm?: string;
+  /** Faqat shu rollarga (ko'rsatilmasa — huquqqa qarab hammaga). */
+  roles?: string[];
   exact?: boolean;
   section?: "main" | "admin";
   /** Ochiq sozlama (bool) o'chirilgan bo'lsa bo'lim ko'rinmaydi (masalan, homework.enabled). */
@@ -22,6 +24,7 @@ export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view", also: ["/dashboard/lessons", "/dashboard/quizzes"] },
   { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound, also: ["/dashboard/sessions"] },
+  { href: "/dashboard/leads", label: "Arizalar", icon: Inbox, perm: "lead.manage" },
   { href: "/dashboard/calendar", label: "Taqvim", icon: CalendarDays },
   { href: "/dashboard/homework", label: "Uyga vazifa", icon: NotebookPen, setting: "homework.enabled" },
   { href: "/dashboard/news", label: "Yangiliklar", icon: Megaphone },
@@ -39,5 +42,5 @@ export const NAV: NavItem[] = [
 export const NAV_ICONS = { Award, ClipboardCheck };
 
 export const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi", PARENT: "Ota-ona",
+  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi",
 };

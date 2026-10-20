@@ -94,6 +94,8 @@ class NotificationCentreTest extends TestCase
     {
         $this->log($this->student->id, 'homework.new:1');
         $this->log($this->student->id, 'homework.due:1', 'Forbidden: bot was blocked by the user');
+        // Sprint 1: botni bloklagan chat telegram_links.blocked_at bilan belgilanadi.
+        DB::table('telegram_links')->where('user_id', $this->student->id)->update(['blocked_at' => now()]);
         $this->log($this->unlinked->id, 'homework.new:1', 'telegram_not_linked');
         $this->log($this->teacher->id, 'attendance.unmarked:5', 'Bad Request: message is too long');
         $this->log($this->teacher->id, 'lesson.reminder:5', 'skipped');

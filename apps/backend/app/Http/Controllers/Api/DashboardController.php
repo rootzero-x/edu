@@ -51,14 +51,14 @@ class DashboardController
                     && ($manager || (int) $s->group->teacher_id === (int) $user->id),
             ])->values();
 
-        // Davomat: belgilovchi — ko'rinadigan guruhlar bo'yicha, o'quvchi/ota-ona — faqat o'zi/farzandi.
+        // Davomat: belgilovchi — ko'rinadigan guruhlar bo'yicha, o'quvchi — faqat o'zi.
         $days = $settings->int('ui.summary_attendance_days');
         $statuses = DB::table('attendances')
             ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
             ->whereIn('class_sessions.group_id', $groupIds)
             ->where('class_sessions.cancelled', false)
             ->where('class_sessions.starts_at', '>=', now()->subDays($days))
-            ->when(! $marker, fn ($q) => $q->whereIn('attendances.student_id', $this->selfAndChildren($user->id)))
+            ->when(! $marker, fn ($q) => $q->where('attendances.student_id', $user->id))
             ->pluck('attendances.status')->all();
 
         // Belgilanmagan darslar — /v1/attendance/unmarked bilan bir xil qoida (qisman belgilanganlar ham).
@@ -78,7 +78,8 @@ class DashboardController
                 'attendance_days' => $days,
                 'attendance_counts' => array_count_values($statuses) + array_fill_keys([Attendance::PRESENT, Attendance::LATE, Attendance::ABSENT, Attendance::EXCUSED], 0),
                 'courses' => $user->hasPermission('course.view')
-                    ? Course::query()->when(! $user->hasPermission('course.manage'), fn ($q) => $q->where('published', true))->count()
+                    ? Course::query()->when(! $user->hasPermission('course.manage'), fn ($q) => $q->where(fn ($w) => $w->where('published', true)
+                        ->when($user->hasPermission('course.author'), fn ($a) => $a->orWhere('created_by', $user->id))))->count()
                     : null,
                 'groups' => count($groupIds),
                 'students' => $marker
@@ -88,12 +89,36 @@ class DashboardController
                     : null,
                 'unmarked_sessions' => $unmarked,
             ],
+            'setup' => $this->setup($user, $settings),
         ]);
     }
 
-    /** @return list<int> */
-    private function selfAndChildren(int $userId): array
+    /**
+     * Yangi admin uchun "Boshlash" ro'yxati: har bir band haqiqiy ma'lumotdan belgilanadi.
+     * Faqat foydalanuvchilarni boshqaruvchilarga; sozlama bandlari — sozlamalar huquqi borlarga.
+     *
+     * @return array{steps: list<array{key:string, done:bool, href:string}>, done:int, total:int}|null
+     */
+    private function setup(\App\Models\User $user, Settings $settings): ?array
     {
-        return array_merge([$userId], DB::table('parent_child')->where('parent_id', $userId)->pluck('child_id')->map(fn ($id) => (int) $id)->all());
+        if (! $settings->bool('ui.setup_checklist') || ! $user->hasPermission('user.manage')) {
+            return null;
+        }
+        $stored = DB::table('settings')->whereIn('key', ['billing.monthly_fee'])->pluck('key')->flip();
+        $canSettings = $user->hasPermission('settings.manage');
+        $steps = array_values(array_filter([
+            $canSettings ? ['key' => 'site', 'done' => trim((string) $settings->get('site.contact_phone')) !== '' && trim((string) $settings->get('site.address')) !== '', 'href' => '/dashboard/settings?group=site'] : null,
+            $canSettings ? ['key' => 'bot', 'done' => trim((string) $settings->get('telegram.bot_username')) !== '' && (array) $settings->get('telegram.admin_chat_ids') !== [], 'href' => '/dashboard/settings?group=telegram'] : null,
+            ['key' => 'telegram', 'done' => DB::table('telegram_links')->where('user_id', $user->id)->exists(), 'href' => '/dashboard/profile'],
+            $canSettings && $user->hasPermission('billing.manage') ? ['key' => 'billing', 'done' => isset($stored['billing.monthly_fee']) || DB::table('billing_fee_history')->exists(), 'href' => '/dashboard/settings?group=billing'] : null,
+            ['key' => 'course', 'done' => Course::query()->exists(), 'href' => '/dashboard/courses'],
+            ['key' => 'teacher', 'done' => DB::table('users')->where('role', Role::Teacher->value)->exists(), 'href' => '/dashboard/users?role=TEACHER'],
+            ['key' => 'group', 'done' => DB::table('study_groups')->exists(), 'href' => '/dashboard/groups'],
+            ['key' => 'schedule', 'done' => DB::table('group_schedules')->exists(), 'href' => '/dashboard/groups'],
+            ['key' => 'students', 'done' => DB::table('users')->where('role', Role::Student->value)->exists(), 'href' => '/dashboard/users?import=1'],
+        ]));
+        $done = count(array_filter($steps, fn ($s) => $s['done']));
+
+        return ['steps' => $steps, 'done' => $done, 'total' => count($steps)];
     }
 }

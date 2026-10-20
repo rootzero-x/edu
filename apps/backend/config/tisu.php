@@ -11,8 +11,8 @@
  */
 
 $allPermissions = [
-    'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
-    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage', 'audit.view',
+    'course.manage', 'course.author', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
+    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage', 'lead.manage', 'audit.view',
 ];
 
 return [
@@ -21,6 +21,7 @@ return [
     // Huquqlarning odam o'qiydigan nomlari (Sozlamalar → Rollar huquqlari).
     'permission_labels' => [
         'course.manage' => "Barcha kurslarni boshqarish (yashirinlari ham)",
+        'course.author' => "O'z kurslarini yaratish va tahrirlash",
         'course.view' => "Kurslarni ko'rish",
         'group.manage' => 'Guruhlar va jadvalni boshqarish',
         'attendance.mark' => 'Davomat belgilash',
@@ -37,7 +38,7 @@ return [
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
         'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
-        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'billing' => "To'lovlar", 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'billing' => "To'lovlar", 'leads' => 'Arizalar', 'enrollment' => "A'zolik", 'import' => 'Import', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
         'calendar' => 'Taqvim va xonalar', 'uploads' => 'Fayllar', 'homework' => 'Uyga vazifa va baholar', 'notifications' => 'Bildirishnomalar', 'audit' => 'Audit jurnali',
         'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
     ],
@@ -56,7 +57,7 @@ return [
         'site.features' => ['group' => 'site', 'type' => 'list', 'public' => true, 'label' => "Bosh sahifa bloklari [{title,text}]", 'default' => [
             ['title' => 'Kurslar va darslar', 'text' => "Video, fayl va matnli darslar, modullar bo'yicha."],
             ['title' => 'Testlar', 'text' => 'Vaqt cheklovi, urinishlar soni, avtomatik baholash.'],
-            ['title' => 'Guruhlar va davomat', 'text' => "Jadval, davomat, ota-onaga xabar."],
+            ['title' => 'Guruhlar va davomat', 'text' => "Jadval, davomat va eslatmalar."],
             ['title' => 'Sertifikat', 'text' => "Kursni tugatganlarga QR-kodli sertifikat."],
             ['title' => 'Telegram', 'text' => 'Bot va Mini App orqali kirish.'],
         ]],
@@ -106,21 +107,17 @@ return [
         'login.password_title' => ['group' => 'login', 'type' => 'string', 'public' => true, 'label' => 'Parol bilan kirish: sarlavha', 'default' => 'Telefon va parol bilan kirish'],
         'login.side_title' => ['group' => 'login', 'type' => 'string', 'public' => true, 'label' => 'Kirish: yon panel sarlavhasi', 'default' => "Barcha o'quv jarayoni — bir joyda"],
         'login.side_points' => ['group' => 'login', 'type' => 'list', 'public' => true, 'label' => 'Kirish: yon panel bandlari', 'default' => [
-            'Dars jadvali va davomat real vaqtda', 'Testlar va sertifikatlar', "Ota-onaga Telegram orqali xabar",
+            'Dars jadvali va davomat real vaqtda', 'Testlar va sertifikatlar', "Telegram orqali eslatmalar",
         ]],
 
         // ── Davomat ──────────────────────────────────────────
         'attendance.grace_minutes' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 120, 'label' => "Kechikish hisoblanmaydigan daqiqalar", 'default' => 5],
         'attendance.absent_after_minutes' => ['group' => 'attendance', 'type' => 'int', 'min' => 1, 'max' => 240, 'label' => "Shundan ko'p kechiksa — kelmagan", 'default' => 30],
-        'attendance.notify_parents' => ['group' => 'attendance', 'type' => 'bool', 'label' => "Kelmaganda ota-onaga xabar", 'default' => true],
 
         'attendance.teacher_edit_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 3650, 'label' => "O'qituvchi davomatni necha kun ichida o'zgartira oladi (0 — cheklovsiz)", 'default' => 30],
-        'attendance.notify_only_same_day' => ['group' => 'attendance', 'type' => 'bool', 'label' => "Ota-onaga xabar faqat mashg'ulot kuni belgilanganda (keyingi tuzatishlarda emas)", 'default' => true],
         'attendance.unmarked_lookback_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => "Belgilanmagan mashg'ulotlar ro'yxati necha kun orqaga qaraydi", 'default' => 60],
         'attendance.edit_reason_required_after_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 3650, 'label' => "Necha kundan eski mashg'ulotni o'zgartirishda sabab majburiy (0 — hech qachon)", 'default' => 0],
         'attendance.sessions_ahead_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 7, 'max' => 366, 'label' => "Jadvaldan oldindan yaratiladigan mashg'ulotlar (kun)", 'default' => 31],
-        'attendance.notify_statuses' => ['group' => 'attendance', 'type' => 'list', 'label' => "Ota-onaga xabar boradigan holatlar", 'default' => ['ABSENT']],
-        'telegram.text.attendance_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ota-onaga davomat xabari', 'default' => "{child} {date} kuni {time} dagi «{group}» darsida: {status}."],
         'attendance.status_labels' => ['group' => 'attendance', 'type' => 'object', 'public' => true, 'label' => 'Davomat holatlari nomlari', 'default' => [
             'PRESENT' => 'keldi', 'LATE' => 'kechikdi', 'ABSENT' => 'kelmadi', 'EXCUSED' => 'sababli',
         ]],
@@ -137,6 +134,8 @@ return [
         'certificate.title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat sarlavhasi', 'default' => 'SERTIFIKAT'],
         'certificate.body' => ['group' => 'certificate', 'type' => 'text', 'public' => true, 'label' => 'Sertifikat matni ({name}, {course}, {date}, {months})', 'default' => "{name}\n«{course}» kursini muvaffaqiyatli tamomlagani uchun berildi."],
         'certificate.verified_text' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Tekshiruv sahifasidagi tasdiq matni', 'default' => '✅ Sertifikat haqiqiy'],
+        'certificate.revoked_text' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Tekshiruv sahifasi: bekor qilingan sertifikat', 'default' => '❌ Sertifikat bekor qilingan'],
+        'certificate.revoke_reasons' => ['group' => 'certificate', 'type' => 'list', 'public' => true, 'label' => 'Bekor qilish sabablari (tanlash uchun)', 'default' => ["Xato bilan berilgan", "Ma'lumotlar noto'g'ri", 'Qoidabuzarlik']],
         'certificate.signer_name' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi F.I.Sh.', 'default' => ''],
         'certificate.signer_title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi lavozimi', 'default' => 'Direktor'],
         'certificate.background_url' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat fon rasmi URL (A4 landshaft)', 'default' => ''],
@@ -151,12 +150,26 @@ return [
         'auth.min_password_length' => ['group' => 'security', 'type' => 'int', 'min' => 8, 'max' => 64, 'label' => 'Parol minimal uzunligi', 'default' => 10],
         'security.login_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Login urinishlari / daqiqa', 'default' => 10],
         'security.login_per_hour_per_phone' => ['group' => 'security', 'type' => 'int', 'min' => 5, 'max' => 1000, 'label' => 'Bitta telefon uchun soatiga login urinishlari', 'default' => 30],
-        'security.teacher_phone_visible' => ['group' => 'security', 'type' => 'bool', 'label' => "O'qituvchi telefoni o'quvchi va ota-onalarga ko'rinsin", 'default' => false],
+        'security.teacher_phone_visible' => ['group' => 'security', 'type' => 'bool', 'label' => "O'qituvchi telefoni o'quvchilarga ko'rinsin", 'default' => false],
         'security.api_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => "API so'rovlari / daqiqa", 'default' => 120],
+        'auth.allow_foreign_phones' => ['group' => 'security', 'type' => 'bool', 'label' => "Xorijiy telefon raqamlarini qabul qilish (o'chiq — faqat +998)", 'default' => false],
+        'auth.phone_hint' => ['group' => 'security', 'type' => 'string', 'public' => true, 'label' => 'Telefon maydoni izohi', 'default' => '+998 90 123 45 67'],
 
         // ── Telegram ─────────────────────────────────────────
         'telegram.bot_username' => ['group' => 'telegram', 'type' => 'string', 'public' => true, 'label' => 'Bot username (@siz)', 'default' => ''],
         'telegram.self_registration' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Bot orqali yangi o'quvchi ro'yxatdan o'tishi", 'default' => true],
+        'telegram.self_registration_approval' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Bot orqali ro'yxatdan o'tganlar administrator tasdiqlaguncha faol emas (o'chirilsa — darhol faol o'quvchi)", 'default' => true],
+        'telegram.text.registration_pending' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza qabul qilindi ({name})", 'default' => "Rahmat, {name}! Arizangiz qabul qilindi. Administrator tasdiqlagach, shu yerda xabar beramiz."],
+        'telegram.text.account_pending' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza ko'rib chiqilmoqda", 'default' => "Arizangiz hali ko'rib chiqilmoqda. Administrator tasdiqlagach, shu yerda xabar beramiz."],
+        'telegram.text.registration_approved' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza tasdiqlandi ({name}, {role})", 'default' => "✅ {name}, arizangiz tasdiqlandi ({role}). Menyuni ochish uchun /start ni bosing."],
+        'telegram.text.registration_rejected' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza rad etildi ({name})", 'default' => "{name}, arizangiz rad etildi. Savollar bo'lsa, administratorga murojaat qiling."],
+        'telegram.text.phone_not_supported' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: raqam qabul qilinmaydi (xorijiy)", 'default' => "Kechirasiz, faqat O'zbekiston (+998) raqamlari bilan ro'yxatdan o'tish mumkin. Administratorga murojaat qiling."],
+        'telegram.text.admin_new_applicant' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga yangi ariza ({name}, {phone}, {role}, {username})", 'default' => "📝 Yangi ariza (bot orqali)\n👤 {name} {username}\n📱 {phone}\n\nTasdiqlash — pastdagi tugmalar yoki saytdagi «Foydalanuvchilar → Arizalar»."],
+        'telegram.text.admin_btn_approve' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Admin tugmasi: arizani tasdiqlash ({role})', 'default' => '✅ {role}'],
+        'telegram.text.admin_btn_reject' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Admin tugmasi: arizani rad etish', 'default' => '❌ Rad etish'],
+        'telegram.text.admin_applicant_approved' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza tasdiqlandi — adminga ({name}, {phone}, {role})', 'default' => "✅ {name} ({phone}) {role} sifatida faollashtirildi."],
+        'telegram.text.admin_applicant_rejected' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza rad etildi — adminga ({name}, {phone})', 'default' => "❌ {name} ({phone}) arizasi rad etildi."],
+        'telegram.text.admin_applicant_done' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza allaqachon ko'rib chiqilgan", 'default' => "Bu ariza allaqachon ko'rib chiqilgan."],
         'telegram.login_code_ttl_seconds' => ['group' => 'telegram', 'type' => 'int', 'min' => 60, 'max' => 3600, 'label' => 'Kirish havolasi amal qilish muddati (soniya)', 'default' => 300],
         'telegram.miniapp_auth_max_age_seconds' => ['group' => 'telegram', 'type' => 'int', 'min' => 60, 'max' => 86400, 'label' => 'Mini App initData amal qilish muddati (soniya)', 'default' => 3600],
         'telegram.text.welcome' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: salomlashish', 'default' => "Assalomu alaykum! {site} botiga xush kelibsiz.\nDavom etish uchun telefon raqamingizni yuboring."],
@@ -186,9 +199,9 @@ return [
             'en' => 'TISU learning center: courses, schedule, attendance, quizzes and certificates.',
         ]],
         'telegram.profile.description' => ['group' => 'telegram', 'type' => 'object', 'label' => "Bot profili: tavsif — bo'sh chatda ko'rinadi (0-512 belgi)", 'default' => [
-            'default' => "Assalomu alaykum! Bu TISU o'quv markazining rasmiy boti.\n\n📚 Kurslar va darslar\n🗓 Dars jadvali\n✅ Davomat va ota-onaga xabar\n📝 Onlayn testlar\n🎓 Sertifikatlar\n\nBoshlash uchun «Start» tugmasini bosing.",
-            'ru' => "Здравствуйте! Это официальный бот учебного центра TISU.\n\n📚 Курсы и уроки\n🗓 Расписание\n✅ Посещаемость и уведомления родителям\n📝 Онлайн-тесты\n🎓 Сертификаты\n\nНажмите «Старт», чтобы начать.",
-            'en' => "Hello! This is the official bot of TISU learning center.\n\n📚 Courses and lessons\n🗓 Class schedule\n✅ Attendance and parent notifications\n📝 Online quizzes\n🎓 Certificates\n\nPress «Start» to begin.",
+            'default' => "Assalomu alaykum! Bu TISU o'quv markazining rasmiy boti.\n\n📚 Kurslar va darslar\n🗓 Dars jadvali\n✅ Davomat\n📝 Onlayn testlar\n🎓 Sertifikatlar\n\nBoshlash uchun «Start» tugmasini bosing.",
+            'ru' => "Здравствуйте! Это официальный бот учебного центра TISU.\n\n📚 Курсы и уроки\n🗓 Расписание\n✅ Посещаемость\n📝 Онлайн-тесты\n🎓 Сертификаты\n\nНажмите «Старт», чтобы начать.",
+            'en' => "Hello! This is the official bot of TISU learning center.\n\n📚 Courses and lessons\n🗓 Class schedule\n✅ Attendance\n📝 Online quizzes\n🎓 Certificates\n\nPress «Start» to begin.",
         ]],
         'telegram.profile.commands' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot buyruqlari [{command, description}] tillar bo\'yicha', 'default' => [
             'default' => [
@@ -201,9 +214,9 @@ return [
                 ['command' => 'certificates', 'description' => 'Sertifikatlarim'],
                 ['command' => 'balance', 'description' => "To'lovlar va balans"],
                 ['command' => 'today', 'description' => "Bugungi mashg'ulotlar (o'qituvchi)"],
-                ['command' => 'children', 'description' => 'Farzandlarim (ota-ona)'],
                 ['command' => 'profile', 'description' => 'Profil'],
                 ['command' => 'app', 'description' => 'Ilovani ochish'],
+                ['command' => 'ariza', 'description' => 'Kursga ariza qoldirish'],
                 ['command' => 'help', 'description' => 'Yordam'],
             ],
             'ru' => [
@@ -216,9 +229,9 @@ return [
                 ['command' => 'certificates', 'description' => 'Мои сертификаты'],
                 ['command' => 'balance', 'description' => 'Оплата и баланс'],
                 ['command' => 'today', 'description' => 'Уроки на сегодня (учитель)'],
-                ['command' => 'children', 'description' => 'Мои дети (родитель)'],
                 ['command' => 'profile', 'description' => 'Профиль'],
                 ['command' => 'app', 'description' => 'Открыть приложение'],
+                ['command' => 'ariza', 'description' => 'Оставить заявку на курс'],
                 ['command' => 'help', 'description' => 'Помощь'],
             ],
             'en' => [
@@ -231,9 +244,9 @@ return [
                 ['command' => 'certificates', 'description' => 'My certificates'],
                 ['command' => 'balance', 'description' => 'Payments and balance'],
                 ['command' => 'today', 'description' => "Today's classes (teacher)"],
-                ['command' => 'children', 'description' => 'My children (parent)'],
                 ['command' => 'profile', 'description' => 'Profile'],
                 ['command' => 'app', 'description' => 'Open the app'],
+                ['command' => 'ariza', 'description' => 'Apply for a course'],
                 ['command' => 'help', 'description' => 'Help'],
             ],
         ]],
@@ -268,20 +281,24 @@ return [
         'telegram.admin_chat_ids' => ['group' => 'telegram', 'type' => 'list', 'items' => 'int', 'label' => 'Bot adminlari (chat id ro\'yxati)', 'default' => []],
         'telegram.admin_notify_registrations' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Yangi ro'yxatdan o'tganlar haqida adminlarga xabar", 'default' => true],
         'telegram.broadcast_per_second' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 30, 'label' => 'Tarqatish tezligi (xabar/soniya)', 'default' => 20],
+        'telegram.outbox_enabled' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Xabarlarni navbat orqali yuborish (cron har daqiqada; 429/403 hisobga olinadi). O'chirilsa — darhol yuboriladi", 'default' => true],
+        'telegram.send_per_second' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 30, 'label' => 'Navbatdan yuborish tezligi (xabar/soniya, Telegram chegarasi ~30)', 'default' => 25],
+        'telegram.outbox_max_attempts' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 20, 'label' => 'Xato bo\'lganda necha marta qayta urinish', 'default' => 5],
+        'telegram.outbox_inline_limit' => ['group' => 'telegram', 'type' => 'int', 'min' => 0, 'max' => 200, 'label' => "So'rovdan keyin darhol yuboriladigan xabarlar soni (qolgani — cron, 0 — faqat cron)", 'default' => 30],
         'telegram.schedule_days' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 31, 'label' => 'Botdagi jadval necha kunlik', 'default' => 7],
         'telegram.list_limit' => ['group' => 'telegram', 'type' => 'int', 'min' => 3, 'max' => 50, 'label' => "Bot ro'yxatlaridagi elementlar soni", 'default' => 15],
+        'telegram.sheet_page_size' => ['group' => 'telegram', 'type' => 'int', 'min' => 10, 'max' => 90, 'label' => "Botdagi davomat varaqasida bir sahifadagi o'quvchilar", 'default' => 40],
         // Har rol uchun reply-klaviatura: qatorlar → amallar.
-        // Amallar: courses, schedule, homework, attendance, quizzes, certificates, balance, profile, today, children, app
+        // Amallar: courses, schedule, homework, attendance, quizzes, certificates, balance, profile, today, unmarked, news, app
         'telegram.menu' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot menyusi (rol → tugmalar qatorlari)', 'default' => [
             'STUDENT' => [['courses', 'schedule'], ['homework', 'attendance'], ['quizzes', 'news'], ['certificates', 'balance'], ['profile', 'app']],
             'TEACHER' => [['today', 'unmarked'], ['schedule', 'homework'], ['courses', 'news'], ['profile', 'app']],
-            'PARENT' => [['children', 'schedule'], ['news', 'certificates'], ['balance', 'profile'], ['app']],
             'ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
             'SUPER_ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
         ]],
         'telegram.weekday_names' => ['group' => 'telegram', 'type' => 'list', 'label' => 'Hafta kunlari (Dushanbadan)', 'default' => ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba']],
         'telegram.role_labels' => ['group' => 'telegram', 'type' => 'object', 'public' => true, 'label' => 'Rollar nomlari', 'default' => [
-            'SUPER_ADMIN' => 'Super-admin', 'ADMIN' => 'Administrator', 'TEACHER' => "O'qituvchi", 'STUDENT' => "O'quvchi", 'PARENT' => 'Ota-ona',
+            'SUPER_ADMIN' => 'Super-admin', 'ADMIN' => 'Administrator', 'TEACHER' => "O'qituvchi", 'STUDENT' => "O'quvchi",
         ]],
         'telegram.attendance_emoji' => ['group' => 'telegram', 'type' => 'object', 'public' => true, 'label' => 'Davomat holatlari belgilari', 'default' => [
             'PRESENT' => '✅', 'LATE' => '⏰', 'ABSENT' => '❌', 'EXCUSED' => '📝', 'NONE' => '▫️',
@@ -293,7 +310,6 @@ return [
         'telegram.text.btn_certificates' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: sertifikatlar', 'default' => '🎓 Sertifikatlarim'],
         'telegram.text.btn_profile' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: profil', 'default' => '👤 Profil'],
         'telegram.text.btn_today' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot tugmasi: bugungi mashg'ulotlar", 'default' => "📋 Bugungi mashg'ulotlar"],
-        'telegram.text.btn_children' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: farzandlar', 'default' => '👨‍👩‍👧 Farzandlarim'],
         'telegram.text.btn_app' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: ilova', 'default' => '📱 Ilovani ochish'],
         'telegram.text.btn_admin' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: admin panel', 'default' => '🛠 Admin panel'],
         'telegram.text.btn_open_app' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Inline tugma: ilovada ochish', 'default' => '📱 Ilovada ochish'],
@@ -305,6 +321,10 @@ return [
         'telegram.text.unknown' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: tushunarsiz xabar', 'default' => "Buyruq tushunilmadi. Pastdagi menyudan foydalaning yoki /help ni bosing."],
         'telegram.text.no_permission' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ruxsat yo'q", 'default' => "Bu bo'lim sizning rolingiz uchun mavjud emas."],
         'telegram.text.error' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: xato', 'default' => '⚠️ {message}'],
+        'telegram.text.error_generic' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kutilmagan xato', 'default' => "⚠️ Xatolik yuz berdi. Birozdan keyin qayta urinib ko'ring."],
+        'telegram.text.reason_prompt' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: davomat o'zgartirish sababini so'rash ({days})", 'default' => "✍️ Bu dars {days} kun oldin bo'lgan — o'zgartirish sababini bitta xabarda yozing (masalan: ma'lumotnoma keltirdi).\nBekor qilish: /cancel"],
+        'telegram.text.btn_prev' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Inline tugma: oldingi sahifa', 'default' => '◀️'],
+        'telegram.text.btn_next' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Inline tugma: keyingi sahifa', 'default' => '▶️'],
         'telegram.text.app_open' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ilovani ochish', 'default' => "To'liq imkoniyatlar ilovada: darslar, testlar, jadval va davomat 👇"],
         'telegram.text.courses_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kurslar sarlavhasi', 'default' => '📚 Kurslaringiz:'],
         'telegram.text.course_line' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kurs qatori ({n}, {course}, {group})', 'default' => '{n}. {course} — guruh «{group}»'],
@@ -338,13 +358,7 @@ return [
         'telegram.text.sheet_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: guruhda o'quvchi yo'q", 'default' => "Guruhda o'quvchi yo'q."],
         'telegram.text.pick_status' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: holat tanlash ({name})', 'default' => '{name} — holatni tanlang:'],
         'telegram.text.marked' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: davomat saqlandi', 'default' => '✅ Saqlandi'],
-        'telegram.text.marked_notified' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: saqlandi, ota-onaga xabar ({count})', 'default' => '✅ Saqlandi. Ota-onaga {count} ta xabar yuborildi.'],
         'telegram.text.nothing_to_mark' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: belgilanmagan o'quvchi yo'q", 'default' => "Hamma belgilangan."],
-        'telegram.text.children_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: farzandlar sarlavhasi', 'default' => '👨‍👩‍👧 Farzandlaringiz davomati:'],
-        'telegram.text.child_block' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: farzand bloki ({name}, {lines})', 'default' => "👤 {name}\n{lines}"],
-        'telegram.text.child_absences' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: oxirgi qoldirilgan darslar ({dates})', 'default' => '   Oxirgi qoldirgan darslari: {dates}'],
-        'telegram.text.child_no_groups' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: farzand guruhda emas", 'default' => "   Guruhga qo'shilmagan."],
-        'telegram.text.children_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: farzand bog'lanmagan", 'default' => "Akkauntingizga farzand bog'lanmagan. Administratorga murojaat qiling."],
         'telegram.text.admin_only' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: faqat admin', 'default' => 'Bu buyruq faqat administratorlar uchun.'],
         'telegram.text.admin_menu' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: admin panel', 'default' => '🛠 Admin panel. Amalni tanlang:'],
         'telegram.text.admin_btn_stats' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Admin tugmasi: statistika', 'default' => '📊 Statistika'],
@@ -361,7 +375,7 @@ return [
         'telegram.text.admin_tg_none' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: Telegram ulanmagan', 'default' => 'ulanmagan'],
         'telegram.text.admin_audience' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: auditoriya tanlash', 'default' => '📣 Xabar kimga yuborilsin?'],
         'telegram.text.admin_audience_labels' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Tarqatish auditoriyalari nomlari', 'default' => [
-            'all' => 'Hammaga', 'STUDENT' => "O'quvchilarga", 'TEACHER' => "O'qituvchilarga", 'PARENT' => 'Ota-onalarga',
+            'all' => 'Hammaga', 'STUDENT' => "O'quvchilarga", 'TEACHER' => "O'qituvchilarga",
         ]],
         'telegram.text.admin_broadcast_prompt' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: tarqatish matnini so\'rash ({audience}, {count})', 'default' => "{audience} ({count} kishi). Xabar matnini yuboring.\nBekor qilish: /cancel"],
         'telegram.text.admin_broadcast_preview' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: tarqatishni tasdiqlash ({audience}, {count}, {text})', 'default' => "Quyidagi xabar {audience} ({count} kishi) yuboriladi:\n\n{text}\n\nTasdiqlaysizmi?"],
@@ -391,7 +405,6 @@ return [
             'nav_quizzes' => 'Testlar',
             'nav_certificates' => 'Sertifikatlar',
             'nav_today' => "Bugungi mashg'ulotlar",
-            'nav_children' => 'Farzandlarim',
             'nav_news' => 'Yangiliklar',
             'news_empty' => "Hozircha yangiliklar yo'q.",
             'news_new' => 'Yangi',
@@ -441,19 +454,16 @@ return [
             'sheet_all_present' => 'Qolganlar keldi',
             'sheet_save' => 'Saqlash',
             'sheet_saved' => 'Saqlandi',
-            'sheet_saved_notified' => 'Saqlandi. Ota-onaga {n} ta xabar yuborildi.',
             'sheet_empty' => "Guruhda o'quvchi yo'q.",
             'sheet_topic' => "Mashg'ulot mavzusi",
             'certificates_empty' => "Hozircha sertifikat yo'q.",
             'certificate_open' => 'Ochish',
-            'children_empty' => "Farzand bog'lanmagan.",
             'profile_role' => 'Rol',
             'logout' => 'Chiqish',
             'students' => "o'quvchi",
             'weekdays' => 'Du,Se,Cho,Pa,Ju,Sha,Ya',
             'today' => 'Bugun',
             'tomorrow' => 'Ertaga',
-            'my_children' => 'Farzandlarim',
             'no_access' => "Bu bo'lim sizning rolingiz uchun mavjud emas.",
             'teacher' => "O'qituvchi",
             'room' => 'Xona',
@@ -468,6 +478,13 @@ return [
             'balance_recent' => "So'nggi yozuvlar",
             'balance_empty' => "To'lovlar bo'yicha ma'lumot yo'q.",
             'balance_voided' => 'bekor qilingan',
+            'sheet_reason_required' => "O'zgartirish sababini yozing.",
+            'session_expired' => 'Sessiya eskirgan. Ilovani yopib, qayta oching.',
+            'reopen' => 'Yopish',
+            'offline' => "Internet bilan aloqa yo'q.",
+            'go_home' => 'Bosh sahifa',
+            'draft' => 'Yopiq',
+            'quiz_leave_confirm' => "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
             'nav_homework' => 'Uyga vazifa',
             'hw_open' => 'Topshirilmagan',
             'hw_current' => 'Joriy',
@@ -510,6 +527,12 @@ return [
         'course.access_denied_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => 'Ruxsat yo\'q: sarlavha', 'default' => "Bu kurs faqat yozilgan o'quvchilar uchun"],
         'course.access_denied_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => "Ruxsat yo'q: matn ({course}, {contact})", 'default' => "«{course}» kursi materiallari va testlari faqat shu kursga biriktirilgan guruh o'quvchilari uchun ochiq. Kursga yozilish uchun {contact} ga yozing."],
         'course.access_denied_button' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => "Ruxsat yo'q: tugma matni", 'default' => "{contact} ga yozish"],
+        'course.unpublished_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => "E'lon qilinmagan kurs: sarlavha", 'default' => "Kurs hali e'lon qilinmagan"],
+        'course.unpublished_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => "E'lon qilinmagan kurs: matn ({course}, {contact})", 'default' => "«{course}» kursi hozircha yopiq. Kursga yozilish yoki savollar uchun {contact} ga yozing."],
+        'course.lesson_unavailable_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => 'Yopiq dars: sarlavha', 'default' => 'Dars hozircha yopiq'],
+        'course.lesson_unavailable_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => 'Yopiq dars: matn ({course})', 'default' => "Bu dars hali e'lon qilinmagan yoki olib tashlangan. «{course}» kursi sahifasidagi boshqa darslarni oching."],
+        'quiz.unavailable_title' => ['group' => 'quiz', 'type' => 'string', 'public' => true, 'label' => 'Yopiq test: sarlavha', 'default' => 'Test hozircha yopiq'],
+        'quiz.unavailable_text' => ['group' => 'quiz', 'type' => 'text', 'public' => true, 'label' => 'Yopiq test: matn ({course})', 'default' => "Bu test hali e'lon qilinmagan yoki o'qituvchi uni yopgan. «{course}» kursidagi boshqa testlarni ko'ring."],
         'course.show_outline_to_guests' => ['group' => 'course', 'type' => 'bool', 'label' => "Yozilmaganlarga kurs tuzilmasi (modul/dars nomlari) ko'rinsin", 'default' => true],
         'course.embed_hosts' => ['group' => 'course', 'type' => 'list', 'public' => true, 'label' => 'Video joylash mumkin bo\'lgan saytlar', 'default' => ['youtube.com', 'youtu.be', 'vimeo.com', 'player.vimeo.com']],
 
@@ -545,14 +568,11 @@ return [
         'billing.max_backdate_days' => ['group' => 'billing', 'type' => 'int', 'min' => 0, 'max' => 3650, 'label' => "To'lov sanasini necha kun orqaga yozish mumkin", 'default' => 31],
         'billing.history_limit' => ['group' => 'billing', 'type' => 'int', 'min' => 3, 'max' => 50, 'label' => "Bot va Mini App'da so'nggi yozuvlar soni", 'default' => 10],
         'billing.notify_payment' => ['group' => 'billing', 'type' => 'bool', 'label' => "To'lov qabul qilinganda o'quvchiga Telegram xabar", 'default' => true],
-        'billing.notify_parents' => ['group' => 'billing', 'type' => 'bool', 'label' => "To'lov va qarz xabarlari ota-onaga ham", 'default' => true],
-        'billing.debt_reminder' => ['group' => 'billing', 'type' => 'bool', 'label' => "Qarzdorlarga Telegram eslatma (har kuni 10:00 da tekshiriladi)", 'default' => false],
-        'billing.debt_reminder_min' => ['group' => 'billing', 'type' => 'int', 'min' => 1, 'max' => 100000000, 'label' => "Eslatma yuboriladigan minimal qarz (so'm)", 'default' => 1],
-        'billing.debt_reminder_every_days' => ['group' => 'billing', 'type' => 'int', 'min' => 1, 'max' => 60, 'label' => 'Qarz eslatmasi necha kunda bir marta', 'default' => 7],
+        'billing.debt_reminder' => ['group' => 'billing', 'type' => 'bool', 'label' => "To'lov muddati eslatmasi: guruhga qo'shilgan sanadan har oy, to'lov kunidan oldin o'quvchiga Telegram xabar (har kuni 10:00 da)", 'default' => false],
+        'billing.due_reminder_days' => ['group' => 'billing', 'type' => 'list', 'items' => 'int', 'label' => "To'lov kunidan necha kun oldin eslatilsin (1 — \"ertaga\" matni)", 'default' => [3, 1]],
         'telegram.text.billing_payment' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchiga to'lov qabul qilindi ({name}, {amount}, {method}, {date}, {balance})", 'default' => "✅ {name}, {date} kuni {amount} to'lov qabul qilindi ({method}).\nJoriy balans: {balance}"],
-        'telegram.text.billing_payment_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ota-onaga to'lov qabul qilindi ({child}, {amount}, {method}, {date}, {balance})", 'default' => "✅ {child} uchun {date} kuni {amount} to'lov qabul qilindi ({method}).\nJoriy balans: {balance}"],
-        'telegram.text.billing_debt_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchiga qarz eslatmasi ({name}, {debt}, {balance}, {fee})", 'default' => "💳 {name}, o'qish uchun qarzdorligingiz: {debt}. Iltimos, to'lovni amalga oshiring."],
-        'telegram.text.billing_debt_reminder_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ota-onaga qarz eslatmasi ({child}, {debt}, {balance}, {fee})", 'default' => "💳 {child} ning o'qish uchun qarzdorligi: {debt}. Iltimos, to'lovni amalga oshiring."],
+        'telegram.text.billing_due_soon' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchiga to'lov muddatiga N kun qoldi ({name}, {group}, {days}, {date}, {fee}, {balance})", 'default' => "⏰ {name}, «{group}» guruhi bo'yicha oylik to'lov muddatiga {days} kun qoldi ({date}).\nOylik to'lov: {fee}\nJoriy balans: {balance}"],
+        'telegram.text.billing_due_tomorrow' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchiga ertaga to'lov kuni ({name}, {group}, {date}, {fee}, {balance})", 'default' => "⏰ {name}, ertaga ({date}) «{group}» guruhi bo'yicha oylik to'lov kuni. Iltimos, to'lovni amalga oshiring.\nOylik to'lov: {fee}\nJoriy balans: {balance}"],
         'telegram.text.btn_balance' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: balans', 'default' => '💰 Balans'],
         'telegram.text.balance_title' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: balans sarlavhasi', 'default' => "💰 To'lovlar"],
         'telegram.text.balance_block' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'quvchi balansi ({name}, {balance}, {status}, {month}, {lines})", 'default' => "👤 {name}\nBalans: {balance}\n{status}\nShu oy hisoblandi: {month}\n{lines}"],
@@ -562,11 +582,82 @@ return [
         'telegram.text.balance_line' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: yozuv qatori ({date}, {type}, {amount}, {method})", 'default' => '• {date} · {type} · {amount} {method}'],
         'telegram.text.balance_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: balans ma'lumoti yo'q", 'default' => "To'lovlar bo'yicha ma'lumot yo'q."],
 
+        // ── Arizalar (lidlar): sayt formasi, bot «Ariza», qo'ng'iroqlar ──
+        'leads.form_enabled' => ['group' => 'leads', 'type' => 'bool', 'public' => true, 'label' => "Bosh sahifada ariza formasi", 'default' => true],
+        'leads.form_title' => ['group' => 'leads', 'type' => 'string', 'public' => true, 'label' => 'Forma: sarlavha', 'default' => 'Bepul sinov darsiga yoziling'],
+        'leads.form_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: matn', 'default' => "Ma'lumotlaringizni qoldiring — administrator siz bilan bog'lanib, qulay vaqtni kelishib oladi."],
+        'leads.form_labels' => ['group' => 'leads', 'type' => 'object', 'public' => true, 'label' => 'Forma: maydon va tugma nomlari', 'default' => [
+            'name' => 'Ismingiz', 'phone' => 'Telefon raqamingiz', 'phone_hint' => '90 123 45 67', 'course' => 'Qaysi kurs qiziqtiradi?',
+            'course_any' => 'Hali bilmayman', 'comment' => 'Izoh (ixtiyoriy)', 'button' => 'Ariza yuborish', 'sending' => 'Yuborilmoqda…',
+            'phone_invalid' => "Telefon raqamini to'liq kiriting, masalan: 90 123 45 67", 'name_required' => 'Ismingizni kiriting',
+            'consent_required' => 'Davom etish uchun rozilik belgisini qo\'ying', 'nav' => 'Ariza', 'course_apply' => 'Yozilish', 'error' => "Ariza yuborilmadi. Birozdan keyin qayta urinib ko'ring yoki qo'ng'iroq qiling.",
+        ]],
+        'leads.consent_required' => ['group' => 'leads', 'type' => 'bool', 'public' => true, 'label' => "Formada rozilik belgisi majburiy", 'default' => true],
+        'leads.consent_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: rozilik matni', 'default' => "Ma'lumotlarim ariza bo'yicha men bilan bog'lanish uchun ishlatilishiga roziman."],
+        'leads.success_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: yuborilgandan keyingi matn', 'default' => "Rahmat! Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."],
+        'leads.public_per_hour' => ['group' => 'leads', 'type' => 'int', 'min' => 1, 'max' => 1000, 'label' => "Bitta IP dan soatiga nechta ariza qabul qilinadi", 'default' => 5],
+        'leads.public_per_phone_per_day' => ['group' => 'leads', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Bitta telefon raqamidan kuniga nechta ariza", 'default' => 3],
+        'leads.min_fill_seconds' => ['group' => 'leads', 'type' => 'int', 'min' => 0, 'max' => 60, 'label' => "Forma shundan tez to'ldirilsa — bot (spam) deb hisoblanadi (soniya)", 'default' => 3],
+        'leads.duplicate_window_days' => ['group' => 'leads', 'type' => 'int', 'min' => 0, 'max' => 365, 'label' => "Shu kunlar ichida o'sha raqamdan ochiq ariza bo'lsa — yangisi ochilmaydi, mavjudiga qo'shiladi", 'default' => 30],
+        'leads.bot_enabled' => ['group' => 'leads', 'type' => 'bool', 'label' => "Botda «Ariza qoldirish» tugmasi", 'default' => true],
+        'leads.notify_admins' => ['group' => 'leads', 'type' => 'bool', 'label' => "Yangi ariza haqida admin chatlariga Telegram xabar", 'default' => true],
+        'leads.sources' => ['group' => 'leads', 'type' => 'object', 'public' => true, 'label' => 'Ariza manbalari (kalit → nom). site va bot — tizim kalitlari', 'default' => [
+            'site' => 'Sayt', 'bot' => 'Telegram bot', 'phone' => "Telefon qo'ng'irog'i", 'walk_in' => "O'zi keldi", 'referral' => 'Tanish-bilish',
+            'instagram' => 'Instagram', 'import' => 'Import', 'other' => 'Boshqa',
+        ]],
+        'leads.status_labels' => ['group' => 'leads', 'type' => 'object', 'public' => true, 'label' => 'Ariza holatlari nomlari', 'default' => [
+            'NEW' => 'Yangi', 'CONTACTED' => "Bog'lanildi", 'TRIAL' => 'Sinov darsi', 'ENROLLED' => 'Yozildi', 'LOST' => 'Rad etdi',
+        ]],
+        'leads.lost_reasons' => ['group' => 'leads', 'type' => 'list', 'public' => true, 'label' => 'Rad etish sabablari', 'default' => [
+            'Narx qimmat', "Vaqt to'g'ri kelmadi", 'Javob bermadi', 'Boshqa markazni tanladi', 'Shunchaki qiziqdi', 'Boshqa',
+        ]],
+        'telegram.text.admin_new_lead' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga yangi ariza ({name}, {phone}, {course}, {source}, {comment}, {url})", 'default' => "📝 Yangi ariza · {source}\n👤 {name}\n📱 {phone}\n📚 {course}\n💬 {comment}\n{url}"],
+        'telegram.text.btn_lead' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: ariza qoldirish', 'default' => '📝 Ariza qoldirish'],
+        'telegram.text.lead_pick_course' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza — kurs tanlash', 'default' => "📝 Qaysi kursga yozilmoqchisiz?"],
+        'telegram.text.lead_course_any' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: ariza — «bilmayman» tugmasi', 'default' => '🤷 Hali bilmayman'],
+        'telegram.text.lead_ask_phone' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza — telefon so\'rash', 'default' => "Telefon raqamingizni pastdagi tugma orqali yuboring — administrator siz bilan bog'lanadi."],
+        'telegram.text.lead_done' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza qabul qilindi ({name}, {course})', 'default' => "✅ Rahmat, {name}! Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."],
+        'telegram.text.lead_disabled' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza qabul qilinmaydi", 'default' => "Hozircha bot orqali ariza qabul qilinmayapti. Iltimos, qo'ng'iroq qiling: {phone}"],
+
+        // ── A'zolik (o'qish holati): muzlatish, ko'chirish, chiqish, bitirish ──
+        'enrollment.status_labels' => ['group' => 'enrollment', 'type' => 'object', 'public' => true, 'label' => "A'zolik holatlari nomlari", 'default' => [
+            'ACTIVE' => "O'qimoqda", 'FROZEN' => 'Muzlatilgan', 'LEFT' => 'Chiqib ketgan', 'GRADUATED' => 'Bitirgan', 'TRANSFERRED' => "Boshqa guruhga o'tgan",
+        ]],
+        'enrollment.leave_reasons' => ['group' => 'enrollment', 'type' => 'list', 'public' => true, 'label' => "Guruhdan chiqish sabablari", 'default' => [
+            "Ko'chib ketdi", 'Narx qimmat', "Vaqt to'g'ri kelmadi", "O'qituvchi yoqmadi", 'Natija sezilmadi', 'Boshqa markazga o\'tdi', "Qo'shilish xato bo'lgan", 'Boshqa',
+        ]],
+        'enrollment.freeze_reasons' => ['group' => 'enrollment', 'type' => 'list', 'public' => true, 'label' => 'Muzlatish sabablari', 'default' => [
+            'Kasallik', 'Safar', 'Imtihonlar', 'Moliyaviy sabab', 'Boshqa',
+        ]],
+        'enrollment.require_reason' => ['group' => 'enrollment', 'type' => 'bool', 'public' => true, 'label' => "Chiqish va muzlatishda sabab majburiy", 'default' => true],
+        'enrollment.max_freeze_days' => ['group' => 'enrollment', 'type' => 'int', 'min' => 1, 'max' => 366, 'label' => 'Bir muzlatishning eng uzoq muddati (kun)', 'default' => 90],
+        'enrollment.max_backdate_days' => ['group' => 'enrollment', 'type' => 'int', 'min' => 0, 'max' => 366, 'label' => "Muzlatish/chiqish/ko'chirishni necha kun orqaga yozish mumkin", 'default' => 31],
+        'enrollment.refund_backdated' => ['group' => 'enrollment', 'type' => 'bool', 'label' => "Orqa sana bilan muzlatish/chiqishda o'sha kunlar uchun hisoblangan summani tuzatish bilan qaytarish", 'default' => true],
+        'enrollment.refund_note' => ['group' => 'enrollment', 'type' => 'string', 'label' => "Qaytarish yozuvi izohi ({status}, {group}, {from}, {to}, {days})", 'default' => '{status} · {group}: {from} — {to} ({days} kun) hisoblash qaytarildi'],
+
+        // ── Import (Excel/CSV) ──
+        'import.columns' => ['group' => 'import', 'type' => 'object', 'public' => true, 'label' => "Import ustunlari (kalit → shablondagi sarlavha)", 'default' => [
+            'first_name' => 'Ism', 'last_name' => 'Familiya', 'phone' => 'Telefon', 'group' => 'Guruh', 'start_date' => "Qo'shilgan sana",
+        ]],
+        'import.max_rows' => ['group' => 'import', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => 'Bir fayldagi eng ko\'p qatorlar', 'default' => 2000],
+        'import.max_file_kb' => ['group' => 'import', 'type' => 'int', 'min' => 50, 'max' => 10240, 'label' => 'Fayl hajmi chegarasi (KB)', 'default' => 3072],
+        'import.update_names' => ['group' => 'import', 'type' => 'bool', 'label' => "Mavjud o'quvchining ism-familiyasini fayldagisi bilan yangilash", 'default' => false],
+
+        // ── Qidiruv va boshlang'ich sozlash ro'yxati ──
+        'ui.search_limit' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 50, 'label' => 'Umumiy qidiruv (Ctrl+K): natijalar soni', 'default' => 20],
+        'ui.setup_checklist' => ['group' => 'ui', 'type' => 'bool', 'label' => "Bosh sahifada yangi admin uchun «Boshlash» ro'yxati", 'default' => true],
+        'ui.setup_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => "«Boshlash» ro'yxati bandlari", 'default' => [
+            'title' => 'Platformani sozlashni yakunlang', 'text' => "Har bir band haqiqiy ma'lumotdan belgilanadi. Hammasi tayyor bo'lgach ro'yxat yashiriladi.",
+            'site' => "Markaz nomi va aloqa ma'lumotlari", 'bot' => 'Telegram botni ulang va admin chatini qo\'shing', 'telegram' => "O'z Telegramingizni ulang",
+            'billing' => "Kurs narxini tasdiqlang", 'course' => 'Birinchi kursni yarating', 'teacher' => "O'qituvchi qo'shing",
+            'group' => 'Guruh oching', 'schedule' => 'Guruhga dars jadvalini kiriting', 'students' => "O'quvchilarni qo'shing yoki Excel'dan import qiling",
+            'dismiss' => 'Yashirish',
+        ]],
+
         // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──
         'automation.generate_sessions' => ['group' => 'automation', 'type' => 'bool', 'label' => "Har kuni jadvaldan mashg'ulotlarni oldindan yaratish", 'default' => true],
         'automation.lesson_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Mashg'ulot oldidan o'quvchilarga Telegram eslatma", 'default' => true],
         'automation.lesson_reminder_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 5, 'max' => 1440, 'label' => 'Eslatma necha daqiqa oldin yuborilsin', 'default' => 60],
-        'automation.lesson_reminder_parents' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars eslatmasi ota-onalarga ham", 'default' => false],
         'automation.lesson_reminder_teachers' => ['group' => 'automation', 'type' => 'bool', 'label' => "Mashg'ulot oldidan o'qituvchiga ham eslatma", 'default' => true],
         'automation.unmarked_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Davomat belgilanmasa o'qituvchiga eslatma", 'default' => true],
         'automation.unmarked_after_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 0, 'max' => 1440, 'label' => "Mashg'ulot tugaganidan necha daqiqa keyin eslatilsin", 'default' => 30],
@@ -578,10 +669,21 @@ return [
         // ── Zaxira va ogohlantirishlar ───────────────────────
         'backup.enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni bazadan zaxira nusxa olish', 'default' => true],
         'backup.keep_days' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Zaxira nusxalar necha kun saqlansin', 'default' => 14],
+        'backup.offsite_telegram' => ['group' => 'automation', 'type' => 'bool', 'label' => "Zaxirani admin Telegram chat(lar)iga hujjat sifatida yuborish (serverdan tashqarida saqlash)", 'default' => true],
+        'backup.offsite_require_encryption' => ['group' => 'automation', 'type' => 'bool', 'label' => "Shifrlanmagan zaxirani tashqariga yubormaslik (BACKUP_ENCRYPTION_KEY kerak)", 'default' => true],
+        'backup.telegram_part_mb' => ['group' => 'automation', 'type' => 'int', 'min' => 5, 'max' => 49, 'label' => "Telegram'ga yuboriladigan bo'lak hajmi (MB, Telegram chegarasi 50)", 'default' => 45],
+        'backup.offsite_max_mb' => ['group' => 'automation', 'type' => 'int', 'min' => 10, 'max' => 2000, 'label' => "Shundan katta zaxira Telegram'ga yuborilmaydi (ogohlantirish beriladi), MB", 'default' => 450],
+        'automation.heartbeat_stale_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 3, 'max' => 1440, 'label' => "Cron shuncha daqiqa ishlamasa adminlarga ogohlantirish", 'default' => 10],
+        'automation.heartbeat_alert_every_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 10, 'max' => 1440, 'label' => "Cron/vazifa ogohlantirishini qayta yuborish oralig'i (daqiqa)", 'default' => 60],
         'alerts.errors_enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => "Server xatolari haqida admin chatiga xabar", 'default' => true],
         'alerts.error_throttle_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 1440, 'label' => 'Bir xil xato haqida qayta xabar oralig\'i (daqiqa)', 'default' => 30],
         'telegram.text.alert_error' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga server xatosi ({type}, {message}, {where}, {url})', 'default' => "⚠️ Serverda xato\n{type}: {message}\n{where}\n{url}"],
         'telegram.text.alert_backup_failed' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga zaxira xatosi ({message})', 'default' => "❗️ Bazaning kunlik zaxira nusxasi olinmadi: {message}"],
+        'telegram.text.alert_backup_offsite_failed' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga zaxira tashqariga yuborilmadi ({message})", 'default' => "❗️ Zaxira serverda saqlandi, lekin Telegram'ga yuborilmadi: {message}"],
+        'telegram.text.alert_backup_unencrypted' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga zaxira shifrlanmagan', 'default' => "⚠️ BACKUP_ENCRYPTION_KEY .env da berilmagan: zaxira shifrlanmagan va serverdan tashqariga yuborilmadi."],
+        'telegram.text.backup_caption' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: zaxira fayli izohi ({site}, {file}, {size}, {part}, {sha})", 'default' => "🗄 {site} — bazaning zaxira nusxasi\n{file}\n{size} · {part}\nSHA-256: {sha}"],
+        'telegram.text.alert_cron_stale' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga cron ishlamayapti ({minutes}, {last})", 'default' => "⏱ Cron (schedule:run) {minutes} daqiqadan beri ishlamayapti — eslatmalar, zaxira va to'lov hisoblari to'xtagan bo'lishi mumkin.\nOxirgi ishga tushish: {last}"],
+        'telegram.text.alert_job_overdue' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga vazifa kechikmoqda ({job}, {last}, {error})", 'default' => "⏱ Avtomatik vazifa kechikmoqda: {job}\nOxirgi muvaffaqiyatli ishga tushish: {last}\n{error}"],
 
         // ── Sprint 3: taqvim va xonalar ──────────────────────
         'calendar.default_view' => ['group' => 'calendar', 'type' => 'string', 'public' => true, 'label' => "Taqvim ochilganda ko'rinish (week — hafta, month — oy)", 'default' => 'week'],
@@ -664,7 +766,7 @@ return [
             'group.create' => 'Guruh yaratildi', 'group.update' => "Guruh o'zgartirildi", 'group.member_add' => "Guruhga o'quvchi qo'shildi", 'group.member_remove' => "Guruhdan o'quvchi chiqarildi",
             'session.update' => "Mashg'ulot o'zgartirildi", 'session.generate' => "Jadvaldan mashg'ulotlar yaratildi", 'attendance.mark' => 'Davomat belgilandi', 'marks.update' => "Mashg'ulot baholari qo'yildi",
             'settings.update' => "Sozlama o'zgartirildi", 'settings.reset' => 'Sozlama standartga qaytarildi',
-            'question.create' => "Savol qo'shildi", 'question.update' => "Savol o'zgartirildi", 'question.delete' => "Savol o'chirildi",
+            'question.create' => "Savol qo'shildi", 'question.update' => "Savol o'zgartirildi", 'question.delete' => "Savol o'chirildi", 'question.archive' => 'Savol arxivlandi',
             'report.attendance_csv' => 'Davomat CSV yuklab olindi', 'room.create' => "Xona qo'shildi", 'room.update' => "Xona o'zgartirildi", 'room.delete' => "Xona o'chirildi",
             'assignment.create' => 'Uyga vazifa berildi', 'assignment.update' => "Uyga vazifa o'zgartirildi", 'assignment.delete' => "Uyga vazifa o'chirildi", 'assignment.grade' => 'Vazifa baholandi',
             'file.upload' => 'Fayl yuklandi', 'file.delete' => "Fayl o'chirildi",
@@ -681,7 +783,7 @@ return [
         // ── Interfeys ────────────────────────────────────────
         'ui.nav_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => 'Panel menyusi nomlari (manzil → nom)', 'default' => [
             '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
-            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/billing' => "To'lovlar", '/dashboard/profile' => 'Profil',
+            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/billing' => "To'lovlar", '/dashboard/leads' => 'Arizalar', '/dashboard/profile' => 'Profil',
             '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/settings' => 'Sozlamalar',
             '/dashboard/calendar' => 'Taqvim', '/dashboard/homework' => 'Uyga vazifa', '/dashboard/notifications' => 'Bildirishnomalar', '/dashboard/audit' => 'Audit jurnali',
         ]],
@@ -692,11 +794,11 @@ return [
         // ── Rollar ───────────────────────────────────────────
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
-            'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
-                'report.view', 'user.manage', 'announcement.manage', 'billing.manage', 'audit.view'],
-            'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
+            'ADMIN' => ['course.manage', 'course.author', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
+                'report.view', 'user.manage', 'announcement.manage', 'billing.manage', 'lead.manage', 'audit.view'],
+            // course.author — faqat o'zi yaratgan kurslarni tahrirlaydi; o'qitadigan kurslari kontentini ko'radi.
+            'TEACHER' => ['course.author', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
             'STUDENT' => ['course.view', 'quiz.take'],
-            'PARENT' => ['course.view'],
         ]],
     ],
 ];

@@ -22,8 +22,12 @@ export default function NewGroup({ courses, teachers }: { courses: { id: number;
   const setSlot = (i: number, patch: Partial<Schedule>) => setSlots((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   async function submit() {
-    setBusy(true);
     setErr(null);
+    // Bo'sh kurs/o'qituvchi "0" bo'lib ketmasin; tugash vaqti boshlanishdan keyin bo'lsin.
+    if (!f.course_id || !f.teacher_id) return setErr("Kurs va o'qituvchini tanlang.");
+    const bad = slots.findIndex((x) => !x.start_time || !x.end_time || x.end_time <= x.start_time);
+    if (bad >= 0) return setErr(`${bad + 1}-qator: tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak.`);
+    setBusy(true);
     const r = await call("POST", "groups", {
       ...f, course_id: Number(f.course_id), teacher_id: Number(f.teacher_id), room_id: f.room_id ? Number(f.room_id) : null, schedules: slots,
     });

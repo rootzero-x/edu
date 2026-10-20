@@ -22,8 +22,10 @@ type CalRow = Session & { homework_count: number; room: string | null };
 export function useSessions(groups: Group[] | null, from: string, to: string) {
   const [state, setState] = useState<{ data: SessionWithGroup[] | null; error: boolean }>({ data: null, error: false });
   const key = groups?.map((g) => g.id).join(",") ?? "";
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!groups) return;
+    if (groups.length === 0) return setState({ data: [], error: false });
     let cancelled = false;
     const byId = new Map(groups.map((g) => [g.id, g]));
     if (byId.size === 0) {
@@ -44,6 +46,7 @@ export function useSessions(groups: Group[] | null, from: string, to: string) {
     return () => {
       cancelled = true;
     };
-  }, [key, from, to]);
-  return state;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, from, to, attempt]);
+  return { ...state, reload: () => setAttempt((n) => n + 1) };
 }

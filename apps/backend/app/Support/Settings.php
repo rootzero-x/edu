@@ -16,6 +16,8 @@ final class Settings
 
     /** Faqat ADMIN (va har doim SUPER_ADMIN) ga beriladigan huquqlar. */
     public const ADMIN_ONLY_PERMISSIONS = ['audit.view'];
+    /** roles.permissions da tahrirlanadigan rollar (SUPER_ADMIN har doim hamma huquqqa ega). */
+    private const PERMISSION_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
 
     private ?array $loaded = null;
 
@@ -85,8 +87,9 @@ final class Settings
             if ($defs[$key]['type'] === 'object' && is_array($value) && ! array_is_list($value)) {
                 $current = (array) $this->get($key);
                 if ($key === 'roles.permissions') {
-                    // Endi mavjud bo'lmagan huquqlar (eski versiyadan qolgan) yangi qiymatni rad ettirmasin.
+                    // Endi mavjud bo'lmagan rollar va huquqlar (eski versiyadan qolgan) yangi qiymatni rad ettirmasin.
                     $known = config('tisu.permissions');
+                    $current = array_intersect_key($current, array_flip(self::PERMISSION_ROLES));
                     $current = array_map(fn ($perms) => array_values(array_intersect((array) $perms, $known)), $current);
                 }
                 $value = array_replace($current, $value);
@@ -190,7 +193,7 @@ final class Settings
     {
         $known = config('tisu.permissions');
         foreach ($v as $role => $perms) {
-            if (! in_array($role, ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'], true)) {
+            if (! in_array($role, self::PERMISSION_ROLES, true)) {
                 return "Noma'lum rol: $role (SUPER_ADMIN huquqlari o'zgarmaydi).";
             }
             if (! is_array($perms) || array_diff($perms, $known)) {

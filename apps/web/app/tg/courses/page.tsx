@@ -2,7 +2,7 @@
 
 import { useTg } from "../_lib/TgProvider";
 import type { Group } from "../_lib/data";
-import { Async, Empty, Page, Row, Section, useApi } from "../_ui/ui";
+import { Async, Badge, Empty, Page, Row, Section, useApi } from "../_ui/ui";
 
 type Course = { id: number; title: string; modules_count: number; published: boolean };
 
@@ -33,7 +33,8 @@ export default function TgCourses() {
       {all.data && all.data.data.length > 0 && (
         <Section title={t("all_courses")}>
           {all.data.data.map((c) => (
-            <Row key={c.id} href={`/tg/courses/${c.id}`} icon="📗" title={c.title} subtitle={`${t("modules")}: ${c.modules_count}`} />
+            <Row key={c.id} href={`/tg/courses/${c.id}`} icon="📗" title={c.title} subtitle={`${t("modules")}: ${c.modules_count}`}
+              right={c.published ? undefined : <Badge tone="warn">{t("draft")}</Badge>} />
           ))}
         </Section>
       )}

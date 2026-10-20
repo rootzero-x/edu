@@ -42,12 +42,16 @@ class SettingsController
             ];
         }
 
+        // O'qituvchida hamma kurslarni boshqarish huquqi qolgan (eski standart) — sahifa ogohlantiradi.
+        $warnings = in_array('course.manage', (array) ($settings->get('roles.permissions')['TEACHER'] ?? []), true) ? ['teacher_course_manage'] : [];
+
         return response()->json([
             'data' => $items,
             'permissions' => config('tisu.permissions'),
             'permission_labels' => (array) config('tisu.permission_labels', []),
             'admin_only_permissions' => Settings::ADMIN_ONLY_PERMISSIONS,
             'groups' => config('tisu.groups'),
+            'warnings' => $warnings,
             // Kalitlar va huquq kodlari faqat super-adminga ko'rsatiladi (boshqalarga — odam o'qiydigan nomlar).
             'show_keys' => $request->user()->role === Role::SuperAdmin,
         ]);

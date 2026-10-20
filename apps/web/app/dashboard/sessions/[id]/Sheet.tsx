@@ -13,7 +13,8 @@ import { STATUS_TONE } from "@/lib/status";
 import { usePolling } from "@/lib/usePolling";
 import s from "./sheet.module.css";
 
-type Row = { student_id: number; name: string; status: string | null; arrived_at: string | null; note: string | null };
+/** left — guruhdan chiqib ketgan, lekin dars paytida a'zo bo'lgan (davomatini tuzatish mumkin). */
+type Row = { student_id: number; name: string; status: string | null; arrived_at: string | null; note: string | null; left?: boolean; left_at?: string | null };
 export type SheetData = {
   session: { id: number; group_id: number; starts_at: string; ends_at: string; topic: string | null; cancelled: boolean };
   group: { id: number; name: string };
@@ -112,7 +113,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     if (!items.length) { setSaveState(Object.keys(current).length ? "pending" : "idle"); return; }
     if (reasonRequired && !reasonRef.current.trim()) {
       setSaveState("pending");
-      toast.error("Sabab kiriting", "Eski mashg'ulot davomatini o'zgartirish uchun sabab majburiy.");
+      toast.error("Sabab kiriting", "Eski mashg'ulotning davomatini o'zgartirish uchun sabab majburiy.");
       return;
     }
 
@@ -120,7 +121,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     version.current++;
     setSaving(new Set(ids));
     setSaveState("saving");
-    const r = await call<{ changed: number; notified: number }>("PUT", `sessions/${session.id}/attendance`, { items, reason: reasonRef.current.trim() || null });
+    const r = await call<{ changed: number }>("PUT", `sessions/${session.id}/attendance`, { items, reason: reasonRef.current.trim() || null });
     version.current++;
     setSaving(new Set());
     // Saqlash davomida yangi tahrir qilinmagan qatorlarnigina "toza" deb belgilaymiz.
@@ -147,7 +148,6 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     setEdits(dropSent);
     setFailed(new Set());
     setSaveState("saved");
-    if (r.data.notified) toast.info(`Ota-onalarga ${r.data.notified} ta xabar yuborildi`);
     void refreshNow(); // avtomatik aniqlangan holatlarni olish uchun
   }, [session.id, toast, refreshNow, reasonRequired]);
 
@@ -332,6 +332,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
                       </span>
                       <Avatar name={r.name} size={30} />
                       <strong>{r.name}</strong>
+                      {r.left && <Badge>chiqib ketgan</Badge>}
                     </div>
                     {canMark ? (
                       <>

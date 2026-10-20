@@ -9,6 +9,8 @@ export type Summary = {
     today_sessions: number; today_marked: number; attendance_rate: number | null; attendance_days: number;
     attendance_counts: Record<string, number>; courses: number | null; groups: number; students: number | null; unmarked_sessions: number | null;
   };
+  /** Yangi admin uchun "Boshlash" ro'yxati (faqat foydalanuvchilarni boshqaruvchilarga). */
+  setup?: { steps: { key: string; done: boolean; href: string }[]; done: number; total: number } | null;
 };
 
 export type Person = { id: number; first_name: string; last_name: string | null; phone?: string };
@@ -19,4 +21,4 @@ export type GroupRow = {
 };
 export type GroupDetail = GroupRow & { students: Person[] };
 export type SessionRow = { id: number; starts_at: string; ends_at: string; cancelled: boolean; topic: string | null; marked_count: number };
-export type ReportRow = { student_id: number; name: string; counts: Record<string, number>; rate: number };
+export type ReportRow = { student_id: number; name: string; counts: Record<string, number>; rate: number; left?: boolean; left_at?: string | null };

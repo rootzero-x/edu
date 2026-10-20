@@ -39,10 +39,16 @@ function listShape(i: Item): string[] | "string" | null {
  * Barcha sozlamalar API'dagi ta'riflardan avtomatik quriladi — config/tisu.php ga yangi sozlama
  * qo'shilsa, forma o'zi paydo bo'ladi (tur bo'yicha mos boshqaruv elementi bilan).
  */
-export default function SettingsEditor({ items, permissions, groupLabels = {}, permissionLabels = {}, adminOnly = [], showKeys = false }: {
-  items: Item[]; permissions: string[]; groupLabels?: Record<string, string>;
-  /** Huquqlarning odam o'qiydigan nomlari; kodlar faqat super-adminga (showKeys) ko'rsatiladi. */
-  permissionLabels?: Record<string, string>; adminOnly?: string[]; showKeys?: boolean;
+export default function SettingsEditor({ items, permissions, permissionLabels = {}, groupLabels = {}, warnings = [], showKeys = false, initialGroup, adminOnly = [] }: {
+  items: Item[]; permissions: string[]; permissionLabels?: Record<string, string>; groupLabels?: Record<string, string>;
+  /** Backend ogohlantirishlari (masalan, o'qituvchida course.manage qolgan). */
+  warnings?: string[];
+  /** Texnik kalitlar (sozlama kaliti, huquq kodi) faqat SUPER_ADMIN ga ko'rinadi; boshqalarga — tooltip. */
+  showKeys?: boolean;
+  /** ?group=billing — kerakli bo'lim ochiladi. */
+  initialGroup?: string;
+  /** Faqat ADMIN roliga beriladigan huquqlar (masalan, audit.view). */
+  adminOnly?: string[];
 }) {
   const GROUPS = groupLabels;
   const router = useRouter();
@@ -64,7 +70,8 @@ export default function SettingsEditor({ items, permissions, groupLabels = {}, p
     const order = Object.keys(groupLabels);
     return Object.entries(by).sort(([a], [b]) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999));
   }, [items, groupLabels]);
-  const [active, setActive] = useState(groups[0]?.[0] ?? "site");
+  // ?group=billing — "Boshlash" ro'yxatidagi havolalar to'g'ridan-to'g'ri kerakli bo'limni ochadi.
+  const [active, setActive] = useState(groups.some(([g]) => g === initialGroup) ? initialGroup! : groups[0]?.[0] ?? "site");
 
   const value = (i: Item) => (i.key in draft ? draft[i.key] : i.value);
   const set = (k: string, v: unknown) => setDraft((d) => {
@@ -229,7 +236,7 @@ export default function SettingsEditor({ items, permissions, groupLabels = {}, p
           <tbody>
             {permissions.map((p) => (
               <tr key={p}>
-                <Td>{name(p)}{showKeys && <div className={s.key}>{p}</div>}</Td>
+                <Td title={p}>{name(p)}{showKeys && <div className={s.key}>{p}</div>}</Td>
                 {roles.map((r) => (
                   <Td key={r} label={roleNames[r] ?? r}>
                     <input type="checkbox" aria-label={`${roleNames[r] ?? r}: ${name(p)}`} checked={(v[r] ?? []).includes(p)}
@@ -307,6 +314,13 @@ export default function SettingsEditor({ items, permissions, groupLabels = {}, p
         description="Sayt matnlari, rang, bot xabarlari, qoidalar va huquqlar — hammasi shu yerdan boshqariladi."
         actions={<div style={{ width: 280, maxWidth: "100%" }}><Input type="search" placeholder="Sozlamani qidirish…" aria-label="Sozlamani qidirish" value={q} onChange={(e) => setQ(e.target.value)} leading={<Search />} /></div>}
       />
+      {warnings.includes("teacher_course_manage") && (
+        <Card padded style={{ marginBottom: 16, borderColor: "var(--warning, #b45309)" }} role="alert">
+          <b>O&apos;qituvchilarda «{permissionLabels["course.manage"] ?? "course.manage"}» huquqi yoqilgan.</b>{" "}
+          Bu eski standart: har bir o&apos;qituvchi barcha kurslarni (yashirinlari bilan) ko&apos;radi va kontentini ochadi.
+          «Rollar huquqlari» bo&apos;limida o&apos;qituvchi uchun uni o&apos;chirib, «{permissionLabels["course.author"] ?? "course.author"}» ni yoqing.
+        </Card>
+      )}
       <div className={s.layout}>
         <nav className={s.groups} aria-label="Sozlama guruhlari">
           {groups.map(([g, list]) => (
@@ -328,7 +342,7 @@ export default function SettingsEditor({ items, permissions, groupLabels = {}, p
                 <div key={i.key} className={cx(s.item, wide && s.wide, changed && s.changed)}>
                   <div className={s.label}>
                     <strong>{i.label}</strong>
-                    {showKeys && <span className={s.key}>{i.key}</span>}
+                    {showKeys ? <span className={s.key}>{i.key}</span> : <span className="sr-only">{i.key}</span>}
                     <span className={s.badges}>
                       {i.public && <Badge tone="info">Ochiq</Badge>}
                       {changed ? <Badge tone="accent">Saqlanmagan</Badge> : custom && <Badge>O&apos;zgartirilgan</Badge>}

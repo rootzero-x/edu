@@ -159,7 +159,7 @@ class AnnouncementController
         return count($recipients);
     }
 
-    /** E'lon auditoriyasidagi faol, Telegram'ga bog'langan foydalanuvchilar (guruh: o'quvchilar + ota-onalari + o'qituvchi). */
+    /** E'lon auditoriyasidagi faol, Telegram'ga bog'langan foydalanuvchilar (guruh: o'quvchilar + o'qituvchi). */
     private function audienceUserIds(Announcement $a): array
     {
         $q = DB::table('users')->where('active', true)
@@ -168,9 +168,8 @@ class AnnouncementController
             $q->where('role', $a->audience_role);
         } elseif ($a->audience === 'GROUP') {
             $students = DB::table('group_members')->where('group_id', $a->group_id)->whereNull('left_at')->pluck('student_id');
-            $parents = DB::table('parent_child')->whereIn('child_id', $students)->pluck('parent_id');
             $teacher = DB::table('study_groups')->where('id', $a->group_id)->pluck('teacher_id');
-            $q->whereIn('id', $students->merge($parents)->merge($teacher)->unique());
+            $q->whereIn('id', $students->merge($teacher)->unique());
         }
 
         return $q->pluck('id')->map(fn ($id) => (int) $id)->all();

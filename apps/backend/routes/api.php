@@ -14,14 +14,20 @@ use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeworkController;
+use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\KpiController;
 use App\Http\Controllers\Api\LandingController;
+use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\MarksController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PublicLeadController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\SystemStatusController;
 use App\Http\Controllers\Api\TelegramAuthController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -32,12 +38,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/auth/telegram/start', [TelegramAuthController::class, 'start'])->middleware('throttle:login');
     Route::post('/auth/telegram/poll', [TelegramAuthController::class, 'poll'])->middleware('throttle:api');
-    Route::post('/auth/telegram/miniapp', [TelegramAuthController::class, 'miniApp'])->middleware('throttle:login');
+    Route::post('/auth/telegram/miniapp', [TelegramAuthController::class, 'miniApp'])->middleware('throttle:miniapp');
     Route::post('/telegram/webhook', [TelegramAuthController::class, 'webhook']);
     Route::get('/public/certificates/{code}', [CertificateController::class, 'verify'])->middleware('throttle:api');
     Route::get('/public/announcements', [AnnouncementController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/courses', [LandingController::class, 'courses'])->middleware('throttle:api');
+    Route::post('/public/leads', [PublicLeadController::class, 'store'])->middleware('throttle:leads');
     // Yuklangan fayl: imzolangan muddatli havola (token shart emas — havolani faqat ruxsati bor foydalanuvchi oladi).
     Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download')
         ->middleware(['signed:relative', 'throttle:api'])->whereNumber('file');
@@ -48,6 +55,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/password', [AuthController::class, 'changePassword']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('/search', SearchController::class);
+        Route::get('/users/{user}/profile', [ProfileController::class, 'show'])->whereNumber('user');
 
         // Sozlamalar (faqat settings.manage — standart: SUPER_ADMIN)
         Route::middleware('perm:settings.manage')->group(function () {
@@ -60,19 +69,28 @@ Route::prefix('v1')->group(function () {
         Route::middleware('perm:user.manage')->group(function () {
             Route::get('/users', [UserController::class, 'index']);
             Route::post('/users', [UserController::class, 'store']);
-            Route::patch('/users/{user}', [UserController::class, 'update']);
+            Route::get('/users/duplicates', [UserController::class, 'duplicates']);
+            Route::patch('/users/{user}', [UserController::class, 'update'])->whereNumber('user');
+            Route::post('/users/{user}/approve', [UserController::class, 'approve'])->whereNumber('user');
+            Route::post('/users/{user}/reject', [UserController::class, 'reject'])->whereNumber('user');
+            Route::post('/users/{user}/merge', [UserController::class, 'merge'])->whereNumber('user');
+            // Tizim holati: cron, vazifalar, zaxira, Telegram navbati.
+            Route::get('/system/status', SystemStatusController::class);
         });
         Route::middleware('perm:user.manage')->group(function () {
-            Route::get('/users/{parent}/children', [UserController::class, 'children']);
-            Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
-            Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
+            Route::get('/imports/students/template', [ImportController::class, 'template']);
+            Route::post('/imports/students/preview', [ImportController::class, 'preview']);
+            Route::post('/imports/students/commit', [ImportController::class, 'commit']);
         });
 
         // Guruhlar va davomat (ko'rish — ko'rinish doirasi controller'da)
         Route::get('/groups', [GroupController::class, 'index']);
         Route::get('/groups/{group}', [GroupController::class, 'show'])->whereNumber('group');
         Route::get('/groups/{group}/sessions', [GroupController::class, 'sessions'])->whereNumber('group');
+        Route::get('/groups/{group}/members', [GroupController::class, 'members'])->whereNumber('group');
+        Route::get('/groups/{group}/members/{student}/history', [GroupController::class, 'memberHistory'])->whereNumber('group');
         Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
+        Route::get('/sessions', [GroupController::class, 'allSessions']);
         Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
         Route::middleware('perm:attendance.mark')->group(function () {
             Route::get('/sessions/{session}/attendance/history', [AttendanceController::class, 'history']);
@@ -88,6 +106,13 @@ Route::prefix('v1')->group(function () {
             Route::patch('/groups/{group}', [GroupController::class, 'update']);
             Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);
             Route::delete('/groups/{group}/members/{student}', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/members/bulk', [GroupController::class, 'addMembers']);
+            Route::post('/groups/{group}/members/{student}/leave', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/members/{student}/freeze', [GroupController::class, 'freezeMember']);
+            Route::post('/groups/{group}/members/{student}/unfreeze', [GroupController::class, 'unfreezeMember']);
+            Route::post('/groups/{group}/members/{student}/transfer', [GroupController::class, 'transferMember']);
+            Route::post('/groups/{group}/members/{student}/graduate', [GroupController::class, 'graduateMember']);
+            Route::post('/groups/{group}/graduate', [GroupController::class, 'graduateAll']);
             Route::post('/groups/{group}/sessions/generate', [GroupController::class, 'generateSessions']);
         });
 
@@ -102,6 +127,21 @@ Route::prefix('v1')->group(function () {
             Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
         });
 
+        // Arizalar (CRM)
+        Route::middleware('perm:lead.manage')->group(function () {
+            Route::get('/leads', [LeadController::class, 'index']);
+            Route::post('/leads', [LeadController::class, 'store']);
+            Route::get('/leads/stats', [LeadController::class, 'stats']);
+            Route::get('/leads/options', [LeadController::class, 'owners']);
+            Route::get('/leads/trial-sessions', [LeadController::class, 'trialSessions']);
+            Route::get('/leads/{lead}', [LeadController::class, 'show'])->whereNumber('lead');
+            Route::patch('/leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead');
+            Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->whereNumber('lead');
+            Route::post('/leads/{lead}/status', [LeadController::class, 'status'])->whereNumber('lead');
+            Route::post('/leads/{lead}/activities', [LeadController::class, 'addActivity'])->whereNumber('lead');
+            Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])->whereNumber('lead');
+        });
+
         // Hisobotlar
         Route::middleware('perm:report.view')->group(function () {
             Route::get('/reports/overview', [ReportController::class, 'overview']);
@@ -110,7 +150,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/reports/quizzes', [ReportController::class, 'quizzes']);
         });
 
-        // To'lovlar: o'quvchi — o'zi, ota-ona — farzandlari (tekshiruv controller'da); boshqarish — billing.manage
+        // To'lovlar: o'quvchi — o'zi (tekshiruv controller'da); boshqarish — billing.manage
         Route::get('/billing/me', [BillingController::class, 'me']);
         Route::get('/billing/students/{student}', [BillingController::class, 'show'])->whereNumber('student');
         Route::middleware('perm:billing.manage')->group(function () {
@@ -178,7 +218,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/files/{file}/link', [FileController::class, 'link'])->whereNumber('file');
         Route::delete('/files/{file}', [FileController::class, 'destroy'])->whereNumber('file');
         Route::get('/files/usage', [FileController::class, 'usage'])->middleware('perm:settings.manage');
-        Route::post('/lessons/{lesson}/materials/upload', [FileController::class, 'uploadMaterial'])->middleware('perm:course.manage');
+        Route::post('/lessons/{lesson}/materials/upload', [FileController::class, 'uploadMaterial'])->middleware('perm:course.manage|course.author');
 
         // Bildirishnomalar markazi; yetkazish hisoboti — foydalanuvchilarni boshqaruvchiga
         Route::get('/notifications', [NotificationController::class, 'index']);
@@ -211,8 +251,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/lessons/{lesson}', [CurriculumController::class, 'showLesson']);
         });
 
-        // Kurslar (boshqarish)
-        Route::middleware('perm:course.manage')->group(function () {
+        // Kurslar (boshqarish): course.manage — hamma kurslar, course.author — faqat o'zi yaratganlari (CourseController::authorizeEdit)
+        Route::middleware('perm:course.manage|course.author')->group(function () {
             Route::post('/courses', [CourseController::class, 'store']);
             Route::patch('/courses/{course}', [CourseController::class, 'update']);
             Route::delete('/courses/{course}', [CourseController::class, 'destroy']);

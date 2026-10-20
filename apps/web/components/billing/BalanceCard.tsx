@@ -7,7 +7,7 @@ import { billingLabels, fmtYmd, type BillingMe } from "@/lib/billing";
 import { personName } from "@/lib/format";
 import s from "./balance.module.css";
 
-/** O'quvchi (o'zi) yoki ota-ona (farzandlari) uchun "Balans" kartochkasi. */
+/** O'quvchining "Balans" kartochkasi. */
 export default function BalanceCard({ data }: { data: BillingMe | null }) {
   const L = billingLabels(useSiteSettings());
   if (!data?.enabled || data.students.length === 0) return null;

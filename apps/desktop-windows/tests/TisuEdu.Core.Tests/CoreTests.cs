@@ -261,7 +261,7 @@ public class SheetTests
         app.SignIn();
         app.Handler.On("GET", "sessions/5/attendance", HttpStatusCode.OK, Sheet)
                    .On("GET", "sessions/5/attendance/history", HttpStatusCode.OK, """{"data":[]}""")
-                   .On("PUT", "sessions/5/attendance", HttpStatusCode.OK, """{"ok":true,"changed":2,"notified":1}""");
+                   .On("PUT", "sessions/5/attendance", HttpStatusCode.OK, """{"ok":true,"changed":2}""");
         var vm = new SheetViewModel(app.Services, 5);
         await vm.RefreshAsync();
 
@@ -276,7 +276,7 @@ public class SheetTests
         Assert.Contains("\"reason\":\"ma'lumotnoma\"", put.Body!.Replace("\\u0027", "'"));
         Assert.Contains("{\"student_id\":12,\"status\":null,\"arrived_at\":\"09:12\",\"note\":null}", put.Body);
         Assert.Contains("{\"student_id\":13,\"status\":\"PRESENT\"", put.Body);
-        Assert.Contains("1", vm.Notice);
+        Assert.Equal("Saqlandi", vm.Notice);
     }
 
     [Fact]

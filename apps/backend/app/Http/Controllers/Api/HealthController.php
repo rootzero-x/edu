@@ -18,10 +18,15 @@ class HealthController
             $db = 'down';
         }
 
+        // Cron holati (tashqi monitoring uchun): vaqt va kechikish daqiqalari, sir ma'lumot yo'q.
+        $scheduler = $db === 'ok' ? \App\Support\Heartbeat::scheduler() : null;
+
         return response()->json([
             'status' => $db === 'ok' ? 'ok' : 'degraded',
+            'cron' => $scheduler === null ? null : ($scheduler['last_tick'] === null ? 'never' : ($scheduler['stale'] ? 'stale' : 'ok')),
             'version' => config('app.version'),
             'db' => $db,
+            'scheduler' => $scheduler ? ['last_tick' => $scheduler['last_tick'], 'minutes_since' => $scheduler['minutes_since'], 'stale' => $scheduler['stale']] : null,
             'time' => now()->toIso8601String(),
         ], $db === 'ok' ? 200 : 503);
     }

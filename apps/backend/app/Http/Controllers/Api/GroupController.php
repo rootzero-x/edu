@@ -9,6 +9,7 @@ use App\Models\StudyGroup;
 use App\Models\User;
 use App\Support\Audit;
 use App\Support\ScheduleClash;
+use App\Support\Enrollments;
 use App\Support\SessionGenerator;
 use App\Support\Settings;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,9 +30,7 @@ class GroupController
 
         return $q->where(function ($w) use ($user) {
             $w->where('teacher_id', $user->id)
-                ->orWhereIn('id', DB::table('group_members')->whereNull('left_at')->where('student_id', $user->id)->select('group_id'))
-                ->orWhereIn('id', DB::table('group_members')->whereNull('left_at')
-                    ->whereIn('student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'))->select('group_id'));
+                ->orWhereIn('id', DB::table('group_members')->whereNull('left_at')->where('student_id', $user->id)->select('group_id'));
         });
     }
 
@@ -53,7 +52,7 @@ class GroupController
 
     public function show(Request $request, int $group): JsonResponse
     {
-        // Telefon raqamlari faqat xodimlarga (o'quvchi/ota-ona sinfdoshlarining raqamini ko'rmaydi).
+        // Telefon raqamlari faqat xodimlarga (o'quvchi sinfdoshlarining raqamini ko'rmaydi).
         $staff = $request->user()->hasPermission('attendance.mark') || $request->user()->hasPermission('group.manage');
         $teacherPhone = $staff || app(Settings::class)->bool('security.teacher_phone_visible');
         $g = self::findVisible($request->user(), $group)
@@ -132,28 +131,146 @@ class GroupController
         return response()->json(['group' => $group->fresh()->load('schedules')]);
     }
 
-    public function addMember(Request $request, StudyGroup $group): JsonResponse
+    public function addMember(Request $request, Enrollments $enrollments, StudyGroup $group): JsonResponse
     {
         $data = $request->validate([
             'student_id' => ['required', 'integer', 'exists:users,id'],
             'discount_id' => ['nullable', 'integer', 'exists:discounts,id'],
+            'start_date' => ['nullable', 'date'],
         ]);
-        abort_unless(User::find($data['student_id'])->role === Role::Student, 422, 'Faqat o\'quvchini qo\'shish mumkin.');
-        DB::table('group_members')->updateOrInsert(
-            ['group_id' => $group->id, 'student_id' => $data['student_id']],
-            ['discount_id' => $data['discount_id'] ?? null, 'joined_at' => now(), 'left_at' => null],
-        );
-        Audit::log('group.member_add', 'group', $group->id, $data);
+        $result = $enrollments->join($group, User::findOrFail($data['student_id']), $data['start_date'] ?? null, $request->user()->id);
+        if ($result !== 'already') {
+            Audit::log('group.member_add', 'group', $group->id, $data + ['result' => $result]);
+        }
 
-        return response()->json(['ok' => true], 201);
+        return response()->json(['ok' => true, 'result' => $result], $result === 'already' ? 200 : 201);
     }
 
-    public function removeMember(StudyGroup $group, User $student): JsonResponse
+    /** Bir nechta o'quvchini birdaniga qo'shish. Allaqachon a'zo bo'lganlar o'tkazib yuboriladi. */
+    public function addMembers(Request $request, Enrollments $enrollments, StudyGroup $group): JsonResponse
     {
-        DB::table('group_members')->where(['group_id' => $group->id, 'student_id' => $student->id])->update(['left_at' => now()]);
-        Audit::log('group.member_remove', 'group', $group->id, ['student_id' => $student->id]);
+        $data = $request->validate([
+            'student_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'student_ids.*' => ['integer', 'distinct'],
+            'start_date' => ['nullable', 'date'],
+        ]);
+        $students = User::whereIn('id', $data['student_ids'])->get()->keyBy('id');
+        $out = ['added' => [], 'already' => [], 'errors' => []];
+        DB::transaction(function () use ($data, $students, $group, $enrollments, $request, &$out) {
+            foreach ($data['student_ids'] as $id) {
+                $student = $students[$id] ?? null;
+                if (! $student || $student->role !== Role::Student) {
+                    $out['errors'][] = ['student_id' => $id, 'message' => "O'quvchi topilmadi."];
+
+                    continue;
+                }
+                $r = $enrollments->join($group, $student, $data['start_date'] ?? null, $request->user()->id);
+                $out[$r === 'already' ? 'already' : 'added'][] = $id;
+            }
+        });
+        Audit::log('group.member_add_bulk', 'group', $group->id, ['added' => $out['added'], 'start_date' => $data['start_date'] ?? null]);
+
+        return response()->json(['added' => count($out['added']), 'already' => count($out['already']), 'errors' => $out['errors']]);
+    }
+
+    /** Guruhdan chiqarish (sabab bilan). Eski DELETE ham shu yerga keladi: sabab ixtiyoriy bo'lsa — bo'sh qoladi. */
+    public function removeMember(Request $request, Enrollments $enrollments, StudyGroup $group, User $student): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'date' => ['nullable', 'date'],
+        ]);
+        $reason = $data['reason'] ?? null;
+        // Eski mijozlar (sababsiz DELETE) ishlashda davom etadi: sabab majburiy bo'lsa "Boshqa" yoziladi.
+        if ($request->isMethod('delete') && $reason === null && app(Settings::class)->bool('enrollment.require_reason')) {
+            $reason = (string) (collect((array) app(Settings::class)->get('enrollment.leave_reasons'))->last() ?? '—');
+        }
+        $enrollments->close($group, $student, Enrollments::LEFT, $data['date'] ?? null, $reason, $data['note'] ?? null, $request->user()->id);
+        Audit::log('group.member_remove', 'group', $group->id, ['student_id' => $student->id, 'reason' => $reason, 'date' => $data['date'] ?? null]);
 
         return response()->json(['ok' => true]);
+    }
+
+    public function freezeMember(Request $request, Enrollments $enrollments, StudyGroup $group, User $student): JsonResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date'], 'to' => ['required', 'date'],
+            'reason' => ['nullable', 'string', 'max:255'], 'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $r = $enrollments->freeze($group, $student, $data['from'], $data['to'], $data['reason'] ?? null, $data['note'] ?? null, $request->user()->id);
+        Audit::log('group.member_freeze', 'group', $group->id, ['student_id' => $student->id] + $data + ['refunded' => $r['refunded']]);
+
+        return response()->json(['ok' => true] + $r);
+    }
+
+    public function unfreezeMember(Request $request, Enrollments $enrollments, StudyGroup $group, User $student): JsonResponse
+    {
+        $data = $request->validate(['date' => ['nullable', 'date']]);
+        $enrollments->unfreeze($group, $student, $data['date'] ?? null, $request->user()->id);
+        Audit::log('group.member_unfreeze', 'group', $group->id, ['student_id' => $student->id] + $data);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function transferMember(Request $request, Enrollments $enrollments, StudyGroup $group, User $student): JsonResponse
+    {
+        $data = $request->validate([
+            'to_group_id' => ['required', 'integer', 'exists:study_groups,id'],
+            'date' => ['nullable', 'date'],
+            'reason' => ['nullable', 'string', 'max:255'], 'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $to = StudyGroup::findOrFail($data['to_group_id']);
+        $enrollments->transfer($group, $to, $student, $data['date'] ?? null, $data['reason'] ?? null, $data['note'] ?? null, $request->user()->id);
+        Audit::log('group.member_transfer', 'group', $group->id, ['student_id' => $student->id] + $data);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function graduateMember(Request $request, Enrollments $enrollments, StudyGroup $group, User $student): JsonResponse
+    {
+        $data = $request->validate(['date' => ['nullable', 'date'], 'note' => ['nullable', 'string', 'max:500']]);
+        $enrollments->close($group, $student, Enrollments::GRADUATED, $data['date'] ?? null, null, $data['note'] ?? null, $request->user()->id);
+        Audit::log('group.member_graduate', 'group', $group->id, ['student_id' => $student->id] + $data);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Guruhning barcha hozirgi a'zolarini bitirgan deb belgilash (kurs tugaganda). */
+    public function graduateAll(Request $request, Enrollments $enrollments, StudyGroup $group): JsonResponse
+    {
+        $data = $request->validate(['date' => ['nullable', 'date']]);
+        $n = $enrollments->graduateGroup($group, $data['date'] ?? null, $request->user()->id);
+        Audit::log('group.graduate', 'group', $group->id, ['count' => $n] + $data);
+
+        return response()->json(['graduated' => $n]);
+    }
+
+    /** A'zolar: hozirgilar holati bilan va chiqib ketganlar (sababi bilan). */
+    public function members(Request $request, Enrollments $enrollments, int $group): JsonResponse
+    {
+        $g = self::findVisible($request->user(), $group);
+        abort_unless($this->isStaff($request->user(), $g), 403, 'Ruxsat yo\'q.');
+        $statuses = $enrollments->currentStatuses($g->id);
+        $current = $g->students()->select('users.id', 'first_name', 'last_name', 'phone')->orderBy('first_name')->get()
+            ->map(fn ($u) => ['id' => $u->id, 'first_name' => $u->first_name, 'last_name' => $u->last_name, 'phone' => $u->phone,
+                'joined_at' => substr((string) $u->pivot->joined_at, 0, 10)] + ($statuses[$u->id] ?? ['status' => Enrollments::ACTIVE]));
+
+        return response()->json(['current' => $current, 'former' => $enrollments->formerMembers($g->id)]);
+    }
+
+    /** O'quvchining shu guruhdagi tarixi. */
+    public function memberHistory(Request $request, Enrollments $enrollments, int $group, User $student): JsonResponse
+    {
+        $g = self::findVisible($request->user(), $group);
+        abort_unless($this->isStaff($request->user(), $g), 403, 'Ruxsat yo\'q.');
+
+        return response()->json(['data' => $enrollments->timeline($student->id, [$g->id])]);
+    }
+
+    private function isStaff(User $user, StudyGroup $g): bool
+    {
+        return $user->hasPermission('group.manage') || ($user->hasPermission('attendance.mark') && (int) $g->teacher_id === (int) $user->id);
     }
 
     /** Jadvaldan darslar yaratish (takroran chaqirilsa dublikat bo'lmaydi). */
@@ -174,6 +291,30 @@ class GroupController
             ->when($data['from'] ?? null, fn ($q, $d) => $q->where('starts_at', '>=', $d))
             ->when($data['to'] ?? null, fn ($q, $d) => $q->where('starts_at', '<', date('Y-m-d', strtotime($d.' +1 day'))))
             ->withCount('attendances as marked_count')
+            ->get();
+
+        return response()->json(['data' => $sessions]);
+    }
+
+    /**
+     * Bir nechta guruh darslari bitta so'rovda (Mini App: bugungi/yaqin darslar). Har guruhga alohida
+     * so'rov yuborilsa, ko'p guruhli admin api limitiga tushib qoladi.
+     */
+    public function allSessions(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'group_ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'],
+        ]);
+        abort_if(strtotime($data['to']) - strtotime($data['from']) > 62 * 86400, 422, 'Davr 62 kundan oshmasin.');
+        $ids = isset($data['group_ids']) ? array_map('intval', explode(',', $data['group_ids'])) : null;
+        $groups = self::visible($request->user())->when($ids !== null, fn ($q) => $q->whereIn('id', $ids))->select('id');
+        $sessions = ClassSession::whereIn('group_id', $groups)
+            ->where('starts_at', '>=', $data['from'])
+            ->where('starts_at', '<', date('Y-m-d', strtotime($data['to'].' +1 day')))
+            ->withCount('attendances as marked_count')
+            ->orderBy('starts_at')
             ->get();
 
         return response()->json(['data' => $sessions]);

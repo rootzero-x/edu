@@ -97,6 +97,11 @@ fi
 \$PHP artisan migrate --force --no-ansi
 \$PHP artisan config:cache >/dev/null && \$PHP artisan route:cache >/dev/null
 \$PHP artisan up >/dev/null
+# 4) Deploy oldidan olingan baza nusxasini yangi kod bilan shifrlash (BACKUP_ENCRYPTION_KEY) — ochiq nusxa serverda qolmasin.
+#    Kalit bo'lmasa yoki xato bo'lsa — ogohlantirish, deploy to'xtamaydi (nusxa ochiq holda 14 kun saqlanadi).
+if [ -f ~/tisu-backups/db-$REL.sql.gz ]; then
+  \$PHP artisan tisu:backup-encrypt ~/tisu-backups/db-$REL.sql.gz --no-ansi || echo "ogohlantirish: baza nusxasi shifrlanmadi"
+fi
 rm -rf \$OLD
 ls -1t ~/tisu-backups/code-*.tgz 2>/dev/null | tail -n +6 | xargs -r rm -f
 echo "OK $REL"
