@@ -18,8 +18,8 @@ final class Attendance
     public static function classifyArrival(
         DateTimeInterface $sessionStart,
         ?DateTimeInterface $arrivedAt,
-        int $graceMinutes = 5,
-        int $absentAfterMinutes = 30,
+        int $graceMinutes,
+        int $absentAfterMinutes,
     ): string {
         if ($arrivedAt === null) {
             return self::ABSENT;

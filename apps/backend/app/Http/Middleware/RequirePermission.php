@@ -12,7 +12,7 @@ class RequirePermission
     public function handle(Request $request, Closure $next, string $permission): Response
     {
         $user = $request->user();
-        if (! $user || ! $user->active || ! $user->role->can($permission)) {
+        if (! $user || ! $user->hasPermission($permission)) {
             return response()->json(['message' => 'Ruxsat yo\'q.'], 403);
         }
 

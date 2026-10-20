@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\User;
+use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController
 {
-    public function login(Request $request): JsonResponse
+    public function login(Request $request, Settings $settings): JsonResponse
     {
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:32'],
@@ -23,7 +24,7 @@ class AuthController
             throw ValidationException::withMessages(['phone' => __('Telefon yoki parol noto\'g\'ri.')]);
         }
 
-        $token = $user->createToken($data['device'] ?? 'web', ['*'], now()->addDays(30));
+        $token = $user->createToken($data['device'] ?? 'web', ['*'], now()->addDays($settings->int('auth.token_ttl_days')));
 
         return response()->json(['token' => $token->plainTextToken, 'user' => $user->toApi()]);
     }
@@ -41,11 +42,11 @@ class AuthController
     }
 
     /** O'z parolini almashtirish: boshqa barcha sessiyalar yopiladi. */
-    public function changePassword(Request $request): JsonResponse
+    public function changePassword(Request $request, Settings $settings): JsonResponse
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:10', 'different:current_password'],
+            'new_password' => ['required', 'string', 'min:'.$settings->int('auth.min_password_length'), 'different:current_password'],
         ]);
         $user = $request->user();
         if (! Hash::check($data['current_password'], $user->password)) {

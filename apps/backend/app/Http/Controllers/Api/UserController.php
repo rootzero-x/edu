@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Role;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,7 @@ class UserController
             ->when($data['q'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
                 ->where('phone', 'like', "%$s%")->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%")))
             ->orderByDesc('id')
-            ->paginate(50);
+            ->paginate(app(Settings::class)->int('ui.page_size'));
 
         return response()->json([
             'data' => $users->getCollection()->map->toApi(),
@@ -41,11 +42,11 @@ class UserController
             'last_name' => ['nullable', 'string', 'max:64'],
             'role' => ['required', new Enum(Role::class)],
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
-            'password' => ['nullable', 'string', 'min:10'],
+            'password' => ['nullable', 'string', 'min:'.app(Settings::class)->int('auth.min_password_length')],
         ]);
         $this->guardRole($request->user(), Role::from($data['role']));
 
-        $user = User::create($data);
+        $user = User::create($data)->fresh();
         Audit::log('user.create', 'user', $user->id, ['role' => $data['role'], 'phone' => $data['phone']]);
 
         return response()->json(['user' => $user->toApi()], 201);
@@ -60,7 +61,7 @@ class UserController
             'role' => ['sometimes', new Enum(Role::class)],
             'branch_id' => ['sometimes', 'nullable', 'integer', 'exists:branches,id'],
             'active' => ['sometimes', 'boolean'],
-            'password' => ['sometimes', 'string', 'min:10'],
+            'password' => ['sometimes', 'string', 'min:'.app(Settings::class)->int('auth.min_password_length')],
         ]);
         $actor = $request->user();
         $this->guardRole($actor, $user->role);

@@ -62,7 +62,7 @@ final class QuizGrader
         int $previousAttempts,
         DateTimeInterface $startedAt,
         DateTimeInterface $now,
-        int $graceSec = 15,
+        int $graceSec,
     ): ?string {
         if ($previousAttempts >= $maxAttempts) {
             return 'NO_ATTEMPTS_LEFT';

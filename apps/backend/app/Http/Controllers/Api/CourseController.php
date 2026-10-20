@@ -21,7 +21,7 @@ class CourseController
 
     private static function canManage(User $user): bool
     {
-        return $user->role->can('course.manage');
+        return $user->hasPermission('course.manage');
     }
 
     public function index(Request $request): JsonResponse

@@ -6,7 +6,6 @@ use App\Domain\Attendance;
 use App\Domain\Billing;
 use App\Domain\CertificatePolicy;
 use App\Domain\QuizGrader;
-use App\Domain\Role;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
@@ -17,18 +16,14 @@ class DomainRulesTest extends TestCase
         return new DateTimeImmutable(sprintf('2026-10-20 09:%02d:00', $min));
     }
 
-    public function test_roles(): void
-    {
-        $this->assertFalse(Role::Student->can('course.manage'));
-        $this->assertTrue(Role::Teacher->can('attendance.mark'));
-    }
-
     public function test_attendance_classification(): void
     {
-        $this->assertSame('PRESENT', Attendance::classifyArrival($this->t(0), $this->t(3)));
-        $this->assertSame('LATE', Attendance::classifyArrival($this->t(0), $this->t(10)));
-        $this->assertSame('ABSENT', Attendance::classifyArrival($this->t(0), $this->t(45)));
-        $this->assertSame('ABSENT', Attendance::classifyArrival($this->t(0), null));
+        $this->assertSame('PRESENT', Attendance::classifyArrival($this->t(0), $this->t(3), 5, 30));
+        $this->assertSame('LATE', Attendance::classifyArrival($this->t(0), $this->t(10), 5, 30));
+        $this->assertSame('ABSENT', Attendance::classifyArrival($this->t(0), $this->t(45), 5, 30));
+        $this->assertSame('ABSENT', Attendance::classifyArrival($this->t(0), null, 5, 30));
+        // Sozlama o'zgarsa natija ham o'zgaradi.
+        $this->assertSame('PRESENT', Attendance::classifyArrival($this->t(0), $this->t(10), 15, 30));
     }
 
     public function test_attendance_rate_excludes_excused(): void
@@ -54,9 +49,9 @@ class DomainRulesTest extends TestCase
 
     public function test_quiz_submit_limits(): void
     {
-        $this->assertSame('NO_ATTEMPTS_LEFT', QuizGrader::submitBlocker(2, 600, 2, $this->t(0), $this->t(1)));
-        $this->assertSame('TIME_EXPIRED', QuizGrader::submitBlocker(2, 600, 0, $this->t(0), $this->t(11)));
-        $this->assertNull(QuizGrader::submitBlocker(2, 600, 1, $this->t(0), $this->t(9)));
+        $this->assertSame('NO_ATTEMPTS_LEFT', QuizGrader::submitBlocker(2, 600, 2, $this->t(0), $this->t(1), 15));
+        $this->assertSame('TIME_EXPIRED', QuizGrader::submitBlocker(2, 600, 0, $this->t(0), $this->t(11), 15));
+        $this->assertNull(QuizGrader::submitBlocker(2, 600, 1, $this->t(0), $this->t(9), 15));
     }
 
     public function test_billing(): void
@@ -72,7 +67,8 @@ class DomainRulesTest extends TestCase
 
     public function test_certificate_policy(): void
     {
-        $this->assertSame([], CertificatePolicy::blockers(80, true, 0));
-        $this->assertSame(['LOW_ATTENDANCE', 'QUIZ_NOT_PASSED', 'HAS_DEBT'], CertificatePolicy::blockers(50, false, 1));
+        $this->assertSame([], CertificatePolicy::blockers(80, true, 0, 75, true, true));
+        $this->assertSame(['LOW_ATTENDANCE', 'QUIZ_NOT_PASSED', 'HAS_DEBT'], CertificatePolicy::blockers(50, false, 1, 75, true, true));
+        $this->assertSame([], CertificatePolicy::blockers(50, false, 1, 40, false, false));
     }
 }

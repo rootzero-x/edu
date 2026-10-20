@@ -50,7 +50,7 @@ class CurriculumController
     public function showLesson(Request $request, Lesson $lesson): JsonResponse
     {
         $lesson->load('module.course', 'materials');
-        $manage = $request->user()->role->can('course.manage');
+        $manage = $request->user()->hasPermission('course.manage');
         if (! $manage && (! $lesson->published || ! $lesson->module->course->published)) {
             abort(404);
         }

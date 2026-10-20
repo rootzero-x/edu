@@ -28,6 +28,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function hasPermission(string $permission): bool
+    {
+        return $this->active && app(\App\Support\Permissions::class)->has($this->role, $permission);
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role, [Role::SuperAdmin, Role::Admin], true);
@@ -44,6 +49,7 @@ class User extends Authenticatable
             'branch_id' => $this->branch_id,
             'active' => $this->active,
             'locale' => $this->locale,
+            'permissions' => app(\App\Support\Permissions::class)->forRole($this->role),
         ];
     }
 }

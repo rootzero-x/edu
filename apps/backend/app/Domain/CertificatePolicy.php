@@ -4,19 +4,24 @@ namespace App\Domain;
 
 final class CertificatePolicy
 {
-    public const MIN_ATTENDANCE = 75.0;
-
     /** @return list<'LOW_ATTENDANCE'|'QUIZ_NOT_PASSED'|'HAS_DEBT'> bo'sh bo'lsa — berish mumkin */
-    public static function blockers(float $attendanceRate, bool $finalQuizPassed, int $debt): array
+    public static function blockers(
+        float $attendanceRate,
+        bool $finalQuizPassed,
+        int $debt,
+        float $minAttendance,
+        bool $requireFinalQuiz,
+        bool $requireNoDebt,
+    ): array
     {
         $r = [];
-        if ($attendanceRate < self::MIN_ATTENDANCE) {
+        if ($attendanceRate < $minAttendance) {
             $r[] = 'LOW_ATTENDANCE';
         }
-        if (! $finalQuizPassed) {
+        if ($requireFinalQuiz && ! $finalQuizPassed) {
             $r[] = 'QUIZ_NOT_PASSED';
         }
-        if ($debt > 0) {
+        if ($requireNoDebt && $debt > 0) {
             $r[] = 'HAS_DEBT';
         }
 
