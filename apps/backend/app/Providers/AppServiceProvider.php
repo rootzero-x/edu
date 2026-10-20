@@ -16,6 +16,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(Settings::class);
         $this->app->scoped(Permissions::class);
+        $this->app->scoped(\App\Telegram\Outbox::class);
     }
 
     public function boot(): void
@@ -36,10 +37,17 @@ class AppServiceProvider extends ServiceProvider
             // Baza hali tayyor bo'lmasa (masalan, birinchi migratsiya) standart tarjimalar ishlatiladi.
         }
 
+        // Cron to'xtaganini cronning o'zi aniqlay olmaydi: veb-so'rovlardan keyin (5 daqiqada bir marta) tekshiriladi.
+        if (! $this->app->runningInConsole()) {
+            $this->app->terminating(fn () => \App\Support\Heartbeat::checkFromWeb());
+        }
+
         // Limitlar sozlamalardan olinadi (security.*).
         RateLimiter::for('login', function (Request $r) {
             $s = app(Settings::class);
-            $phone = mb_strtolower((string) $r->input('phone'));
+            // Normalizatsiya: "+998 90…" va "90…" bitta telefon hisoblanadi (formatni o'zgartirib limitni aylanib o'tib bo'lmaydi).
+            $raw = (string) $r->input('phone');
+            $phone = $raw === '' ? '' : (\App\Support\Phone::normalize($raw) ?? mb_strtolower($raw));
 
             // Telefon + IP: umumiy proksi (Vercel) ortidagi boshqa foydalanuvchilarni bloklamaydi.
             $limits = [Limit::perMinute($s->int('security.login_per_minute'))->by('ip:'.$phone.'|'.$r->ip())];

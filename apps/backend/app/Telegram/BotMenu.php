@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Support\Billing;
 use App\Support\Settings;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -77,6 +78,11 @@ class BotMenu
         if (preg_match('/^\/([A-Za-z0-9_]+)(?:@\S+)?\s*(.*)$/s', $text, $m)) {
             $command = strtolower($m[1]);
             $arg = trim($m[2]);
+            if ($command === 'cancel' && Cache::pull($this->reasonKey($chatId)) !== null) {
+                $this->tg->sendMessage($chatId, $this->t->get('telegram.text.admin_cancelled'));
+
+                return true;
+            }
             if ($command === 'cancel' && $this->admin->cancel($chatId)) {
                 return true;
             }
@@ -97,7 +103,13 @@ class BotMenu
             return false;
         }
         if (! $user->active) {
-            $this->tg->sendMessage($chatId, $this->t->get('telegram.text.account_blocked'), ['remove_keyboard' => true]);
+            $this->tg->sendMessage($chatId, $this->t->get($user->isPending() ? 'telegram.text.account_pending' : 'telegram.text.account_blocked'), ['remove_keyboard' => true]);
+
+            return true;
+        }
+        // Davomat o'zgartirish sababi kutilmoqda: oddiy matn — sabab.
+        if ($command === null && $action === null && $this->pendingReason($chatId)) {
+            $this->applyReason($user, $chatId, $text);
 
             return true;
         }
@@ -133,16 +145,26 @@ class BotMenu
 
             return;
         }
+        // Javob har doim bitta va har doim (kutilmagan xatoda ham) — tugma "yuklanmoqda" holatida osilib qolmasin.
+        $answer = [null, false];
         try {
             $parts = explode(':', $data);
-            $toast = match ($parts[0]) {
+            $answer[0] = match ($parts[0]) {
                 'm' => $this->show($user, $chatId, $parts[1] ?? 'menu', $messageId),
                 'a' => $this->attendanceCallback($user, $chatId, $messageId, $parts),
                 default => null,
             };
-            $this->tg->answerCallback($cq['id'], $toast);
         } catch (BotError $e) {
-            $this->tg->answerCallback($cq['id'], $e->getMessage(), true);
+            $answer = [$e->getMessage(), true];
+        } catch (\Throwable $e) {
+            report($e);
+            $answer = [$this->t->get('telegram.text.error_generic'), true];
+        } finally {
+            try {
+                $this->tg->answerCallback($cq['id'], $answer[0], $answer[1]);
+            } catch (\Throwable) {
+                // Eskirgan callback — e'tiborsiz.
+            }
         }
     }
 
@@ -461,11 +483,11 @@ class BotMenu
         }
         switch ($p[1] ?? '') {
             case 's':
-                $this->renderSheet($user, $chatId, $messageId, $session);
+                $this->renderSheet($user, $chatId, $messageId, $session, (int) ($p[3] ?? 0));
 
                 return null;
             case 'p':
-                $this->renderPicker($user, $chatId, $messageId, $session, (int) ($p[3] ?? 0));
+                $this->renderPicker($user, $chatId, $messageId, $session, (int) ($p[3] ?? 0), (int) ($p[4] ?? 0));
 
                 return null;
             case 'm':
@@ -473,10 +495,9 @@ class BotMenu
                 if (! $status) {
                     return null;
                 }
-                $toast = $this->mark($user, $session, [['student_id' => (int) ($p[3] ?? 0), 'status' => $status]]);
-                $this->renderSheet($user, $chatId, $messageId, $session);
 
-                return $toast;
+                return $this->markOrAskReason($user, $chatId, $messageId, $session,
+                    [['student_id' => (int) ($p[3] ?? 0), 'status' => $status]], (int) ($p[5] ?? 0));
             case 'all':
                 $rows = $this->sheet($user, $session)['rows'] ?? [];
                 $items = array_values(array_map(fn ($r) => ['student_id' => $r['student_id'], 'status' => 'PRESENT'],
@@ -484,13 +505,58 @@ class BotMenu
                 if (! $items) {
                     return $this->t->get('telegram.text.nothing_to_mark');
                 }
-                $toast = $this->mark($user, $session, $items);
-                $this->renderSheet($user, $chatId, $messageId, $session);
 
-                return $toast;
+                return $this->markOrAskReason($user, $chatId, $messageId, $session, $items, (int) ($p[3] ?? 0));
         }
 
         return null;
+    }
+
+    /**
+     * Eski darsni o'zgartirishda sabab majburiy bo'lsa — xato o'rniga sabab so'raladi (keyingi matnli xabar),
+     * keyin o'sha belgilash sabab bilan saqlanadi.
+     */
+    private function markOrAskReason(User $user, int $chatId, int $messageId, ClassSession $session, array $items, int $page): ?string
+    {
+        $window = AttendanceController::editWindow($this->settings, $session, $user->hasPermission('group.manage'));
+        if ($window['can_edit'] && $window['reason_required']) {
+            Cache::put($this->reasonKey($chatId), ['session' => $session->id, 'items' => $items, 'message_id' => $messageId, 'page' => $page], 900);
+            $this->tg->sendMessage($chatId, $this->t->get('telegram.text.reason_prompt', [
+                'days' => (int) floor($session->starts_at->diffInDays(now(), true)),
+            ]), ['force_reply' => true]);
+
+            return null;
+        }
+        $toast = $this->mark($user, $session, $items);
+        $this->renderSheet($user, $chatId, $messageId, $session, $page);
+
+        return $toast;
+    }
+
+    private function pendingReason(int $chatId): ?array
+    {
+        return Cache::get($this->reasonKey($chatId));
+    }
+
+    private function applyReason(User $user, int $chatId, string $reason): void
+    {
+        $pending = Cache::pull($this->reasonKey($chatId));
+        $session = $pending ? ClassSession::find($pending['session']) : null;
+        if (! $session) {
+            return;
+        }
+        try {
+            $toast = $this->mark($user, $session, $pending['items'], mb_substr(trim($reason), 0, 255));
+            $this->tg->sendMessage($chatId, $toast);
+            $this->renderSheet($user, $chatId, (int) $pending['message_id'], $session, (int) ($pending['page'] ?? 0));
+        } catch (BotError $e) {
+            $this->tg->sendMessage($chatId, $this->t->get('telegram.text.error', ['message' => $e->getMessage()]));
+        }
+    }
+
+    private function reasonKey(int $chatId): string
+    {
+        return "tg.attendance_reason.$chatId";
     }
 
     private function sheet(User $user, ClassSession $session): array
@@ -498,19 +564,23 @@ class BotMenu
         return $this->api->call($user, [AttendanceController::class, 'sheet'], ['session' => $session]);
     }
 
-    private function mark(User $user, ClassSession $session, array $items): string
+    private function mark(User $user, ClassSession $session, array $items, ?string $reason = null): string
     {
-        $res = $this->api->call($user, [AttendanceController::class, 'mark'], ['session' => $session], ['items' => $items], 'attendance.mark');
+        $res = $this->api->call($user, [AttendanceController::class, 'mark'], ['session' => $session],
+            ['items' => $items] + ($reason !== null ? ['reason' => $reason] : []), 'attendance.mark');
 
         return ($res['notified'] ?? 0) > 0
             ? $this->t->get('telegram.text.marked_notified', ['count' => $res['notified']])
             : $this->t->get('telegram.text.marked');
     }
 
-    private function renderSheet(User $user, int $chatId, int $messageId, ClassSession $session): void
+    private function renderSheet(User $user, int $chatId, int $messageId, ClassSession $session, int $page = 0): void
     {
         $data = $this->sheet($user, $session);
         $rows = $data['rows'] ?? [];
+        $size = $this->settings->int('telegram.sheet_page_size');
+        $pages = max(1, (int) ceil(count($rows) / $size));
+        $page = min(max(0, $page), $pages - 1);
         $emoji = (array) $this->settings->get('telegram.attendance_emoji');
         $text = $this->t->get('telegram.text.sheet_title', [
             'group' => $data['group']['name'] ?? '', 'date' => $session->starts_at->format('d.m.Y'), 'time' => $session->starts_at->format('H:i'),
@@ -521,11 +591,18 @@ class BotMenu
         }
         $keyboard = array_map(fn ($r) => [[
             'text' => ($emoji[$r['status'] ?? 'NONE'] ?? '').' '.$r['name'],
-            'callback_data' => "a:p:{$session->id}:{$r['student_id']}",
-        ]], array_slice($rows, 0, 90));
+            'callback_data' => "a:p:{$session->id}:{$r['student_id']}:$page",
+        ]], array_slice($rows, $page * $size, $size));
+        if ($pages > 1) {
+            $keyboard[] = array_values(array_filter([
+                $page > 0 ? ['text' => $this->t->get('telegram.text.btn_prev'), 'callback_data' => "a:s:{$session->id}:".($page - 1)] : null,
+                ['text' => ($page + 1).'/'.$pages, 'callback_data' => "a:s:{$session->id}:$page"],
+                $page < $pages - 1 ? ['text' => $this->t->get('telegram.text.btn_next'), 'callback_data' => "a:s:{$session->id}:".($page + 1)] : null,
+            ]));
+        }
         $keyboard[] = [
-            ['text' => $this->t->get('telegram.text.btn_all_present'), 'callback_data' => "a:all:{$session->id}"],
-            ['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => "a:s:{$session->id}"],
+            ['text' => $this->t->get('telegram.text.btn_all_present'), 'callback_data' => "a:all:{$session->id}:$page"],
+            ['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => "a:s:{$session->id}:$page"],
         ];
         $nav = [['text' => $this->t->get('telegram.text.btn_back'), 'callback_data' => 'm:today']];
         if ($app = $this->webApp('telegram.text.btn_open_app', '/sessions/'.$session->id)) {
@@ -535,7 +612,7 @@ class BotMenu
         $this->tg->editMessageText($chatId, $messageId, $text, ['inline_keyboard' => $keyboard]);
     }
 
-    private function renderPicker(User $user, int $chatId, int $messageId, ClassSession $session, int $studentId): void
+    private function renderPicker(User $user, int $chatId, int $messageId, ClassSession $session, int $studentId, int $page = 0): void
     {
         $row = collect($this->sheet($user, $session)['rows'] ?? [])->firstWhere('student_id', $studentId);
         if (! $row) {
@@ -545,11 +622,11 @@ class BotMenu
         $labels = (array) $this->settings->get('attendance.status_labels');
         $buttons = [];
         foreach (self::STATUS_CODES as $code => $status) {
-            $buttons[] = ['text' => ($emoji[$status] ?? '').' '.($labels[$status] ?? $status), 'callback_data' => "a:m:{$session->id}:$studentId:$code"];
+            $buttons[] = ['text' => ($emoji[$status] ?? '').' '.($labels[$status] ?? $status), 'callback_data' => "a:m:{$session->id}:$studentId:$code:$page"];
         }
         $this->tg->editMessageText($chatId, $messageId, $this->t->get('telegram.text.pick_status', ['name' => $row['name']]), ['inline_keyboard' => [
             array_slice($buttons, 0, 2), array_slice($buttons, 2, 2),
-            [['text' => $this->t->get('telegram.text.btn_back'), 'callback_data' => "a:s:{$session->id}"]],
+            [['text' => $this->t->get('telegram.text.btn_back'), 'callback_data' => "a:s:{$session->id}:$page"]],
         ]]);
     }
 

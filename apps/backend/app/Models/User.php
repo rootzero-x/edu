@@ -25,12 +25,19 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => Role::class,
             'active' => 'boolean',
+            'pending_at' => 'datetime',
         ];
     }
 
     public function hasPermission(string $permission): bool
     {
         return $this->active && app(\App\Support\Permissions::class)->has($this->role, $permission);
+    }
+
+    /** Bot orqali ariza qoldirgan, admin tasdig'ini kutmoqda. */
+    public function isPending(): bool
+    {
+        return $this->pending_at !== null;
     }
 
     public function isAdmin(): bool
@@ -47,6 +54,7 @@ class User extends Authenticatable
             'last_name' => $this->last_name,
             'role' => $this->role->value,
             'active' => $this->active,
+            'pending' => $this->pending_at !== null,
             'locale' => $this->locale,
             'permissions' => app(\App\Support\Permissions::class)->forRole($this->role),
         ];

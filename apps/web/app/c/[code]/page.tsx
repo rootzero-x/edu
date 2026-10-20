@@ -7,7 +7,8 @@ import { API_URL, publicSettings } from "@/lib/api";
 import PrintButton from "./PrintButton";
 import "./certificate.css";
 
-type Cert = { code: string; issued_at: string; name: string; course: string; duration_months: number };
+type Cert = { code: string; issued_at: string; name: string; course: string; duration_months: number;
+  status?: "VALID" | "REVOKED"; revoked_at?: string | null; revoked_reason?: string | null };
 
 async function load(code: string): Promise<Cert | null> {
   try {
@@ -23,7 +24,7 @@ async function load(code: string): Promise<Cert | null> {
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params;
   const c = await load(code);
-  return { title: c ? `${c.name} — ${c.course}` : "Sertifikat topilmadi", robots: { index: false } };
+  return { title: !c ? "Sertifikat topilmadi" : c.status === "REVOKED" ? `Bekor qilingan sertifikat — ${c.code}` : `${c.name} — ${c.course}`, robots: { index: false } };
 }
 
 export default async function CertificatePage({ params }: { params: Promise<{ code: string }> }) {
@@ -44,6 +45,27 @@ export default async function CertificatePage({ params }: { params: Promise<{ co
   const bg = String(s?.["certificate.background_url"] ?? "");
   const logo = String(s?.["site.logo_url"] ?? "");
   const [nameLine, ...rest] = body.split("\n");
+
+  // Bekor qilingan: sertifikat ko'rinishi emas — aniq "bekor qilingan" holati (ish beruvchi chalg'imasin).
+  if (c.status === "REVOKED") {
+    const rp = dateParts(String(c.revoked_at ?? c.issued_at).replace(" ", "T"));
+    return (
+      <div className="cert-wrap">
+        <article className="cert-revoked" role="alert" aria-live="polite">
+          <h1>{String(s?.["certificate.revoked_text"] || "❌ Sertifikat bekor qilingan")}</h1>
+          <dl>
+            <dt>№</dt><dd>{c.code}</dd>
+            <dt>Egasi</dt><dd>{c.name}</dd>
+            <dt>Kurs</dt><dd>{c.course}</dd>
+            <dt>Berilgan</dt><dd>{date}</dd>
+            <dt>Bekor qilingan</dt><dd>{`${rp.day}-${MONTHS[rp.month - 1]} ${rp.year}-yil`}</dd>
+            {c.revoked_reason && <><dt>Sabab</dt><dd>{c.revoked_reason}</dd></>}
+          </dl>
+          <p>{String(s?.["site.name"] ?? "")}</p>
+        </article>
+      </div>
+    );
+  }
 
   return (
     <div className="cert-wrap">

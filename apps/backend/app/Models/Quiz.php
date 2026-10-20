@@ -21,8 +21,9 @@ class Quiz extends Model
         return $this->belongsTo(Course::class);
     }
 
+    /** Amaldagi savollar (arxivlangan eski versiyalar — topshirilgan urinishlar tarixi uchun saqlanadi, ko'rinmaydi). */
     public function questions(): HasMany
     {
-        return $this->hasMany(Question::class)->orderBy('position');
+        return $this->hasMany(Question::class)->whereNull('archived_at')->orderBy('position');
     }
 }

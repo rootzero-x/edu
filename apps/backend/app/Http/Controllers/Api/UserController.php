@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Role;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\Phone;
+use App\Support\PhoneDuplicates;
+use App\Support\Registration;
 use App\Support\Settings;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,26 +24,85 @@ class UserController
             'role' => ['nullable', new Enum(Role::class)],
             'q' => ['nullable', 'string', 'max:64'],
             'active' => ['nullable', 'boolean'],
+            'pending' => ['nullable', 'boolean'],
+            // Telegram holati: none — ulanmagan, blocked — botni bloklagan, linked — ishlaydigan.
+            'telegram' => ['nullable', Rule::in(['none', 'blocked', 'linked'])],
             'per_page' => ['nullable', 'integer', 'between:1,500'],
         ]);
+        $links = DB::table('telegram_links')->select('user_id');
         $users = User::query()
             ->when($data['role'] ?? null, fn ($q, $r) => $q->where('role', $r))
             ->when(array_key_exists('active', $data) && $data['active'] !== null, fn ($q) => $q->where('active', (bool) $data['active']))
-            ->when($data['q'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
-                ->where('phone', 'like', "%$s%")->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%")))
+            ->when(array_key_exists('pending', $data) && $data['pending'] !== null,
+                fn ($q) => $data['pending'] ? $q->whereNotNull('pending_at') : $q->whereNull('pending_at'))
+            ->when(($data['telegram'] ?? null) === 'none', fn ($q) => $q->whereNotIn('id', $links))
+            ->when(($data['telegram'] ?? null) === 'blocked', fn ($q) => $q->whereIn('id', (clone $links)->whereNotNull('blocked_at')))
+            ->when(($data['telegram'] ?? null) === 'linked', fn ($q) => $q->whereIn('id', (clone $links)->whereNull('blocked_at')))
+            ->when($data['q'] ?? null, function ($q, $s) {
+                // Telefon har qanday yozuvda: "90 123", "+998 90…" → raqamlar bo'yicha.
+                $digits = Phone::searchDigits($s);
+                $q->where(fn ($w) => $w->where('phone', 'like', '%'.($digits ?? $s).'%')
+                    ->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%"));
+            })
             ->orderByDesc('id')
             ->paginate($data['per_page'] ?? app(Settings::class)->int('ui.page_size'));
+        $tg = DB::table('telegram_links')->whereIn('user_id', $users->getCollection()->pluck('id'))
+            ->get(['user_id', 'username', 'blocked_at'])->keyBy('user_id');
 
         return response()->json([
-            'data' => $users->getCollection()->map->toApi(),
-            'meta' => ['total' => $users->total(), 'page' => $users->currentPage(), 'pages' => $users->lastPage()],
+            'data' => $users->getCollection()->map(fn (User $u) => $u->toApi() + ['telegram' => isset($tg[$u->id])
+                ? ['linked' => true, 'username' => $tg[$u->id]->username, 'blocked' => $tg[$u->id]->blocked_at !== null, 'blocked_at' => $tg[$u->id]->blocked_at]
+                : ['linked' => false, 'blocked' => false]]),
+            'meta' => ['total' => $users->total(), 'page' => $users->currentPage(), 'pages' => $users->lastPage(),
+                'pending' => User::whereNotNull('pending_at')->count()],
         ]);
+    }
+
+    /** Arizani tasdiqlash: faol akkaunt, tanlangan rol bilan; foydalanuvchiga Telegram xabari. */
+    public function approve(Request $request, Registration $registration, User $user): JsonResponse
+    {
+        $data = $request->validate(['role' => ['required', Rule::in(array_map(fn (Role $r) => $r->value, Registration::ROLES))]]);
+        abort_unless($registration->approve($user, Role::from($data['role']), $request->user()->id), 409, "Bu ariza allaqachon ko'rib chiqilgan.");
+
+        return response()->json(['user' => $user->fresh()->toApi()]);
+    }
+
+    public function reject(Request $request, Registration $registration, User $user): JsonResponse
+    {
+        abort_unless($registration->reject($user, $request->user()->id), 409, "Bu ariza allaqachon ko'rib chiqilgan.");
+
+        return response()->json(['user' => $user->fresh()->toApi()]);
+    }
+
+    /** Takroriy akkauntlar hisoboti: bir xil normal telefon, normal bo'lmagan yozuvlar, bir xil ism-familiya. */
+    public function duplicates(PhoneDuplicates $duplicates): JsonResponse
+    {
+        return response()->json($duplicates->report());
+    }
+
+    /**
+     * Xavfsiz birlashtirish: tarixsiz (davomat, test, to'lov, guruh, sertifikat yo'q) takroriy akkaunt asosiysiga qo'shiladi —
+     * Telegram ulanishi ko'chiriladi, takroriy akkaunt o'chirilmaydi, arxivlanadi (faol emas).
+     */
+    public function merge(Request $request, PhoneDuplicates $duplicates, User $user): JsonResponse
+    {
+        $data = $request->validate(['into_id' => ['required', 'integer', 'exists:users,id']]);
+        $target = User::findOrFail($data['into_id']);
+        abort_if($user->id === $target->id, 422, "O'zi bilan birlashtirib bo'lmaydi.");
+        $this->guardRole($request->user(), $user->role, $user);
+        $this->guardRole($request->user(), $target->role, $target);
+        abort_if((int) $user->id === (int) $request->user()->id, 422, "O'z akkauntingizni birlashtira olmaysiz.");
+        $result = $duplicates->merge($user, $target);
+        Audit::log('user.merge', 'user', $target->id, ['from_id' => $user->id, 'from_phone' => $result['from_phone']] + $result['moved']);
+
+        return response()->json(['ok' => true, 'user' => $target->fresh()->toApi()]);
     }
 
     public function store(Request $request): JsonResponse
     {
+        $this->normalizePhone($request);
         $data = $request->validate([
-            'phone' => ['required', 'string', 'regex:/^\+998\d{9}$/', 'unique:users,phone'],
+            'phone' => ['required', 'string', $this->phoneRule(), 'unique:users,phone'],
             'first_name' => ['bail', 'required', 'string', 'max:64'],
             'last_name' => ['nullable', 'string', 'max:64'],
             'role' => ['required', new Enum(Role::class)],
@@ -55,8 +118,9 @@ class UserController
 
     public function update(Request $request, User $user): JsonResponse
     {
+        $this->normalizePhone($request);
         $data = $request->validate([
-            'phone' => ['sometimes', 'string', 'regex:/^\+998\d{9}$/', Rule::unique('users', 'phone')->ignore($user->id)],
+            'phone' => ['sometimes', 'string', $this->phoneRule(), Rule::unique('users', 'phone')->ignore($user->id)],
             'first_name' => ['sometimes', 'bail', 'required', 'string', 'max:64'],
             'last_name' => ['sometimes', 'nullable', 'string', 'max:64'],
             'role' => ['sometimes', new Enum(Role::class)],
@@ -123,6 +187,25 @@ class UserController
         Audit::log('user.unlink_child', 'user', $parent->id, ['child_id' => $child->id]);
 
         return response()->json(['ok' => true]);
+    }
+
+    /** Telefon har qanday yozuvda kelishi mumkin — validatsiya va unique tekshiruvi normal shaklda (takrorlar bo'lmasin). */
+    private function normalizePhone(Request $request): void
+    {
+        if (is_string($request->input('phone'))) {
+            $request->merge(['phone' => Phone::normalize($request->input('phone')) ?? $request->input('phone')]);
+        }
+    }
+
+    private function phoneRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) {
+            if (! is_string($value) || Phone::normalize($value) !== $value) {
+                $fail(app(Settings::class)->bool('auth.allow_foreign_phones')
+                    ? "Telefon raqami noto'g'ri. Masalan: +998901234567 yoki xalqaro formatda +44…"
+                    : "Telefon +998XXXXXXXXX formatida bo'lishi kerak (masalan, +998901234567).");
+            }
+        };
     }
 
     /**

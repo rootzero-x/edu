@@ -26,13 +26,26 @@ Artisan::command('tisu:create-admin {phone} {first_name}', function (string $pho
 // ── Avtomatik vazifalar ─────────────────────────────────────
 // Server cron: * * * * * /opt/alt/php83/usr/bin/php ~/www/api.tisu.uzstudents.uz/artisan schedule:run
 // Har bir vazifa sozlamadagi automation.* kaliti bilan yoqiladi/o'chiriladi.
+use App\Support\Heartbeat;
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('tisu:generate-sessions')->dailyAt('03:10')->withoutOverlapping();
-Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping();
-Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping();
-Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping();
+// Cron yurak urishi: har daqiqada birinchi bo'lib (holat kartasi va "cron to'xtadi" ogohlantirishi shunga qaraydi).
+Schedule::call(fn () => Heartbeat::tick())->everyMinute()->name('tisu:heartbeat');
+
+// Har bir vazifaning boshlanishi va natijasi system_status ga yoziladi (Heartbeat::JOBS — kutilgan oraliqlar).
+$tracked = fn (Event $e, string $job): Event => $e
+    ->before(fn () => Heartbeat::started($job))
+    ->onSuccess(fn () => Heartbeat::ok($job))
+    ->onFailure(fn () => Heartbeat::failed($job));
+
+// Telegram navbati: har daqiqada ≈40 soniya (bo'sh bo'lsa darhol tugaydi).
+$tracked(Schedule::command('tisu:outbox-drain')->everyMinute()->withoutOverlapping(5), 'tisu:outbox-drain');
+$tracked(Schedule::command('tisu:generate-sessions')->dailyAt('03:10')->withoutOverlapping(), 'tisu:generate-sessions');
+$tracked(Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping(), 'tisu:remind-lessons');
+$tracked(Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping(), 'tisu:remind-unmarked');
+$tracked(Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping(), 'tisu:cleanup');
+$tracked(Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping(), 'tisu:backup');
 // To'lovlar: bugungi kunni hisoblash (o'tkazib yuborilgan kunlar bilan) va qarz eslatmasi — vaqt app.timezone bo'yicha.
-Schedule::command('tisu:billing-accrue')->dailyAt('00:20')->withoutOverlapping();
-Schedule::command('tisu:billing-remind-debts')->dailyAt('10:00')->withoutOverlapping();
+$tracked(Schedule::command('tisu:billing-accrue')->dailyAt('00:20')->withoutOverlapping(), 'tisu:billing-accrue');
+$tracked(Schedule::command('tisu:billing-remind-debts')->dailyAt('10:00')->withoutOverlapping(), 'tisu:billing-remind-debts');

@@ -24,3 +24,14 @@
   .cert-actions { display: none; }
   .cert { width: 297mm; height: 210mm; box-shadow: none; }
 }
+
+/* Bekor qilingan sertifikat: aniq qizil holat, sertifikat ko'rinishisiz. */
+.cert-revoked {
+  width: min(100%, 560px); background: #fff; color: #1f2937; border: 2px solid #b91c1c; border-radius: 12px;
+  padding: 24px; font-family: system-ui, sans-serif; box-shadow: 0 10px 40px rgba(0,0,0,.08);
+}
+.cert-revoked h1 { color: #b91c1c; font-size: clamp(20px, 4vw, 28px); margin: 0 0 16px; }
+.cert-revoked dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 16px; }
+.cert-revoked dt { color: #6b7280; }
+.cert-revoked dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.cert-revoked p { color: #6b7280; margin: 0; }

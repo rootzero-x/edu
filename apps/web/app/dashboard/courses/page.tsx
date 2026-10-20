@@ -13,7 +13,8 @@ type Course = { id: number; title: string; description: string | null; cover_url
 
 export default async function CoursesPage() {
   const [user, st, { data }] = await Promise.all([me(), publicSettings(), api<{ data: Course[] }>("/v1/courses")]);
-  const manage = Boolean(user?.permissions.includes("course.manage"));
+  // Kurs yaratish: hamma kurslarni boshqaruvchi (course.manage) yoki o'z kurslari muallifi (course.author — o'qituvchi).
+  const manage = Boolean(user?.permissions.some((p) => p === "course.manage" || p === "course.author"));
   const list = data.data ?? [];
   return (
     <>

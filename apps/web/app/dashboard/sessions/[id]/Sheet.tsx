@@ -13,7 +13,8 @@ import { STATUS_TONE } from "@/lib/status";
 import { usePolling } from "@/lib/usePolling";
 import s from "./sheet.module.css";
 
-type Row = { student_id: number; name: string; status: string | null; arrived_at: string | null; note: string | null };
+/** left — guruhdan chiqib ketgan, lekin dars paytida a'zo bo'lgan (davomatini tuzatish mumkin). */
+type Row = { student_id: number; name: string; status: string | null; arrived_at: string | null; note: string | null; left?: boolean; left_at?: string | null };
 export type SheetData = {
   session: { id: number; group_id: number; starts_at: string; ends_at: string; topic: string | null; cancelled: boolean };
   group: { id: number; name: string };
@@ -112,7 +113,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     if (!items.length) { setSaveState(Object.keys(current).length ? "pending" : "idle"); return; }
     if (reasonRequired && !reasonRef.current.trim()) {
       setSaveState("pending");
-      toast.error("Sabab kiriting", "Eski darsning davomatini o'zgartirish uchun sabab majburiy.");
+      toast.error("Sabab kiriting", "Eski mashg'ulotning davomatini o'zgartirish uchun sabab majburiy.");
       return;
     }
 
@@ -219,13 +220,13 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
 
   async function toggleCancelled() {
     const cancel = !session.cancelled;
-    if (cancel && !(await confirm({ title: "Dars bekor qilinsinmi?", description: "Bekor qilingan dars davomat va hisobotlarga kirmaydi.", confirmText: "Bekor qilish", cancelText: "Yo'q", tone: "danger" }))) return;
+    if (cancel && !(await confirm({ title: "Mashg'ulot bekor qilinsinmi?", description: "Bekor qilingan mashg'ulot davomat va hisobotlarga kirmaydi.", confirmText: "Bekor qilish", cancelText: "Yo'q", tone: "danger" }))) return;
     const prev = server;
     version.current++;
     setServer((d) => ({ ...d, session: { ...d.session, cancelled: cancel } }));
     const r = await call("PATCH", `sessions/${session.id}`, { cancelled: cancel });
     if (!r.ok) { setServer(prev); return toast.error("Saqlanmadi", errorText(r.data)); }
-    toast.success(cancel ? "Dars bekor qilindi" : "Dars tiklandi");
+    toast.success(cancel ? "Mashg'ulot bekor qilindi" : "Mashg'ulot tiklandi");
   }
 
   // ── Ko'rinish ─────────────────────────────────────────
@@ -261,10 +262,10 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
             {canMarkPerm && started && <Button variant="secondary" icon={<History />} onClick={openHistory}>Tarix</Button>}
             {canMarkPerm && (
               <Dropdown
-                trigger={(p) => <Button variant="secondary" iconOnly aria-label="Dars amallari" icon={<MoreHorizontal />} {...p} />}
+                trigger={(p) => <Button variant="secondary" iconOnly aria-label="Mashg'ulot amallari" icon={<MoreHorizontal />} {...p} />}
                 items={[session.cancelled
-                  ? { label: "Darsni tiklash", icon: <RotateCcw />, onSelect: toggleCancelled }
-                  : { label: "Darsni bekor qilish", icon: <Ban />, danger: true, onSelect: toggleCancelled }]}
+                  ? { label: "Mashg'ulotni tiklash", icon: <RotateCcw />, onSelect: toggleCancelled }
+                  : { label: "Mashg'ulotni bekor qilish", icon: <Ban />, danger: true, onSelect: toggleCancelled }]}
               />
             )}
           </>
@@ -279,7 +280,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
           <CardBody>
             <Field
               label={reasonRequired ? "O'zgartirish sababi (majburiy)" : "O'zgartirish sababi (ixtiyoriy)"}
-              hint="O'tgan darsni tuzatayotganingiz uchun sabab tarixda saqlanadi."
+              hint="O'tgan mashg'ulotni tuzatayotganingiz uchun sabab tarixda saqlanadi."
             >
               <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Masalan: ma'lumotnoma keltirdi" />
             </Field>
@@ -332,6 +333,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
                       </span>
                       <Avatar name={r.name} size={30} />
                       <strong>{r.name}</strong>
+                      {r.left && <Badge>chiqib ketgan</Badge>}
                     </div>
                     {canMark ? (
                       <>
@@ -397,7 +399,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
         )}
       </Dialog>
       {!canMarkPerm ? null : !started && !session.cancelled ? (
-        <p className="subtle" style={{ marginTop: 12 }}>Davomatni dars boshlangandan keyin belgilash mumkin.</p>
+        <p className="subtle" style={{ marginTop: 12 }}>Davomatni mashg&apos;ulot boshlangandan keyin belgilash mumkin.</p>
       ) : null}
     </>
   );

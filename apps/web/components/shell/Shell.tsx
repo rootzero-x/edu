@@ -60,9 +60,11 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
   const link = (n: (typeof items)[number]) => {
     const Icon = n.icon;
     return (
-      <Link key={n.href} href={n.href} className={s.link} aria-current={inSection(n) ? "page" : undefined}>
+      <Link key={n.href} href={n.href} className={s.link} aria-current={inSection(n) ? "page" : undefined}
+        aria-label={n.href === "/dashboard/news" && unread > 0 ? `${labels[n.href] || n.label}, ${unread} ta o'qilmagan` : undefined}>
         <Icon aria-hidden />{labels[n.href] || n.label}
-        {n.href === "/dashboard/news" && unread > 0 && <span className={s.count} aria-label={`${unread} ta o'qilmagan`}>{unread > 99 ? "99+" : unread}</span>}
+        {/* Nishon ko'rinadigan raqam; ekran o'quvchi uchun nom havolaning o'zida (span'dagi aria-label o'qilmaydi). */}
+        {n.href === "/dashboard/news" && unread > 0 && <span className={s.count} aria-hidden>{unread > 99 ? "99+" : unread}</span>}
       </Link>
     );
   };

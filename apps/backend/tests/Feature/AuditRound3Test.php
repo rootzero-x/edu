@@ -99,8 +99,16 @@ class AuditRound3Test extends TestCase
         $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false]]])->assertOk()
             ->assertJsonPath('question.options.0.text', 'A');
         $this->assertSame($ids, DB::table('question_options')->where('question_id', $q['id'])->orderBy('id')->pluck('id')->all());
-        $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false], ['text' => 'C', 'is_correct' => false]]])->assertStatus(409);
-        $this->deleteJson("/v1/questions/{$q['id']}")->assertStatus(409);
+        // Variant qo'shish natijaga ta'sir qiladi: eski savol arxivlanadi, yangi versiya yaratiladi (eski variantlar o'chmaydi).
+        $v2 = $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false], ['text' => 'C', 'is_correct' => false]]])
+            ->assertOk()->assertJsonPath('versioned', true)->assertJsonPath('question.replaces_id', $q['id'])->json('question');
+        $this->assertNotNull(DB::table('questions')->where('id', $q['id'])->value('archived_at'));
+        $this->assertSame($ids, DB::table('question_options')->where('question_id', $q['id'])->orderBy('id')->pluck('id')->all());
+        $this->getJson("/v1/quizzes/$quizId")->assertJsonCount(1, 'quiz.questions')->assertJsonPath('quiz.questions.0.id', $v2['id']);
+        // O'chirish ham — arxivlash.
+        $this->deleteJson("/v1/questions/{$v2['id']}")->assertOk()->assertJsonPath('archived', true);
+        $this->assertTrue(DB::table('questions')->where('id', $v2['id'])->exists());
+        $this->getJson("/v1/quizzes/$quizId")->assertJsonCount(0, 'quiz.questions');
     }
 
     public function test_string_setting_can_be_cleared(): void

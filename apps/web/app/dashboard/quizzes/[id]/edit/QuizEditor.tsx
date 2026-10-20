@@ -54,7 +54,8 @@ export default function QuizEditor({ quiz, results, readOnly = false }: { quiz: 
 
   async function removeQuestion(q: any) {
     if (await confirm({ title: "Savol o'chirilsinmi?", description: q.text, confirmText: "O'chirish", tone: "danger" })) {
-      run(`del${q.id}`, "DELETE", `questions/${q.id}`, undefined, "Savol o'chirildi");
+      // Topshirilgan testda savol o'chirilmaydi — arxivlanadi (natijalar tarixi uchun), keyingi urinishlarda ko'rinmaydi.
+      run(`del${q.id}`, "DELETE", `questions/${q.id}`, undefined, "Savol olib tashlandi");
     }
   }
 
@@ -76,7 +77,10 @@ export default function QuizEditor({ quiz, results, readOnly = false }: { quiz: 
       else body.options = lines.map((l: string) => ({ text: l.replace(/^\*\s*/, ""), is_correct: l.startsWith("*") }));
       const r = await call("PATCH", `questions/${q.id}`, body);
       if (!r.ok) return errorText(r.data);
-      toast.success("Savol saqlandi");
+      // Topshirilgan testda baholashga ta'sir qiladigan o'zgarish — yangi versiya (eski natijalar o'zgarmaydi).
+      r.data.versioned
+        ? toast.success("Savolning yangi versiyasi yaratildi", "Avval topshirganlar natijasi o'zgarmaydi.")
+        : toast.success("Savol saqlandi");
       router.refresh();
     },
   });
