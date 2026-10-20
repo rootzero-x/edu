@@ -17,3 +17,6 @@
 .steps li[data-next] a { background: var(--accent-soft, var(--surface-2)); font-weight: 600; }
 .ok { color: var(--success) !important; }
 .chev { width: 16px !important; height: 16px !important; }
+.steps li:has(.inlineAction) { display: flex; align-items: center; gap: var(--space-2); }
+.steps li:has(.inlineAction) > a { flex: 1; min-width: 0; }
+.inlineAction { flex: none; }

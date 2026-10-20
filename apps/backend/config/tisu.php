@@ -657,6 +657,7 @@ return [
             'billing' => "Kurs narxini tasdiqlang", 'course' => 'Birinchi kursni yarating', 'teacher' => "O'qituvchi qo'shing",
             'group' => 'Guruh oching', 'schedule' => 'Guruhga dars jadvalini kiriting', 'students' => "O'quvchilarni qo'shing yoki Excel'dan import qiling",
             'dismiss' => 'Yashirish',
+            'confirm' => 'Tasdiqlash', 'confirm_title' => 'Oylik narxni tasdiqlaysizmi?', 'confirm_text' => "Narx o'zgarmaydi, faqat tasdiqlangan deb belgilanadi. Boshqa narx kerak bo'lsa — sozlamalarda o'zgartiring.",
         ]],
 
         // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──

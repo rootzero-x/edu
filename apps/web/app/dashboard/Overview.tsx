@@ -57,7 +57,7 @@ export default function Overview({ initial, firstName, children }: { initial: Su
   return (
     <>
       {header}
-      {data.setup && <SetupChecklist setup={data.setup} />}
+      {data.setup && <SetupChecklist setup={data.setup} onChanged={live.refresh} />}
       {children}
       <section className={s.stats} aria-label="Statistika">
         <StatCard
