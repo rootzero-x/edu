@@ -68,6 +68,7 @@ return [
         'telegram.text.certificate_issued' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: sertifikat berildi', 'default' => "🎓 Tabriklaymiz, {name}! «{course}» kursi bo'yicha sertifikat berildi: {url}"],
         'certificate.public_base_url' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => "Sertifikatni tekshirish sahifasi manzili", 'default' => 'https://tisu.uzstudents.uz/c/'],
         'certificate.min_attendance_percent' => ['group' => 'certificate', 'type' => 'int', 'min' => 0, 'max' => 100, 'label' => 'Minimal davomat (%)', 'default' => 75],
+        'certificate.min_marked_sessions' => ['group' => 'certificate', 'type' => 'int', 'min' => 0, 'max' => 1000, 'label' => "Kamida nechta dars davomati belgilangan bo'lishi kerak (0 — shart yo'q)", 'default' => 1],
         'certificate.require_final_quiz' => ['group' => 'certificate', 'type' => 'bool', 'label' => "Yakuniy testdan o'tish shart", 'default' => true],
         'certificate.require_no_debt' => ['group' => 'certificate', 'type' => 'bool', 'label' => "Qarzdorlik bo'lmasligi shart", 'default' => true],
 

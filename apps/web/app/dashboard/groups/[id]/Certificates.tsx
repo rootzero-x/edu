@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { call, errorText } from "@/lib/client";
 
-const REASONS: Record<string, string> = { LOW_ATTENDANCE: "davomat past", QUIZ_NOT_PASSED: "yakuniy test o'tilmagan", HAS_DEBT: "qarzdorlik" };
+const REASONS: Record<string, string> = { NO_ATTENDANCE_DATA: "davomat belgilanmagan", LOW_ATTENDANCE: "davomat past", QUIZ_NOT_PASSED: "yakuniy test o'tilmagan", HAS_DEBT: "qarzdorlik" };
 
 export default function Certificates({ groupId }: { groupId: number }) {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -32,7 +32,7 @@ export default function Certificates({ groupId }: { groupId: number }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.student_id}>
-                <td>{r.name}</td><td>{r.attendance_rate}%</td><td>{r.final_quiz_passed ? "✅" : "—"}</td><td>{r.debt > 0 ? r.debt.toLocaleString("uz-UZ") : "—"}</td>
+                <td>{r.name}</td><td>{r.attendance_rate}% <span className="muted">({r.marked_sessions} dars)</span></td><td>{r.final_quiz_passed ? "✅" : "—"}</td><td>{r.debt > 0 ? r.debt.toLocaleString("uz-UZ") : "—"}</td>
                 <td>{r.certificate
                   ? <a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate}</a>
                   : r.blockers.length ? <span className="muted">{r.blockers.map((b: string) => REASONS[b] ?? b).join(", ")}</span>

@@ -108,7 +108,8 @@ class CertificateController
         $existing = DB::table('certificates')->where('group_id', $group->id)->pluck('code', 'student_id');
 
         return $students->map(function ($s) use ($statuses, $passed, $ledger, $existing, $settings, $finalQuizIds) {
-            $rate = Attendance::rate(($statuses[$s->id] ?? collect())->pluck('status')->all());
+            $marked = ($statuses[$s->id] ?? collect())->pluck('status')->all();
+            $rate = Attendance::rate($marked);
             $debt = Billing::balance(($ledger[$s->id] ?? collect())->map(fn ($e) => ['type' => $e->type, 'amount' => (int) $e->amount]));
             $quizPassed = $finalQuizIds->isEmpty() ? true : isset($passed[$s->id]);
 
@@ -116,13 +117,16 @@ class CertificateController
                 'student_id' => $s->id,
                 'name' => trim($s->first_name.' '.$s->last_name),
                 'attendance_rate' => $rate,
+                'marked_sessions' => count($marked),
                 'final_quiz_passed' => $quizPassed,
                 'debt' => $debt,
                 'certificate' => $existing[$s->id] ?? null,
                 'blockers' => CertificatePolicy::blockers($rate, $quizPassed, $debt,
                     (float) $settings->int('certificate.min_attendance_percent'),
                     $settings->bool('certificate.require_final_quiz'),
-                    $settings->bool('certificate.require_no_debt')),
+                    $settings->bool('certificate.require_no_debt'),
+                    count($marked),
+                    $settings->int('certificate.min_marked_sessions')),
             ];
         })->values()->all();
     }
