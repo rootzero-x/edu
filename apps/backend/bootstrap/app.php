@@ -32,6 +32,25 @@ return Application::configure(basePath: dirname(__DIR__))
             // abort(404, '...') matni saqlanadi; Laravel'ning standart inglizcha xabarlari o'rniga — tarjima.
             $m = $e->getMessage();
             $generic = $m === '' || str_starts_with($m, 'The route') || str_starts_with($m, 'No query results');
+            // Yo'q (o'chirilgan) yozuv: nima topilmaganini aytamiz — "Topilmadi." o'rniga (Mini App, sayt, bot).
+            $prev = $e->getPrevious();
+            if ($generic && $prev instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                $entity = class_basename($prev->getModel());
+                $text = [
+                    'Course' => "Kurs topilmadi — u o'chirilgan bo'lishi mumkin.",
+                    'Lesson' => "Dars topilmadi — u o'chirilgan bo'lishi mumkin. Kurs sahifasiga qayting.",
+                    'Quiz' => "Test topilmadi — u o'chirilgan bo'lishi mumkin.",
+                    'QuizAttempt' => 'Urinish topilmadi. Test sahifasini qayta oching.',
+                    'ClassSession' => "Dars (mashg'ulot) topilmadi — u o'chirilgan bo'lishi mumkin.",
+                    'StudyGroup' => "Guruh topilmadi yoki siz endi bu guruhda emassiz.",
+                    'Announcement' => "Yangilik topilmadi — u o'chirilgan bo'lishi mumkin.",
+                    'Certificate' => 'Sertifikat topilmadi yoki bekor qilingan.',
+                    'User' => 'Foydalanuvchi topilmadi.',
+                ][$entity] ?? null;
+                if ($text) {
+                    return response()->json(['message' => __($text), 'code' => 'NOT_FOUND', 'entity' => $entity], 404);
+                }
+            }
 
             return response()->json(['message' => $generic ? __('Topilmadi.') : $m], 404);
         });

@@ -50,9 +50,7 @@ class CourseController
     public function show(Request $request, CourseAccess $access, Settings $settings, Course $course): JsonResponse
     {
         $manage = self::canManage($request->user());
-        if (! $manage && ! $course->published) {
-            abort(404);
-        }
+        $access->assertOpen($request->user(), $course);
         $granted = $manage || $access->granted($request->user(), $course);
         if (! $granted && ! $settings->bool('course.show_outline_to_guests')) {
             $course->setRelation('modules', collect());

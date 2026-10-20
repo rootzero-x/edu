@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { tg } from "../_lib/api";
 import { useTg } from "../_lib/TgProvider";
 import { haptic, openLink, webApp } from "../_lib/webapp";
-import { isDenial, type Denial } from "@/components/AccessDenied";
+import { backToCourse, isDenial, type Denial } from "@/components/AccessDenied";
 
 /** GET so'rov holati. path null bo'lsa so'rov yuborilmaydi. */
 export function useApi<T>(path: string | null) {
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean; denial?: Denial | null }>({ data: null, error: null, loading: !!path });
+  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean; denial?: Denial | null; status?: number }>({ data: null, error: null, loading: !!path });
   const load = useCallback(async () => {
     if (!path) return;
     setState((s) => ({ ...s, loading: true, error: null }));
@@ -19,7 +19,9 @@ export function useApi<T>(path: string | null) {
       // Xabarsiz xato (masalan, server 500 HTML qaytarsa) — foydalanuvchiga raqam emas, umumiy matn ko'rsatiladi.
       error: r.ok ? null : (r.data as any)?.message || "",
       loading: false,
-      denial: r.status === 403 && isDenial(r.data) ? r.data : null,
+      // Kursga yozilmagan (403) yoki kurs/dars/test yopiq (404) — sozlamadagi tushunarli xabar bilan.
+      denial: isDenial(r.data) ? r.data : null,
+      status: r.status,
     });
   }, [path]);
   useEffect(() => {
@@ -80,12 +82,14 @@ export function Empty({ text, icon = "🗂" }: { text: string; icon?: string }) 
   return <div className="tg-empty"><div className="tg-emoji">{icon}</div><p className="tg-hint">{text}</p></div>;
 }
 
-export function Failed({ onRetry, text }: { onRetry?: () => void; text?: string | null }) {
+export function Failed({ onRetry, text, home }: { onRetry?: () => void; text?: string | null; home?: boolean }) {
   const { t } = useTg();
   return (
     <div className="tg-empty">
+      {home && <div className="tg-emoji" aria-hidden>🧭</div>}
       <p className="tg-hint">{text || t("error")}</p>
       {onRetry && <button className="tg-btn ghost" onClick={onRetry}>{t("retry")}</button>}
+      {home && <Link className="tg-btn ghost" href="/tg" onClick={() => haptic.tap()}>{t("go_home")}</Link>}
     </div>
   );
 }
@@ -98,16 +102,24 @@ export function Denied({ denial }: { denial: Denial }) {
       <div className="tg-empty-icon" aria-hidden>🔒</div>
       <p><b>{denial.title}</b></p>
       <p className="tg-hint">{denial.message}</p>
-      {url && <button className="tg-btn" onClick={() => openLink(url)}>{denial.button || denial.contact}</button>}
+      {backToCourse(denial) && (
+        <Link className="tg-btn" href={`/tg/courses/${denial.course!.id}`} onClick={() => haptic.tap()}>‹ {denial.course!.title}</Link>
+      )}
+      {!backToCourse(denial) && url && <button className="tg-btn" onClick={() => openLink(url)}>{denial.button || denial.contact}</button>}
     </div>
   );
 }
 
 /** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
-export function Async<T>({ q, children }: { q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null }; children: (data: T) => React.ReactNode }) {
+export function Async<T>({ q, children }: {
+  q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null; status?: number };
+  children: (data: T) => React.ReactNode;
+}) {
   if (q.loading && !q.data) return <Loading />;
   // Page ichida ham, tashqarisida ham ishlatiladi — ichma-ich <main> bo'lmasin.
   if (q.denial) return <Denied denial={q.denial} />;
+  // 404/403: qayta urinish yordam bermaydi — API sababini (masalan, "Dars topilmadi — o'chirilgan bo'lishi mumkin") va bosh sahifa.
+  if ((q.status === 404 || q.status === 403) && !q.data) return <Failed text={q.error} home />;
   if (q.error || !q.data) return <Failed onRetry={q.reload} text={q.error} />;
   return <>{children(q.data)}</>;
 }
