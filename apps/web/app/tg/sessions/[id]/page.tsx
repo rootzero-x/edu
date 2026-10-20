@@ -17,8 +17,9 @@ const DEFAULT_STATUSES = ["PRESENT", "LATE", "ABSENT", "EXCUSED"];
 /** Dars davomati: o'qituvchi belgilaydi (PUT /sessions/{id}/attendance), boshqalar ko'radi. */
 export default function TgSession() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useTg();
   const q = useApi<Sheet>(`sessions/${id}/attendance`);
-  return <Async q={q}>{(sheet) => <SheetView sheet={sheet} reload={q.reload} />}</Async>;
+  return <Async q={q} title={t("sheet_title")}>{(sheet) => <SheetView sheet={sheet} reload={q.reload} />}</Async>;
 }
 
 function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {

@@ -17,7 +17,7 @@ export default function TgLesson() {
   const hosts: string[] = Array.isArray(settings["course.embed_hosts"]) ? settings["course.embed_hosts"] : [];
   const q = useApi<{ lesson: Lesson }>(`lessons/${id}`);
   return (
-    <Async q={q}>
+    <Async q={q} title={t("lesson")}>
       {({ lesson }) => {
         const videos = lesson.materials.filter((m) => m.type === "VIDEO" && m.url);
         const texts = lesson.materials.filter((m) => m.type === "TEXT" && m.content);

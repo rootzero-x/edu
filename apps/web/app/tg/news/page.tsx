@@ -29,7 +29,7 @@ export default function TgNews() {
   };
 
   return (
-    <Async q={q}>
+    <Async q={q} title={t("nav_news")}>
       {({ data }) => (
         <Page title={t("nav_news")}>
           {data.length === 0 && <Empty text={t("news_empty")} icon="📭" />}

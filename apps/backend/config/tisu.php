@@ -479,6 +479,9 @@ return [
             'offline' => "Internet bilan aloqa yo'q.",
             'go_home' => 'Bosh sahifa',
             'draft' => 'Yopiq',
+            'lesson' => 'Dars',
+            'quiz' => 'Test',
+            'sheet_title' => 'Davomat varaqasi',
             'quiz_leave_confirm' => "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
         ]],
 

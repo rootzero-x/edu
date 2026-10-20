@@ -6,7 +6,7 @@ import { tg } from "./api";
 export type Schedule = { weekday: number; start_time: string; end_time: string };
 export type Group = {
   id: number; name: string; room: string | null; active: boolean; teacher_id: number; course_id: number;
-  course: { id: number; title: string }; teacher: { id: number; first_name: string; last_name: string | null } | null;
+  course: { id: number; title: string; published?: boolean }; teacher: { id: number; first_name: string; last_name: string | null } | null;
   schedules: Schedule[]; students_count: number;
 };
 export type Session = { id: number; group_id: number; starts_at: string; ends_at: string; topic: string | null; cancelled: boolean; marked_count: number };
