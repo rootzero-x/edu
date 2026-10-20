@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Domain\Role;
 use App\Models\BillingEntry;
 use App\Models\Course;
+use App\Models\StudyGroup;
 use App\Models\User;
 use App\Support\Billing;
 use App\Support\Settings;
@@ -12,7 +13,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -39,14 +39,7 @@ class BillingTest extends TestCase
     private function group(array $attrs = []): int
     {
         $teacher = User::factory()->role(Role::Teacher)->create();
-        $row = $attrs + ['name' => 'G', 'course_id' => $this->courseId, 'teacher_id' => $teacher->id, 'start_date' => '2026-01-01',
-            'active' => true, 'created_at' => now(), 'updated_at' => now()];
-        // Filiallar olib tashlanayotgan bo'lishi mumkin — ustun bo'lsa to'ldiriladi.
-        if (Schema::hasColumn('study_groups', 'branch_id')) {
-            $row['branch_id'] = DB::table('branches')->insertGetId(['name' => 'B', 'created_at' => now(), 'updated_at' => now()]);
-        }
-
-        return DB::table('study_groups')->insertGetId($row);
+        return StudyGroup::create($attrs + ['name' => 'G', 'course_id' => $this->courseId, 'teacher_id' => $teacher->id, 'start_date' => '2026-01-01', 'active' => true])->id;
     }
 
     private function join(int $groupId, User $student, string $joined = '2026-01-01 10:00:00', ?string $left = null): void
