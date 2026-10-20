@@ -116,13 +116,19 @@ jobs:
           msbuild $env:APP_PROJECT /restore /m /v:minimal /p:Configuration=Release /p:Platform=$env:PLATFORM `
             /p:RuntimeIdentifier=$env:RID /p:Version=$env:VERSION `
             /p:GenerateAppxPackageOnBuild=true /p:UapAppxPackageBuildMode=SideloadOnly /p:AppxBundle=Never `
-            /p:AppxPackageDir="$PWD\artifacts\msix\" /p:AppxPackageSigningEnabled=true `
-            /p:PackageCertificateKeyFile="$env:PFX_PATH" /p:PackageCertificatePassword="$env:PFX_PASSWORD" `
+            /p:AppxPackageDir="$PWD\artifacts\msix\" /p:AppxPackageSigningEnabled=false `
             /flp:"logfile=$PWD\msix.log;verbosity=normal"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $msix = Get-ChildItem artifacts\msix -Recurse -Filter *.msix | Select-Object -First 1
           if (-not $msix) { throw "MSIX topilmadi" }
-          Copy-Item $msix.FullName "artifacts\TisuEdu-$env:VERSION-$env:RID.msix"
+          $out = "artifacts\TisuEdu-$env:VERSION-$env:RID.msix"
+          Copy-Item $msix.FullName $out
+          # Imzolash alohida (MSBuild parolli PFX'ni import qila olmaydi): Windows SDK signtool.
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /f $env:PFX_PATH /p $env:PFX_PASSWORD $out
+          if ($LASTEXITCODE -ne 0) { throw "signtool xatosi" }
+          & $signtool.FullName verify /pa /v $out | Out-Null  # o'z-o'zidan imzolangan sertifikat ishonchli emas — faqat tekshiruv uchun
+          Get-AuthenticodeSignature $out | Format-List Status, SignerCertificate
 
       # Xatolarni annotatsiya sifatida chiqarish (loglarni yuklab olmasdan ko'rish uchun).
       - name: Report build errors
