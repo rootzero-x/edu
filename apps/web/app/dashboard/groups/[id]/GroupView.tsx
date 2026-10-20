@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen, CalendarClock, CalendarPlus, ClipboardCheck, DoorOpen, GraduationCap, Lock, MoreHorizontal, Pencil, PieChart,
-  Search, Unlock, UserMinus, UserPlus, UserRound,
+  Unlock, UserRound,
 } from "lucide-react";
 import {
-  Avatar, Badge, Button, ButtonLink, Card, CardHeader, Dialog, Dropdown, EmptyState, Input, PageHeader, Progress, StatCard,
-  Table, Tabs, Td, Th, cx, useConfirm, useToast,
+  Badge, Button, ButtonLink, Card, CardHeader, Dropdown, EmptyState, PageHeader, Progress, StatCard,
+  Table, Tabs, Td, Th, useConfirm, useToast,
 } from "@/components/ui";
 import LiveStatus from "@/components/LiveStatus";
 import { useSiteSettings } from "@/components/SiteProvider";
@@ -17,10 +17,11 @@ import { call, errorText } from "@/lib/client";
 import { fmtDate, fmtTime, fmtWeekday, personName, scheduleText } from "@/lib/format";
 import { sessionsPath } from "@/lib/groups";
 import { refreshSeconds, statusLabels, timezone } from "@/lib/settings";
-import type { GroupDetail, Person, ReportRow, SessionRow } from "@/lib/types";
+import type { GroupDetail, ReportRow, SessionRow } from "@/lib/types";
 import { usePolling } from "@/lib/usePolling";
 import s from "./group.module.css";
 import EditGroup from "./EditGroup";
+import Members from "./Members";
 
 type Data = { group: GroupDetail; sessions: SessionRow[]; report: ReportRow[] };
 
@@ -35,9 +36,6 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
   const seconds = refreshSeconds(st);
   const [data, setData] = useState<Data>(initial);
   const [loadedAt] = useState(() => Date.now());
-  const [pending, setPending] = useState<Set<number>>(new Set());
-  const [added, setAdded] = useState<number | null>(null);
-  const [adding, setAdding] = useState(false);
   const id = initial.group.id;
 
   const fetcher = useCallback(async (signal: AbortSignal): Promise<Data | null> => {
@@ -49,8 +47,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
     if (!g.ok || !ss.ok || !r.ok) return null;
     return { group: g.data.group, sessions: ss.data.data ?? [], report: r.data.data ?? [] };
   }, [id]);
-  // Optimistik o'zgarish kutilayotganda serverdan kelgan eski holat uni bosib ketmasin.
-  const live = usePolling(fetcher, (d) => { if (pending.size === 0) setData(d); }, { seconds });
+  const live = usePolling(fetcher, setData, { seconds });
 
   const { group, sessions, report } = data;
   const now = Date.now();
@@ -63,34 +60,18 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
   const unmarked = past.filter((x) => !x.cancelled && isUnmarked(x)).length;
   const next = upcoming.find((x) => !x.cancelled);
 
-  async function removeMember(m: Person) {
-    if (!(await confirm({ title: "Guruhdan chiqarilsinmi?", description: `${personName(m)} guruh ro'yxatidan chiqariladi. Davomat tarixi saqlanib qoladi.`, confirmText: "Chiqarish", tone: "danger" }))) return;
-    const prev = data;
-    setPending((p) => new Set(p).add(m.id));
-    setData((d) => ({ ...d, group: { ...d.group, students: d.group.students.filter((x) => x.id !== m.id) } }));
-    const r = await call("DELETE", `groups/${id}/members/${m.id}`);
-    setPending((p) => { const n = new Set(p); n.delete(m.id); return n; });
-    if (!r.ok) { setData(prev); return toast.error("Chiqarilmadi", errorText(r.data)); }
-    toast.success("Guruhdan chiqarildi", personName(m));
-    void live.refresh();
-  }
-
-  async function addMember(p: Person) {
-    const prev = data;
-    setPending((x) => new Set(x).add(p.id));
-    setData((d) => ({ ...d, group: { ...d.group, students: [...d.group.students, p].sort((a, b) => a.first_name.localeCompare(b.first_name)) } }));
-    setAdded(p.id);
-    const r = await call("POST", `groups/${id}/members`, { student_id: p.id });
-    setPending((x) => { const n = new Set(x); n.delete(p.id); return n; });
-    if (!r.ok) { setData(prev); return toast.error("Qo'shilmadi", errorText(r.data)); }
-    toast.success("Guruhga qo'shildi", personName(p));
-    void live.refresh();
-  }
-
   async function generate() {
     const r = await call("POST", `groups/${id}/sessions/generate`, {});
     if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
     toast.success(r.data.created ? `${r.data.created} ta yangi dars qo'shildi` : "Jadval allaqachon to'liq", `${r.data.from} — ${r.data.to}`);
+    void live.refresh();
+  }
+
+  async function graduateAll() {
+    if (!(await confirm({ title: "Hamma o'quvchi bitirgan deb belgilansinmi?", description: `${group.students.length} ta o'quvchi «Bitirgan» sifatida guruhdan chiqadi. Sertifikatlarni oldinroq bering.`, confirmText: "Belgilash" }))) return;
+    const r = await call("POST", `groups/${id}/graduate`, {});
+    if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
+    toast.success(`${r.data.graduated} ta o'quvchi bitirdi`);
     void live.refresh();
   }
 
@@ -137,6 +118,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
                 items={[
                   { label: "Tahrirlash", icon: <Pencil />, onSelect: () => setEditing(true) },
                   { label: "Jadvaldan darslarni yangilash", icon: <CalendarPlus />, onSelect: generate },
+                  ...(group.students.length ? [{ label: "Hammasi kursni bitirdi", icon: <GraduationCap />, onSelect: graduateAll }] : []),
                   { type: "separator" },
                   group.active
                     ? { label: "Guruhni yopish", icon: <Lock />, danger: true, onSelect: toggleActive }
@@ -174,28 +156,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
         items={[
           {
             id: "students", label: "O'quvchilar", count: group.students.length,
-            content: (
-              <Card>
-                <CardHeader title="O'quvchilar ro'yxati" actions={manage && <Button size="sm" icon={<UserPlus />} onClick={() => setAdding(true)}>Qo&apos;shish</Button>} />
-                {group.students.length === 0 ? (
-                  <EmptyState compact icon={<GraduationCap />} title="Guruhda o'quvchi yo'q" action={manage && <Button icon={<UserPlus />} onClick={() => setAdding(true)}>O&apos;quvchi qo&apos;shish</Button>} />
-                ) : (
-                  <ul className={s.members}>
-                    {group.students.map((m) => {
-                      const r = report.find((x) => x.student_id === m.id);
-                      return (
-                        <li key={m.id} className={cx(s.member, pending.has(m.id) && s.pending, added === m.id && s.added)}>
-                          <Avatar name={personName(m)} />
-                          <div className={s.memberText}><strong>{personName(m)}</strong>{m.phone && <span>{m.phone}</span>}</div>
-                          {r && <div className={s.rate} title="Davomat"><Progress value={Number(r.rate)} label="Davomat" /><b>{r.rate}%</b></div>}
-                          {manage && <Button size="sm" variant="dangerGhost" iconOnly aria-label={`${personName(m)} — guruhdan chiqarish`} icon={<UserMinus />} onClick={() => removeMember(m)} />}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </Card>
-            ),
+            content: <Members groupId={id} students={group.students} report={report} manage={manage} staff={canMark || manage} onChanged={() => void live.refresh()} />,
           },
           {
             id: "attendance", label: "Davomat",
@@ -237,50 +198,6 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
         ]}
       />
 
-      {manage && (
-        <AddMemberDialog open={adding} onClose={() => setAdding(false)} memberIds={new Set(group.students.map((m) => m.id))} onAdd={addMember} />
-      )}
     </>
-  );
-}
-
-function AddMemberDialog({ open, onClose, memberIds, onAdd }: { open: boolean; onClose: () => void; memberIds: Set<number>; onAdd: (p: Person) => void }) {
-  const [q, setQ] = useState("");
-  const [results, setResults] = useState<Person[] | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    if (timer.current) clearTimeout(timer.current);
-    const ctrl = new AbortController();
-    timer.current = setTimeout(async () => {
-      const r = await call<{ data: Person[] }>("GET", `users?role=STUDENT&active=1${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`, undefined, { signal: ctrl.signal }).catch(() => null);
-      if (r?.ok) setResults(r.data.data ?? []);
-    }, 250);
-    return () => { ctrl.abort(); if (timer.current) clearTimeout(timer.current); };
-  }, [q, open]);
-
-  return (
-    <Dialog open={open} onClose={onClose} title="O'quvchi qo'shish" description="Ism yoki telefon raqami bo'yicha qidiring" width={520}>
-      <Input type="search" autoFocus placeholder="Masalan: Aziz yoki 90 123" value={q} onChange={(e) => setQ(e.target.value)} leading={<Search />} aria-label="O'quvchini qidirish" />
-      {results === null ? <p className="subtle" style={{ margin: 0 }}>Yuklanmoqda…</p> : results.length === 0 ? (
-        <EmptyState compact icon={<Search />} title="Topilmadi">Avval «Foydalanuvchilar» bo&apos;limida o&apos;quvchini qo&apos;shing yoki u Telegram bot orqali ro&apos;yxatdan o&apos;tsin.</EmptyState>
-      ) : (
-        <ul className={s.results}>
-          {results.map((p) => {
-            const isMember = memberIds.has(p.id);
-            return (
-              <li key={p.id}>
-                <button type="button" disabled={isMember} onClick={() => onAdd(p)}>
-                  <Avatar name={personName(p)} />
-                  <span style={{ flex: 1, minWidth: 0 }}><strong>{personName(p)}</strong><br /><span className="subtle">{p.phone}</span></span>
-                  {isMember ? <Badge tone="success">Guruhda</Badge> : <UserPlus size={18} aria-hidden className="subtle" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Dialog>
   );
 }
