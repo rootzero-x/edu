@@ -32,3 +32,31 @@
 .alert { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5); border-radius: var(--radius-lg); background: var(--warning-soft); color: var(--warning); font-weight: 550; border: 1px solid color-mix(in oklab, var(--warning) 25%, transparent); }
 .alert > span { flex: 1 1 240px; }
 .alert svg { width: 18px; height: 18px; flex: none; }
+/* A'zolik holatlari */
+.member.frozen { background: color-mix(in oklab, var(--info-soft, var(--surface-2)) 55%, transparent); }
+.member.former { opacity: 0.85; }
+.memberBadge { margin-top: 4px; }
+.memberSide { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: var(--text-sm); }
+@media (max-width: 560px) { .memberSide { display: none; } .member.former .memberText span::after { content: ""; } }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); }
+.timeline li { display: flex; gap: var(--space-3); margin: 0; position: relative; }
+.timeline li:not(:last-child)::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: calc(var(--space-4) * -1); width: 2px; background: var(--border); }
+.dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--fg-subtle); }
+.dot[data-tone="success"] { background: var(--success); }
+.dot[data-tone="info"] { background: var(--info, var(--accent)); }
+.dot[data-tone="danger"] { background: var(--danger); }
+.dot[data-tone="warning"] { background: var(--warning); }
+.dot[data-tone="accent"] { background: var(--accent); }
+.tlHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); }
+.tlText { margin: 4px 0 0; color: var(--fg-muted); font-size: var(--text-sm); }
+.bulkTop { display: grid; gap: var(--space-3); grid-template-columns: 1fr 180px; align-items: end; margin-bottom: var(--space-3); }
+@media (max-width: 560px) { .bulkTop { grid-template-columns: 1fr; } }
+.pick { display: flex; width: 100%; gap: var(--space-3); align-items: center; padding: 10px 12px; cursor: pointer; }
+.pick:hover { background: var(--surface-2); }
+.pick[data-disabled] { opacity: 0.6; cursor: default; }
+.pick input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+@media (max-width: 600px) {
+  .member { flex-wrap: wrap; row-gap: 6px; }
+  .memberText { flex: 1 1 calc(100% - 100px); }
+  .member .rate { order: 3; flex: 1 1 100%; width: auto; padding-left: calc(32px + var(--space-3)); }
+}

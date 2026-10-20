@@ -155,3 +155,4 @@ html, body, * { scrollbar-width: none; }
 .tg-balance b.bad { color: var(--c-danger); }
 .tg-balance b.ok { color: var(--c-ok); }
 .tg-balance small { color: var(--c-hint); }
+

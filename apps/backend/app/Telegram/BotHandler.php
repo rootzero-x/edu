@@ -12,7 +12,7 @@ use Throwable;
 /** Bot xabarlarini qayta ishlash. Barcha matnlar settings (telegram.text.*) dan. */
 class BotHandler
 {
-    public function __construct(private TelegramClient $tg, private Settings $settings, private BotMenu $menu, private BotAdmin $admin) {}
+    public function __construct(private TelegramClient $tg, private Settings $settings, private BotMenu $menu, private BotAdmin $admin, private BotLeads $leads) {}
 
     /**
      * Har qanday kutilmagan xato: log + foydalanuvchiga do'stona umumiy matn (xom API xatosi ko'rsatilmaydi),
@@ -60,6 +60,11 @@ class BotHandler
         if (isset($update['callback_query'])) {
             $cq = $update['callback_query'];
             $data = (string) ($cq['data'] ?? '');
+            if (str_starts_with($data, 'ld:')) {
+                $this->leads->onCallback($cq);
+
+                return;
+            }
             if (str_starts_with($data, 'lg:')) {
                 $this->onLoginCallback($cq);
 
@@ -84,6 +89,11 @@ class BotHandler
         $text = trim($msg['text'] ?? '');
         if (preg_match('/^\/start(?:@\S+)?(?:\s+(.*))?$/s', $text, $m)) {
             $this->onStart($from, $chatId, trim($m[1] ?? ''));
+
+            return;
+        }
+        if ($text !== '' && $this->leads->isTrigger($text)) {
+            $this->leads->start($chatId);
 
             return;
         }
@@ -129,6 +139,10 @@ class BotHandler
         if ((int) ($contact['user_id'] ?? 0) !== (int) $from['id']) {
             $this->askPhone($chatId, 'telegram.text.not_own_contact');
 
+            return;
+        }
+        // Ariza jarayonida yuborilgan raqam — akkaunt yaratilmaydi, ariza yoziladi.
+        if ($this->leads->onContact($from, $chatId, $contact)) {
             return;
         }
         // Yagona normalizatsiya (sayt va admin bilan bir xil). Eski, normalizatsiyadan oldingi yozuvlar ham topilsin.
@@ -301,8 +315,12 @@ class BotHandler
 
     private function askPhone(int $chatId, string $textKey = 'telegram.text.welcome'): void
     {
+        $rows = [[['text' => $this->settings->get('telegram.text.share_phone_button'), 'request_contact' => true]]];
+        if ($this->leads->enabled()) {
+            $rows[] = [['text' => $this->settings->get('telegram.text.btn_lead')]];
+        }
         $this->say($chatId, $textKey, [], [
-            'keyboard' => [[['text' => $this->settings->get('telegram.text.share_phone_button'), 'request_contact' => true]]],
+            'keyboard' => $rows,
             'resize_keyboard' => true,
             'one_time_keyboard' => true,
         ]);

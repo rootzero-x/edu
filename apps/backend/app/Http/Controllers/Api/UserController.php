@@ -38,12 +38,7 @@ class UserController
             ->when(($data['telegram'] ?? null) === 'none', fn ($q) => $q->whereNotIn('id', $links))
             ->when(($data['telegram'] ?? null) === 'blocked', fn ($q) => $q->whereIn('id', (clone $links)->whereNotNull('blocked_at')))
             ->when(($data['telegram'] ?? null) === 'linked', fn ($q) => $q->whereIn('id', (clone $links)->whereNull('blocked_at')))
-            ->when($data['q'] ?? null, function ($q, $s) {
-                // Telefon har qanday yozuvda: "90 123", "+998 90…" → raqamlar bo'yicha.
-                $digits = Phone::searchDigits($s);
-                $q->where(fn ($w) => $w->where('phone', 'like', '%'.($digits ?? $s).'%')
-                    ->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%"));
-            })
+            ->when($data['q'] ?? null, fn ($q, $s) => self::search($q, $s))
             ->orderByDesc('id')
             ->paginate($data['per_page'] ?? app(Settings::class)->int('ui.page_size'));
         $tg = DB::table('telegram_links')->whereIn('user_id', $users->getCollection()->pluck('id'))
@@ -155,6 +150,22 @@ class UserController
         Audit::log('user.update', 'user', $user->id, array_diff_key($data, ['password' => 1]) + (isset($data['password']) ? ['password' => 'reset'] : []));
 
         return response()->json(['user' => $user->fresh()->toApi()]);
+    }
+
+    /** Ism, familiya ("Ali Valiyev" ham) yoki telefon (istalgan yozuvda: "90 123", "+998 90…") bo'yicha qidiruv. */
+    public static function search(\Illuminate\Database\Eloquent\Builder $q, string $s): \Illuminate\Database\Eloquent\Builder
+    {
+        $s = trim($s);
+        $digits = Phone::searchDigits($s);
+        if ($digits) {
+            return $q->where('phone', 'like', '%'.$digits.'%');
+        }
+        foreach (array_slice(preg_split('/\s+/u', $s) ?: [], 0, 3) as $word) {
+            $like = '%'.addcslashes($word, '%_\\').'%';
+            $q->where(fn ($w) => $w->where('first_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('phone', 'like', $like));
+        }
+
+        return $q;
     }
 
     /** Telefon har qanday yozuvda kelishi mumkin — validatsiya va unique tekshiruvi normal shaklda (takrorlar bo'lmasin). */

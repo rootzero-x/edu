@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Copy, GitMerge, KeyRound, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, Users as UsersIcon, X } from "lucide-react";
+import Link from "next/link";
+import { Check, ChevronLeft, ChevronRight, Copy, FileSpreadsheet, GitMerge, KeyRound, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, UserRound, Users as UsersIcon, X } from "lucide-react";
 import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
+import ImportDialog from "./ImportDialog";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { obj } from "@/lib/settings";
 import { ROLE_LABELS } from "@/components/shell/nav";
@@ -26,12 +28,15 @@ const APPLICANT_ROLES = ["STUDENT", "TEACHER"];
 const ROLES = ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"];
 const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
-export default function Users({ rows: initialRows, meta, role, q, view, actorRole, selfId, phoneHint }: {
+export default function Users({ rows: initialRows, meta, role, q, view, actorRole, selfId, phoneHint, openImport = false, importGroup }: {
   rows: UserRow[]; meta: { total: number; page: number; pages: number; pending?: number }; role: string; q: string; view: string;
   actorRole: string; selfId: number; phoneHint: string;
+  openImport?: boolean; importGroup?: number;
 }) {
   // Rol nomlari sozlamalardan (telegram.role_labels) — bot, Mini App va sayt bir xil ko'rsatadi.
   const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels") };
+  const [importing, setImporting] = useState(openImport);
+  useEffect(() => setImporting(openImport), [openImport]);
   const router = useRouter();
   const path = usePathname();
   const toast = useToast();
@@ -159,6 +164,7 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
     <>
       <PageHeader title="Foydalanuvchilar" description={`Jami: ${meta.total}`} actions={<>
         <Button variant="secondary" icon={<Copy />} onClick={openDuplicates}>Takrorlar</Button>
+        <Button variant="secondary" icon={<FileSpreadsheet />} onClick={() => setImporting(true)}>Import</Button>
         <Button icon={<UserPlus />} onClick={addUser}>Qo&apos;shish</Button>
       </>} />
       <div style={{ marginBottom: 12 }}>
@@ -193,7 +199,7 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
                   <Td>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                       <Avatar name={personName(u)} size={30} />
-                      <strong style={{ fontWeight: 600 }}>{personName(u)}</strong>
+                      <Link href={`/dashboard/users/${u.id}`} className="a"><strong style={{ fontWeight: 600 }}>{personName(u)}</strong></Link>
                       {u.id === selfId && <Badge tone="accent">Siz</Badge>}
                     </span>
                   </Td>
@@ -219,6 +225,7 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
                       <Dropdown
                         trigger={(p) => <Button size="sm" variant="ghost" iconOnly aria-label={`${personName(u)} — amallar`} icon={<MoreHorizontal />} {...p} />}
                         items={[
+                          { label: "Profil", icon: <UserRound />, href: `/dashboard/users/${u.id}` },
                           { label: "Tahrirlash", icon: <Pencil />, onSelect: () => edit(u) },
                           { label: "Parol o'rnatish", icon: <KeyRound />, onSelect: () => password(u) },
                           { type: "separator" as const },
@@ -282,6 +289,8 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
             </div>
           ))}
       </Dialog>
+      <ImportDialog open={importing} onClose={() => setImporting(false)} onDone={() => router.refresh()} defaultGroupId={importGroup} />
     </>
   );
 }
+

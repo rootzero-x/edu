@@ -33,12 +33,14 @@ function listShape(i: Item): string[] | "string" | null {
  * Barcha sozlamalar API'dagi ta'riflardan avtomatik quriladi — config/tisu.php ga yangi sozlama
  * qo'shilsa, forma o'zi paydo bo'ladi (tur bo'yicha mos boshqaruv elementi bilan).
  */
-export default function SettingsEditor({ items, permissions, permissionLabels = {}, groupLabels = {}, warnings = [], showKeys = false }: {
+export default function SettingsEditor({ items, permissions, permissionLabels = {}, groupLabels = {}, warnings = [], showKeys = false, initialGroup }: {
   items: Item[]; permissions: string[]; permissionLabels?: Record<string, string>; groupLabels?: Record<string, string>;
   /** Backend ogohlantirishlari (masalan, o'qituvchida course.manage qolgan). */
   warnings?: string[];
   /** Texnik kalitlar (sozlama kaliti, huquq kodi) faqat SUPER_ADMIN ga ko'rinadi; boshqalarga — tooltip. */
   showKeys?: boolean;
+  /** ?group=billing — kerakli bo'lim ochiladi. */
+  initialGroup?: string;
 }) {
   const GROUPS = groupLabels;
   const router = useRouter();
@@ -56,7 +58,8 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
     const order = Object.keys(groupLabels);
     return Object.entries(by).sort(([a], [b]) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999));
   }, [items, groupLabels]);
-  const [active, setActive] = useState(groups[0]?.[0] ?? "site");
+  // ?group=billing — "Boshlash" ro'yxatidagi havolalar to'g'ridan-to'g'ri kerakli bo'limni ochadi.
+  const [active, setActive] = useState(groups.some(([g]) => g === initialGroup) ? initialGroup! : groups[0]?.[0] ?? "site");
 
   const value = (i: Item) => (i.key in draft ? draft[i.key] : i.value);
   const set = (k: string, v: unknown) => setDraft((d) => {

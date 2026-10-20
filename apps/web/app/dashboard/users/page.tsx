@@ -8,10 +8,10 @@ export const metadata: Metadata = { title: "Foydalanuvchilar" };
 /** Sahifa ko'rinishi → API filtri. */
 const VIEW_PARAMS: Record<string, Record<string, string>> = { pending: { pending: "1" }, tg_none: { telegram: "none" }, tg_blocked: { telegram: "blocked" } };
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ role?: string; q?: string; page?: string; view?: string }> }) {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ role?: string; q?: string; page?: string; view?: string; import?: string; group?: string }> }) {
   const user = await me();
   if (!user?.permissions.includes("user.manage")) redirect("/dashboard");
-  const { view, ...sp } = await searchParams;
+  const { view, import: openImport, group, ...sp } = await searchParams;
   const qs = new URLSearchParams({
     ...(Object.fromEntries(Object.entries(sp).filter(([, v]) => v)) as Record<string, string>),
     ...(VIEW_PARAMS[view ?? ""] ?? {}),
@@ -30,6 +30,8 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       phoneHint={String(settings?.["auth.phone_hint"] ?? "+998 90 123 45 67")}
       actorRole={user.role}
       selfId={user.id}
+      openImport={openImport === "1"}
+      importGroup={group && /^\d+$/.test(group) ? Number(group) : undefined}
     />
   );
 }

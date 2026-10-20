@@ -10,9 +10,14 @@ use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\LandingController;
+use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PublicLeadController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\SystemStatusController;
 use App\Http\Controllers\Api\TelegramAuthController;
@@ -31,6 +36,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/announcements', [AnnouncementController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/courses', [LandingController::class, 'courses'])->middleware('throttle:api');
+    Route::post('/public/leads', [PublicLeadController::class, 'store'])->middleware('throttle:leads');
 
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
@@ -38,6 +44,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/password', [AuthController::class, 'changePassword']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('/search', SearchController::class);
+        Route::get('/users/{user}/profile', [ProfileController::class, 'show'])->whereNumber('user');
 
         // Sozlamalar (faqat settings.manage — standart: SUPER_ADMIN)
         Route::middleware('perm:settings.manage')->group(function () {
@@ -58,11 +66,18 @@ Route::prefix('v1')->group(function () {
             // Tizim holati: cron, vazifalar, zaxira, Telegram navbati.
             Route::get('/system/status', SystemStatusController::class);
         });
+        Route::middleware('perm:user.manage')->group(function () {
+            Route::get('/imports/students/template', [ImportController::class, 'template']);
+            Route::post('/imports/students/preview', [ImportController::class, 'preview']);
+            Route::post('/imports/students/commit', [ImportController::class, 'commit']);
+        });
 
         // Guruhlar va davomat (ko'rish — ko'rinish doirasi controller'da)
         Route::get('/groups', [GroupController::class, 'index']);
         Route::get('/groups/{group}', [GroupController::class, 'show'])->whereNumber('group');
         Route::get('/groups/{group}/sessions', [GroupController::class, 'sessions'])->whereNumber('group');
+        Route::get('/groups/{group}/members', [GroupController::class, 'members'])->whereNumber('group');
+        Route::get('/groups/{group}/members/{student}/history', [GroupController::class, 'memberHistory'])->whereNumber('group');
         Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
         Route::get('/sessions', [GroupController::class, 'allSessions']);
         Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
@@ -80,6 +95,13 @@ Route::prefix('v1')->group(function () {
             Route::patch('/groups/{group}', [GroupController::class, 'update']);
             Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);
             Route::delete('/groups/{group}/members/{student}', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/members/bulk', [GroupController::class, 'addMembers']);
+            Route::post('/groups/{group}/members/{student}/leave', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/members/{student}/freeze', [GroupController::class, 'freezeMember']);
+            Route::post('/groups/{group}/members/{student}/unfreeze', [GroupController::class, 'unfreezeMember']);
+            Route::post('/groups/{group}/members/{student}/transfer', [GroupController::class, 'transferMember']);
+            Route::post('/groups/{group}/members/{student}/graduate', [GroupController::class, 'graduateMember']);
+            Route::post('/groups/{group}/graduate', [GroupController::class, 'graduateAll']);
             Route::post('/groups/{group}/sessions/generate', [GroupController::class, 'generateSessions']);
         });
 
@@ -92,6 +114,21 @@ Route::prefix('v1')->group(function () {
             Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update']);
             Route::post('/announcements/{announcement}/publish', [AnnouncementController::class, 'publish']);
             Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+        });
+
+        // Arizalar (CRM)
+        Route::middleware('perm:lead.manage')->group(function () {
+            Route::get('/leads', [LeadController::class, 'index']);
+            Route::post('/leads', [LeadController::class, 'store']);
+            Route::get('/leads/stats', [LeadController::class, 'stats']);
+            Route::get('/leads/options', [LeadController::class, 'owners']);
+            Route::get('/leads/trial-sessions', [LeadController::class, 'trialSessions']);
+            Route::get('/leads/{lead}', [LeadController::class, 'show'])->whereNumber('lead');
+            Route::patch('/leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead');
+            Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->whereNumber('lead');
+            Route::post('/leads/{lead}/status', [LeadController::class, 'status'])->whereNumber('lead');
+            Route::post('/leads/{lead}/activities', [LeadController::class, 'addActivity'])->whereNumber('lead');
+            Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])->whereNumber('lead');
         });
 
         // Hisobotlar

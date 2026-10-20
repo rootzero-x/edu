@@ -85,24 +85,20 @@ final class Billing
     {
         $fromDate = $from->toDateString();
         $toDate = $to->toDateString();
-        $members = DB::table('group_members')
-            ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
-            ->join('users', 'users.id', '=', 'group_members.student_id')
-            ->where('users.role', Role::Student->value)
-            ->where('study_groups.active', true)
-            ->where('study_groups.start_date', '<=', $toDate)
-            ->where(fn ($q) => $q->whereNull('study_groups.end_date')->orWhere('study_groups.end_date', '>=', $fromDate))
-            ->where('group_members.joined_at', '<=', $toDate.' 23:59:59')
-            ->where(fn ($q) => $q->whereNull('group_members.left_at')->orWhere('group_members.left_at', '>=', $fromDate.' 00:00:00'))
-            ->get(['group_members.group_id', 'group_members.student_id', 'group_members.joined_at', 'group_members.left_at',
-                'study_groups.start_date', 'study_groups.end_date'])
+        // Faqat ACTIVE kunlar hisoblanadi: muzlatilgan, chiqib ketgan, bitirgan kunlar — yo'q (Enrollments::chargeable).
+        $groups = DB::table('study_groups')->where('active', true)
+            ->where('start_date', '<=', $toDate)
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $fromDate))
+            ->get(['id', 'start_date', 'end_date'])->keyBy('id');
+        $students = DB::table('users')->where('role', Role::Student->value)->pluck('id')->flip();
+        $members = Enrollments::chargeable($fromDate, $toDate)
+            ->filter(fn ($m) => isset($groups[$m->group_id], $students[$m->student_id]))
             ->map(fn ($m) => (object) [
-                'group_id' => (int) $m->group_id, 'student_id' => (int) $m->student_id,
-                'joined' => substr((string) $m->joined_at, 0, 10),
-                'left' => $m->left_at ? substr((string) $m->left_at, 0, 10) : null,
-                'start' => substr((string) $m->start_date, 0, 10),
-                'end' => $m->end_date ? substr((string) $m->end_date, 0, 10) : null,
-            ]);
+                'group_id' => $m->group_id, 'student_id' => $m->student_id,
+                'joined' => $m->from, 'left' => $m->to, 'skip_same_day' => $m->skip_same_day,
+                'start' => substr((string) $groups[$m->group_id]->start_date, 0, 10),
+                'end' => $groups[$m->group_id]->end_date ? substr((string) $groups[$m->group_id]->end_date, 0, 10) : null,
+            ])->values();
 
         $rows = [];
         $now = now();
@@ -116,7 +112,7 @@ final class Billing
                 // Qo'shilgan va chiqib ketgan kunlar ham hisoblanadi (tongdagi hisoblash bilan bir xil natija);
                 // o'sha kuni qo'shilib, o'sha kuni chiqarilgan a'zolik (xato qo'shish) hisoblanmaydi.
                 if ($m->joined > $date || $m->start > $date || ($m->end !== null && $m->end < $date)
-                    || ($m->left !== null && ($m->left < $date || $m->left === $m->joined))) {
+                    || ($m->left !== null && ($m->left < $date || ($m->skip_same_day && $m->left === $m->joined)))) {
                     continue;
                 }
                 $rows[] = [
@@ -147,7 +143,7 @@ final class Billing
             }
         }
 
-        return ['days' => Carbon::parse($fromDate)->diffInDays(Carbon::parse($toDate)) + 1, 'memberships' => $members->count(), 'created' => $created, 'amount' => -$total];
+        return ['days' => Carbon::parse($fromDate)->diffInDays(Carbon::parse($toDate)) + 1, 'memberships' => $members->unique(fn ($m) => $m->group_id.':'.$m->student_id)->count(), 'created' => $created, 'amount' => -$total];
     }
 
     public function balance(int $studentId): int
