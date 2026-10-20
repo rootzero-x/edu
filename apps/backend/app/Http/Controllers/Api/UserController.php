@@ -25,8 +25,7 @@ class UserController
         $users = User::query()
             ->when($data['role'] ?? null, fn ($q, $r) => $q->where('role', $r))
             ->when(array_key_exists('active', $data) && $data['active'] !== null, fn ($q) => $q->where('active', (bool) $data['active']))
-            ->when($data['q'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
-                ->where('phone', 'like', "%$s%")->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%")))
+            ->when($data['q'] ?? null, fn ($q, $s) => self::search($q, $s))
             ->orderByDesc('id')
             ->paginate($data['per_page'] ?? app(Settings::class)->int('ui.page_size'));
 
@@ -95,6 +94,58 @@ class UserController
         Audit::log('user.update', 'user', $user->id, array_diff_key($data, ['password' => 1]) + (isset($data['password']) ? ['password' => 'reset'] : []));
 
         return response()->json(['user' => $user->fresh()->toApi()]);
+    }
+
+    /** Ism, familiya ("Ali Valiyev" ham) yoki telefon (istalgan yozuvda: "90 123", "+998 90…") bo'yicha qidiruv. */
+    public static function search(\Illuminate\Database\Eloquent\Builder $q, string $s): \Illuminate\Database\Eloquent\Builder
+    {
+        $s = trim($s);
+        $digits = \App\Support\PhoneNormalizer::searchDigits($s);
+        if ($digits) {
+            return $q->where('phone', 'like', '%'.$digits.'%');
+        }
+        foreach (array_slice(preg_split('/\s+/u', $s) ?: [], 0, 3) as $word) {
+            $like = '%'.addcslashes($word, '%_\\').'%';
+            $q->where(fn ($w) => $w->where('first_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('phone', 'like', $like));
+        }
+
+        return $q;
+    }
+
+    /** O'quvchining ota-onalari. */
+    public function parents(User $student): JsonResponse
+    {
+        $ids = \Illuminate\Support\Facades\DB::table('parent_child')->where('child_id', $student->id)->pluck('parent_id');
+
+        return response()->json(['data' => User::whereIn('id', $ids)->orderBy('first_name')->get()->map->toApi()]);
+    }
+
+    /**
+     * O'quvchiga ota-ona bog'lash: mavjud ota-ona (parent_id) yoki yangisini yaratib (first_name + phone).
+     * Telefon mavjud ota-onaga tegishli bo'lsa — o'sha akkaunt bog'lanadi (dublikat yaratilmaydi).
+     */
+    public function linkParent(Request $request, User $student): JsonResponse
+    {
+        abort_unless($student->role === Role::Student, 422, 'Farzand o\'quvchi bo\'lishi kerak.');
+        $data = $request->validate([
+            'parent_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:phone'],
+            'first_name' => ['nullable', 'string', 'max:64', 'required_with:phone'],
+            'last_name' => ['nullable', 'string', 'max:64'],
+            'phone' => ['nullable', 'string', 'max:32'],
+        ]);
+        $created = false;
+        if (! empty($data['parent_id'])) {
+            $parent = User::findOrFail($data['parent_id']);
+            abort_unless($parent->role === Role::Parent, 422, 'Foydalanuvchi ota-ona roliga ega emas.');
+        } else {
+            $phone = \App\Support\PhoneNormalizer::normalize($data['phone'])
+                ?? throw ValidationException::withMessages(['phone' => "Telefon raqami noto'g'ri. Masalan: 90 123 45 67"]);
+            [$parent, $created] = app(\App\Support\Leads::class)->findOrCreate($phone, Role::Parent, $data['first_name'], $data['last_name'] ?? null, 'phone');
+        }
+        \Illuminate\Support\Facades\DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $student->id]);
+        Audit::log('user.link_child', 'user', $parent->id, ['child_id' => $student->id, 'created' => $created]);
+
+        return response()->json(['parent' => $parent->toApi(), 'created' => $created], 201);
     }
 
     /** Ota-onaning bog'langan farzandlari. */

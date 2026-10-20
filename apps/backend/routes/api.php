@@ -13,9 +13,11 @@ use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PublicLeadController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TelegramAuthController;
 use App\Http\Controllers\Api\UserController;
@@ -41,6 +43,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/password', [AuthController::class, 'changePassword']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('/me/children', [ProfileController::class, 'children']);
+        Route::get('/search', SearchController::class);
+        Route::get('/users/{user}/profile', [ProfileController::class, 'show'])->whereNumber('user');
 
         // Sozlamalar (faqat settings.manage — standart: SUPER_ADMIN)
         Route::middleware('perm:settings.manage')->group(function () {
@@ -59,6 +64,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/users/{parent}/children', [UserController::class, 'children']);
             Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
             Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
+            Route::get('/users/{student}/parents', [UserController::class, 'parents']);
+            Route::post('/users/{student}/parents', [UserController::class, 'linkParent']);
             Route::get('/imports/students/template', [ImportController::class, 'template']);
             Route::post('/imports/students/preview', [ImportController::class, 'preview']);
             Route::post('/imports/students/commit', [ImportController::class, 'commit']);
