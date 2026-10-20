@@ -272,7 +272,8 @@ class BotMenu
             ->where('study_groups.active', true)->distinct()->pluck('study_groups.course_id');
         $lines = [];
         $buttons = [];
-        foreach (Course::whereIn('id', $courseIds)->where('published', true)->get() as $course) {
+        // Kurs e'lon qilinmagan bo'lsa ham — o'z guruhining kursi testlari ko'rinadi (published faqat katalog uchun).
+        foreach (Course::whereIn('id', $courseIds)->get() as $course) {
             $res = $this->api->call($user, [QuizController::class, 'index'], ['course' => $course], [], 'course.view');
             foreach ($res['data'] ?? [] as $q) {
                 if (count($lines) >= $this->limit()) {

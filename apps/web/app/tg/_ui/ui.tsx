@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { tg } from "../_lib/api";
 import { useTg } from "../_lib/TgProvider";
 import { haptic, openLink, webApp } from "../_lib/webapp";
-import { isDenial, type Denial } from "@/components/AccessDenied";
+import { backToCourse, isDenial, type Denial } from "@/components/AccessDenied";
 
 /** GET so'rov holati. path null bo'lsa so'rov yuborilmaydi. */
 export function useApi<T>(path: string | null) {
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean; denial?: Denial | null }>({ data: null, error: null, loading: !!path });
+  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean; denial?: Denial | null; status?: number }>({ data: null, error: null, loading: !!path });
   const load = useCallback(async () => {
     if (!path) return;
     setState((s) => ({ ...s, loading: true, error: null }));
@@ -19,7 +19,9 @@ export function useApi<T>(path: string | null) {
       // Xabarsiz xato (masalan, server 500 HTML qaytarsa) — foydalanuvchiga raqam emas, umumiy matn ko'rsatiladi.
       error: r.ok ? null : (r.data as any)?.message || "",
       loading: false,
-      denial: r.status === 403 && isDenial(r.data) ? r.data : null,
+      // Kursga yozilmagan (403) yoki kurs/dars/test yopiq (404) — sozlamadagi tushunarli xabar bilan.
+      denial: isDenial(r.data) ? r.data : null,
+      status: r.status,
     });
   }, [path]);
   useEffect(() => {
@@ -80,17 +82,18 @@ export function Empty({ text, icon = "🗂" }: { text: string; icon?: string }) 
   return <div className="tg-empty"><div className="tg-emoji">{icon}</div><p className="tg-hint">{text}</p></div>;
 }
 
-export function Failed({ onRetry, text }: { onRetry?: () => void; text?: string | null }) {
+export function Failed({ onRetry, text, home }: { onRetry?: () => void; text?: string | null; home?: boolean }) {
   const { t } = useTg();
   return (
     <div className="tg-empty">
+      {home && <div className="tg-emoji" aria-hidden>🧭</div>}
       <p className="tg-hint">{text || t("error")}</p>
       {onRetry && <button className="tg-btn ghost" onClick={onRetry}>{t("retry")}</button>}
+      {home && <Link className="tg-btn ghost" href="/tg" onClick={() => haptic.tap()}>{t("go_home")}</Link>}
     </div>
   );
 }
 
-/** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
 /** Kursga yozilmagan foydalanuvchi: murojaat tugmasi bilan (matnlar sozlamalardan). */
 export function Denied({ denial }: { denial: Denial }) {
   const url = denial.contact_url || (denial.contact?.startsWith("@") ? `https://t.me/${denial.contact.slice(1)}` : "");
@@ -99,14 +102,24 @@ export function Denied({ denial }: { denial: Denial }) {
       <div className="tg-empty-icon" aria-hidden>🔒</div>
       <p><b>{denial.title}</b></p>
       <p className="tg-hint">{denial.message}</p>
-      {url && <button className="tg-btn" onClick={() => openLink(url)}>{denial.button || denial.contact}</button>}
+      {backToCourse(denial) && (
+        <Link className="tg-btn" href={`/tg/courses/${denial.course!.id}`} onClick={() => haptic.tap()}>‹ {denial.course!.title}</Link>
+      )}
+      {!backToCourse(denial) && url && <button className="tg-btn" onClick={() => openLink(url)}>{denial.button || denial.contact}</button>}
     </div>
   );
 }
 
-export function Async<T>({ q, children }: { q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null }; children: (data: T) => React.ReactNode }) {
+/** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
+export function Async<T>({ q, children }: {
+  q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null; status?: number };
+  children: (data: T) => React.ReactNode;
+}) {
   if (q.loading && !q.data) return <Loading />;
-  if (q.denial) return <Page><Denied denial={q.denial} /></Page>;
+  // Page ichida ham, tashqarisida ham ishlatiladi — ichma-ich <main> bo'lmasin.
+  if (q.denial) return <Denied denial={q.denial} />;
+  // 404/403: qayta urinish yordam bermaydi — API sababini (masalan, "Dars topilmadi — o'chirilgan bo'lishi mumkin") va bosh sahifa.
+  if ((q.status === 404 || q.status === 403) && !q.data) return <Failed text={q.error} home />;
   if (q.error || !q.data) return <Failed onRetry={q.reload} text={q.error} />;
   return <>{children(q.data)}</>;
 }
@@ -119,19 +132,25 @@ export function Progress({ value, tone }: { value: number; tone?: "ok" | "warn" 
 
 /**
  * Telegram MainButton. Telegram tashqarisida (brauzerda sinash) sahifa ichidagi tugma ko'rsatiladi.
+ * Bosish faqat faol holatda o'tadi (SDK nofaol tugma bosilishini ham yuborishi mumkin), ketma-ket
+ * ikki bosishni handler o'zi to'xtatadi (progress).
  */
 export function MainButton({ text, onClick, disabled, progress, hidden }: {
   text: string; onClick: () => void; disabled?: boolean; progress?: boolean; hidden?: boolean;
 }) {
   const handler = useRef(onClick);
   handler.current = onClick;
+  const blocked = useRef(false);
+  blocked.current = Boolean(disabled || progress || hidden);
   const [native, setNative] = useState(false);
 
   useEffect(() => {
     const wa = webApp();
-    if (!wa) return;
+    if (!wa?.initData) return;
     setNative(true);
-    const cb = () => handler.current();
+    const cb = () => {
+      if (!blocked.current) handler.current();
+    };
     wa.MainButton.onClick(cb);
     return () => {
       wa.MainButton.offClick(cb);
@@ -142,15 +161,31 @@ export function MainButton({ text, onClick, disabled, progress, hidden }: {
 
   useEffect(() => {
     const wa = webApp();
-    if (!wa) return;
+    if (!wa?.initData) return;
     const b = wa.MainButton;
+    const theme = wa.themeParams ?? {};
     b.setText(text);
-    if (hidden) b.hide();
-    else b.show();
-    if (disabled) b.disable();
-    else b.enable();
+    // Tartib muhim: SDK hideProgress() nofaol tugmani qayta faollashtiradi, shuning uchun avval progress.
     if (progress) b.showProgress(false);
     else b.hideProgress();
+    if (disabled && !progress) {
+      b.disable();
+      // Ko'p klientlar nofaol tugmani xiralashtirmaydi — rang bilan ko'rsatamiz.
+      try {
+        b.setParams({ color: theme.secondary_bg_color || "#c8c8cc", text_color: theme.hint_color || "#8a8f98" });
+      } catch {
+        /* eski versiya */
+      }
+    } else if (!progress) {
+      b.enable();
+      try {
+        if (theme.button_color) b.setParams({ color: theme.button_color, text_color: theme.button_text_color || "#ffffff" });
+      } catch {
+        /* eski versiya */
+      }
+    }
+    if (hidden) b.hide();
+    else b.show();
   }, [text, disabled, progress, hidden]);
 
   if (native || hidden) return null;

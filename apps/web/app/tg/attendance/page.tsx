@@ -6,6 +6,7 @@ import { useTg } from "../_lib/TgProvider";
 import type { Group } from "../_lib/data";
 import { pct } from "../_lib/format";
 import { Async, Empty, Failed, Loading, Page, Progress, Section, useApi } from "../_ui/ui";
+import { teachingGroups } from "../_ui/sessions";
 
 type ReportRow = { student_id: number; name: string; counts: Record<string, number>; rate: number };
 
@@ -19,14 +20,23 @@ function Reports({ groups }: { groups: Group[] }) {
   const labels = (settings["attendance.status_labels"] ?? {}) as Record<string, string>;
   const [data, setData] = useState<{ group: Group; rows: ReportRow[] }[] | null | "error">(null);
   const ids = groups.map((g) => g.id).join(",");
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    let cancelled = false;
+    setData(null);
     Promise.all(groups.map(async (g) => {
       const r = await tg<{ data: ReportRow[] }>("GET", `groups/${g.id}/attendance`);
       if (!r.ok) throw new Error();
       return { group: g, rows: r.data.data };
-    })).then(setData).catch(() => setData("error"));
-  }, [ids]);
-  if (data === "error") return <Failed />;
+    }))
+      .then((x) => !cancelled && setData(x))
+      .catch(() => !cancelled && setData("error"));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids, attempt]);
+  if (data === "error") return <Failed onRetry={() => setAttempt((n) => n + 1)} />;
   if (!data) return <Loading />;
   const withRows = data.filter((d) => d.rows.length > 0);
   if (withRows.length === 0) return <Empty text={t("attendance_empty")} icon="✅" />;
@@ -56,12 +66,14 @@ function Reports({ groups }: { groups: Group[] }) {
 }
 
 export default function TgAttendance() {
-  const { t } = useTg();
+  const { t, me, can } = useTg();
   const groups = useApi<{ data: Group[] }>("groups");
+  // Xodim — faqat o'zi dars beradigan guruhlar (admin — hammasi), boshqalar — a'zo bo'lgan faol guruhlar.
+  const pick = (all: Group[]) => (can("attendance.mark") ? teachingGroups(all, me.id, can("group.manage")) : all.filter((g) => g.active));
   return (
     <Page title={t("nav_attendance")}>
       <Async q={groups}>
-        {(d) => d.data.length ? <Reports groups={d.data.filter((g) => g.active)} /> : <Empty text={t("attendance_empty")} icon="✅" />}
+        {(d) => pick(d.data).length ? <Reports groups={pick(d.data)} /> : <Empty text={t("attendance_empty")} icon="✅" />}
       </Async>
     </Page>
   );

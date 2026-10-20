@@ -54,8 +54,9 @@ class CurriculumController
         $lesson->load('module.course', 'materials');
         $course = $lesson->module->course;
         $manage = $request->user()->hasPermission('course.manage');
-        if (! $manage && (! $lesson->published || ! $course->published)) {
-            abort(404);
+        $access->assertOpen($request->user(), $course);
+        if (! $manage && ! $lesson->published) {
+            throw $access->unavailable('LESSON_UNPUBLISHED', 'course.lesson_unavailable', $course);
         }
         $access->authorize($request->user(), $course);
 

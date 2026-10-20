@@ -15,7 +15,7 @@ export function TodaySessions({ groups }: { groups: Group[] }) {
   const { t, tz } = useTg();
   const today = todayKey(tz);
   const q = useSessions(groups, today, today);
-  if (q.error) return <Failed />;
+  if (q.error) return <Failed onRetry={q.reload} />;
   if (!q.data) return <Loading />;
   const list = q.data.filter((s) => !s.cancelled);
   return (
@@ -32,10 +32,13 @@ export function TodaySessions({ groups }: { groups: Group[] }) {
 }
 
 /** Yaqin kunlardagi darslar, kunlar bo'yicha. */
-export function UpcomingSessions({ groups, days, limit, linkSessions }: { groups: Group[]; days: number; limit?: number; linkSessions?: boolean }) {
+export function UpcomingSessions({ groups, days, limit, linkSessions, fromTomorrow }: {
+  groups: Group[]; days: number; limit?: number; linkSessions?: boolean; fromTomorrow?: boolean;
+}) {
   const { t, tz } = useTg();
-  const q = useSessions(groups, todayKey(tz), todayKey(tz, days));
-  if (q.error) return <Failed />;
+  // fromTomorrow: bugungilar alohida ro'yxatda ko'rsatilganda (o'qituvchi "Bugungi darslar") takrorlanmasin.
+  const q = useSessions(groups, todayKey(tz, fromTomorrow ? 1 : 0), todayKey(tz, days));
+  if (q.error) return <Failed onRetry={q.reload} />;
   if (!q.data) return <Loading />;
   const now = Date.now();
   const list = q.data.filter((s) => new Date(s.ends_at).getTime() > now).slice(0, limit ?? 200);

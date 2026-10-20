@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Support\Permissions;
 use App\Support\Settings;
+use App\Telegram\InitData;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -48,6 +49,17 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return $limits;
+        });
+        // Mini App kirishi: barcha so'rovlar Next (Vercel) serveridan keladi — IP bo'yicha cheklansa, dars boshida
+        // hamma o'quvchi bitta limitga tushib qoladi. Hisoblagich Telegram user id bo'yicha; IP bo'yicha — keng zaxira.
+        RateLimiter::for('miniapp', function (Request $r) {
+            $s = app(Settings::class);
+            $tgId = InitData::unverifiedUserId((string) $r->input('init_data'));
+
+            return [
+                Limit::perMinute($s->int('security.login_per_minute'))->by($tgId ? 'tg:'.$tgId : 'tg-noid:'.$r->ip()),
+                Limit::perMinute(max(300, $s->int('security.api_per_minute')))->by('tg-ip:'.$r->ip()),
+            ];
         });
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(
             app(Settings::class)->int('security.api_per_minute'))->by($r->user()?->id ?: $r->ip()));

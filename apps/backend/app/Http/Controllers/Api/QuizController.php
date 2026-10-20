@@ -26,7 +26,9 @@ class QuizController
     {
         $user = $request->user();
         $manage = $user->hasPermission('quiz.manage');
-        abort_unless($manage || $course->published, 404);
+        if (! $manage) {
+            $access->assertOpen($user, $course);
+        }
         $granted = $manage || $access->granted($user, $course);
         $quizzes = $course->quizzes()
             ->when(! $manage, fn ($q) => $q->where('published', true))
@@ -69,8 +71,7 @@ class QuizController
             return response()->json(['quiz' => $quiz->load('questions.options', 'course:id,title,created_by'),
                 'can_edit' => CourseController::canEdit($user, $quiz->course)]);
         }
-        abort_unless($quiz->published && $quiz->course->published, 404);
-        $access->authorize($user, $quiz->course);
+        $this->assertQuizOpen($access, $user, $quiz);
         $attempts = QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id])->orderByDesc('id')->get();
         $eligible = $this->eligible($user, $quiz);
 
@@ -203,8 +204,7 @@ class QuizController
     public function start(Request $request, CourseAccess $access, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
-        abort_unless($quiz->published && $quiz->course->published, 404);
-        $access->authorize($user, $quiz->course);
+        $this->assertQuizOpen($access, $user, $quiz);
         abort_unless($this->eligible($user, $quiz), 403, 'Bu test sizning guruhingiz kursiga tegishli emas.');
 
         $attempt = DB::transaction(function () use ($quiz, $user) {
@@ -348,5 +348,15 @@ class QuizController
         }
 
         return $data;
+    }
+
+    /** Kurs ochiq (e'lon qilingan yoki o'z guruhi kursi), test e'lon qilingan va kontentga huquq bor. */
+    private function assertQuizOpen(CourseAccess $access, User $user, Quiz $quiz): void
+    {
+        $access->assertOpen($user, $quiz->course);
+        if (! $quiz->published) {
+            throw $access->unavailable('QUIZ_UNPUBLISHED', 'quiz.unavailable', $quiz->course);
+        }
+        $access->authorize($user, $quiz->course);
     }
 }
