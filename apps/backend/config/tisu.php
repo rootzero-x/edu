@@ -12,7 +12,7 @@
 
 $allPermissions = [
     'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
-    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage',
+    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage', 'lead.manage',
 ];
 
 return [
@@ -21,7 +21,7 @@ return [
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
         'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
-        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'billing' => "To'lovlar", 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'billing' => "To'lovlar", 'leads' => 'Arizalar', 'enrollment' => "A'zolik", 'import' => 'Import', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
         'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
     ],
 
@@ -434,6 +434,16 @@ return [
             'today' => 'Bugun',
             'tomorrow' => 'Ertaga',
             'my_children' => 'Farzandlarim',
+            'child_groups' => 'Guruhlari',
+            'child_attendance' => "Davomat (so'nggi {days} kun)",
+            'child_quizzes' => 'Test natijalari',
+            'child_balance' => "To'lov holati",
+            'child_debt' => 'Qarzdorlik: {amount}',
+            'child_no_debt' => "Qarzdorlik yo'q",
+            'child_next' => 'Keyingi dars',
+            'child_recent' => "So'nggi darslar",
+            'child_certificates' => 'Sertifikatlar',
+            'child_status_frozen' => 'Muzlatilgan: {to} gacha',
             'no_access' => "Bu bo'lim sizning rolingiz uchun mavjud emas.",
             'teacher' => "O'qituvchi",
             'room' => 'Xona',
@@ -508,6 +518,79 @@ return [
         'telegram.text.balance_line' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: yozuv qatori ({date}, {type}, {amount}, {method})", 'default' => '• {date} · {type} · {amount} {method}'],
         'telegram.text.balance_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: balans ma'lumoti yo'q", 'default' => "To'lovlar bo'yicha ma'lumot yo'q."],
 
+        // ── Arizalar (lidlar): sayt formasi, bot «Ariza», qo'ng'iroqlar ──
+        'leads.form_enabled' => ['group' => 'leads', 'type' => 'bool', 'public' => true, 'label' => "Bosh sahifada ariza formasi", 'default' => true],
+        'leads.form_title' => ['group' => 'leads', 'type' => 'string', 'public' => true, 'label' => 'Forma: sarlavha', 'default' => 'Bepul sinov darsiga yoziling'],
+        'leads.form_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: matn', 'default' => "Ma'lumotlaringizni qoldiring — administrator siz bilan bog'lanib, qulay vaqtni kelishib oladi."],
+        'leads.form_labels' => ['group' => 'leads', 'type' => 'object', 'public' => true, 'label' => 'Forma: maydon va tugma nomlari', 'default' => [
+            'name' => 'Ismingiz', 'phone' => 'Telefon raqamingiz', 'phone_hint' => '90 123 45 67', 'course' => 'Qaysi kurs qiziqtiradi?',
+            'course_any' => 'Hali bilmayman', 'comment' => 'Izoh (ixtiyoriy)', 'button' => 'Ariza yuborish', 'sending' => 'Yuborilmoqda…',
+            'phone_invalid' => "Telefon raqamini to'liq kiriting, masalan: 90 123 45 67", 'name_required' => 'Ismingizni kiriting',
+            'consent_required' => 'Davom etish uchun rozilik belgisini qo\'ying', 'error' => "Ariza yuborilmadi. Birozdan keyin qayta urinib ko'ring yoki qo'ng'iroq qiling.",
+        ]],
+        'leads.consent_required' => ['group' => 'leads', 'type' => 'bool', 'public' => true, 'label' => "Formada rozilik belgisi majburiy", 'default' => true],
+        'leads.consent_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: rozilik matni', 'default' => "Ma'lumotlarim ariza bo'yicha men bilan bog'lanish uchun ishlatilishiga roziman."],
+        'leads.success_text' => ['group' => 'leads', 'type' => 'text', 'public' => true, 'label' => 'Forma: yuborilgandan keyingi matn', 'default' => "Rahmat! Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."],
+        'leads.public_per_hour' => ['group' => 'leads', 'type' => 'int', 'min' => 1, 'max' => 1000, 'label' => "Bitta IP dan soatiga nechta ariza qabul qilinadi", 'default' => 5],
+        'leads.public_per_phone_per_day' => ['group' => 'leads', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Bitta telefon raqamidan kuniga nechta ariza", 'default' => 3],
+        'leads.min_fill_seconds' => ['group' => 'leads', 'type' => 'int', 'min' => 0, 'max' => 60, 'label' => "Forma shundan tez to'ldirilsa — bot (spam) deb hisoblanadi (soniya)", 'default' => 3],
+        'leads.duplicate_window_days' => ['group' => 'leads', 'type' => 'int', 'min' => 0, 'max' => 365, 'label' => "Shu kunlar ichida o'sha raqamdan ochiq ariza bo'lsa — yangisi ochilmaydi, mavjudiga qo'shiladi", 'default' => 30],
+        'leads.bot_enabled' => ['group' => 'leads', 'type' => 'bool', 'label' => "Botda «Ariza qoldirish» tugmasi", 'default' => true],
+        'leads.notify_admins' => ['group' => 'leads', 'type' => 'bool', 'label' => "Yangi ariza haqida admin chatlariga Telegram xabar", 'default' => true],
+        'leads.sources' => ['group' => 'leads', 'type' => 'object', 'public' => true, 'label' => 'Ariza manbalari (kalit → nom). site va bot — tizim kalitlari', 'default' => [
+            'site' => 'Sayt', 'bot' => 'Telegram bot', 'phone' => "Telefon qo'ng'irog'i", 'walk_in' => "O'zi keldi", 'referral' => 'Tanish-bilish',
+            'instagram' => 'Instagram', 'import' => 'Import', 'other' => 'Boshqa',
+        ]],
+        'leads.status_labels' => ['group' => 'leads', 'type' => 'object', 'public' => true, 'label' => 'Ariza holatlari nomlari', 'default' => [
+            'NEW' => 'Yangi', 'CONTACTED' => "Bog'lanildi", 'TRIAL' => 'Sinov darsi', 'ENROLLED' => 'Yozildi', 'LOST' => 'Rad etdi',
+        ]],
+        'leads.lost_reasons' => ['group' => 'leads', 'type' => 'list', 'public' => true, 'label' => 'Rad etish sabablari', 'default' => [
+            'Narx qimmat', "Vaqt to'g'ri kelmadi", 'Javob bermadi', 'Boshqa markazni tanladi', 'Shunchaki qiziqdi', 'Boshqa',
+        ]],
+        'telegram.text.admin_new_lead' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga yangi ariza ({name}, {phone}, {course}, {source}, {comment}, {url})", 'default' => "📝 Yangi ariza · {source}\n👤 {name}\n📱 {phone}\n📚 {course}\n💬 {comment}\n{url}"],
+        'telegram.text.btn_lead' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: ariza qoldirish', 'default' => '📝 Ariza qoldirish'],
+        'telegram.text.lead_pick_course' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza — kurs tanlash', 'default' => "📝 Qaysi kursga yozilmoqchisiz?"],
+        'telegram.text.lead_course_any' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: ariza — «bilmayman» tugmasi', 'default' => '🤷 Hali bilmayman'],
+        'telegram.text.lead_ask_phone' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza — telefon so\'rash', 'default' => "Telefon raqamingizni pastdagi tugma orqali yuboring — administrator siz bilan bog'lanadi."],
+        'telegram.text.lead_done' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza qabul qilindi ({name}, {course})', 'default' => "✅ Rahmat, {name}! Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."],
+        'telegram.text.lead_disabled' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza qabul qilinmaydi", 'default' => "Hozircha bot orqali ariza qabul qilinmayapti. Iltimos, qo'ng'iroq qiling: {phone}"],
+
+        // ── A'zolik (o'qish holati): muzlatish, ko'chirish, chiqish, bitirish ──
+        'enrollment.status_labels' => ['group' => 'enrollment', 'type' => 'object', 'public' => true, 'label' => "A'zolik holatlari nomlari", 'default' => [
+            'ACTIVE' => "O'qimoqda", 'FROZEN' => 'Muzlatilgan', 'LEFT' => 'Chiqib ketgan', 'GRADUATED' => 'Bitirgan', 'TRANSFERRED' => "Boshqa guruhga o'tgan",
+        ]],
+        'enrollment.leave_reasons' => ['group' => 'enrollment', 'type' => 'list', 'public' => true, 'label' => "Guruhdan chiqish sabablari", 'default' => [
+            "Ko'chib ketdi", 'Narx qimmat', "Vaqt to'g'ri kelmadi", "O'qituvchi yoqmadi", 'Natija sezilmadi', 'Boshqa markazga o\'tdi', "Qo'shilish xato bo'lgan", 'Boshqa',
+        ]],
+        'enrollment.freeze_reasons' => ['group' => 'enrollment', 'type' => 'list', 'public' => true, 'label' => 'Muzlatish sabablari', 'default' => [
+            'Kasallik', 'Safar', 'Imtihonlar', 'Moliyaviy sabab', 'Boshqa',
+        ]],
+        'enrollment.require_reason' => ['group' => 'enrollment', 'type' => 'bool', 'public' => true, 'label' => "Chiqish va muzlatishda sabab majburiy", 'default' => true],
+        'enrollment.max_freeze_days' => ['group' => 'enrollment', 'type' => 'int', 'min' => 1, 'max' => 366, 'label' => 'Bir muzlatishning eng uzoq muddati (kun)', 'default' => 90],
+        'enrollment.max_backdate_days' => ['group' => 'enrollment', 'type' => 'int', 'min' => 0, 'max' => 366, 'label' => "Muzlatish/chiqish/ko'chirishni necha kun orqaga yozish mumkin", 'default' => 31],
+        'enrollment.refund_backdated' => ['group' => 'enrollment', 'type' => 'bool', 'label' => "Orqa sana bilan muzlatish/chiqishda o'sha kunlar uchun hisoblangan summani tuzatish bilan qaytarish", 'default' => true],
+        'enrollment.refund_note' => ['group' => 'enrollment', 'type' => 'string', 'label' => "Qaytarish yozuvi izohi ({status}, {group}, {from}, {to}, {days})", 'default' => '{status} · {group}: {from} — {to} ({days} kun) hisoblash qaytarildi'],
+
+        // ── Import (Excel/CSV) ──
+        'import.columns' => ['group' => 'import', 'type' => 'object', 'public' => true, 'label' => "Import ustunlari (kalit → shablondagi sarlavha)", 'default' => [
+            'first_name' => 'Ism', 'last_name' => 'Familiya', 'phone' => 'Telefon', 'parent_name' => 'Ota-ona ismi',
+            'parent_phone' => 'Ota-ona telefoni', 'group' => 'Guruh', 'start_date' => "Qo'shilgan sana",
+        ]],
+        'import.max_rows' => ['group' => 'import', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => 'Bir fayldagi eng ko\'p qatorlar', 'default' => 2000],
+        'import.max_file_kb' => ['group' => 'import', 'type' => 'int', 'min' => 50, 'max' => 10240, 'label' => 'Fayl hajmi chegarasi (KB)', 'default' => 3072],
+        'import.update_names' => ['group' => 'import', 'type' => 'bool', 'label' => "Mavjud o'quvchining ism-familiyasini fayldagisi bilan yangilash", 'default' => false],
+
+        // ── Qidiruv va boshlang'ich sozlash ro'yxati ──
+        'ui.search_limit' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 50, 'label' => 'Umumiy qidiruv (Ctrl+K): natijalar soni', 'default' => 20],
+        'ui.setup_checklist' => ['group' => 'ui', 'type' => 'bool', 'label' => "Bosh sahifada yangi admin uchun «Boshlash» ro'yxati", 'default' => true],
+        'ui.setup_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => "«Boshlash» ro'yxati bandlari", 'default' => [
+            'title' => 'Platformani sozlashni yakunlang', 'text' => "Har bir band haqiqiy ma'lumotdan belgilanadi. Hammasi tayyor bo'lgach ro'yxat yashiriladi.",
+            'site' => "Markaz nomi va aloqa ma'lumotlari", 'bot' => 'Telegram botni ulang va admin chatini qo\'shing', 'telegram' => "O'z Telegramingizni ulang",
+            'billing' => "Kurs narxini tasdiqlang", 'course' => 'Birinchi kursni yarating', 'teacher' => "O'qituvchi qo'shing",
+            'group' => 'Guruh oching', 'schedule' => 'Guruhga dars jadvalini kiriting', 'students' => "O'quvchilarni qo'shing yoki Excel'dan import qiling",
+            'dismiss' => 'Yashirish',
+        ]],
+
         // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──
         'automation.generate_sessions' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni jadvaldan darslarni oldindan yaratish', 'default' => true],
         'automation.lesson_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars oldidan o'quvchilarga Telegram eslatma", 'default' => true],
@@ -535,7 +618,7 @@ return [
         // ── Interfeys ────────────────────────────────────────
         'ui.nav_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => 'Panel menyusi nomlari (manzil → nom)', 'default' => [
             '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
-            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/billing' => "To'lovlar", '/dashboard/profile' => 'Profil',
+            '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/billing' => "To'lovlar", '/dashboard/leads' => 'Arizalar', '/dashboard/children' => 'Farzandlarim', '/dashboard/profile' => 'Profil',
             '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/settings' => 'Sozlamalar',
         ]],
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
@@ -546,7 +629,7 @@ return [
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
             'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
-                'report.view', 'user.manage', 'announcement.manage', 'billing.manage'],
+                'report.view', 'user.manage', 'announcement.manage', 'billing.manage', 'lead.manage'],
             'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
             'STUDENT' => ['course.view', 'quiz.take'],
             'PARENT' => ['course.view'],

@@ -61,6 +61,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/groups', [GroupController::class, 'index']);
         Route::get('/groups/{group}', [GroupController::class, 'show'])->whereNumber('group');
         Route::get('/groups/{group}/sessions', [GroupController::class, 'sessions'])->whereNumber('group');
+        Route::get('/groups/{group}/members', [GroupController::class, 'members'])->whereNumber('group');
+        Route::get('/groups/{group}/members/{student}/history', [GroupController::class, 'memberHistory'])->whereNumber('group');
         Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
         Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
         Route::middleware('perm:attendance.mark')->group(function () {
@@ -77,6 +79,13 @@ Route::prefix('v1')->group(function () {
             Route::patch('/groups/{group}', [GroupController::class, 'update']);
             Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);
             Route::delete('/groups/{group}/members/{student}', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/members/bulk', [GroupController::class, 'addMembers']);
+            Route::post('/groups/{group}/members/{student}/leave', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/members/{student}/freeze', [GroupController::class, 'freezeMember']);
+            Route::post('/groups/{group}/members/{student}/unfreeze', [GroupController::class, 'unfreezeMember']);
+            Route::post('/groups/{group}/members/{student}/transfer', [GroupController::class, 'transferMember']);
+            Route::post('/groups/{group}/members/{student}/graduate', [GroupController::class, 'graduateMember']);
+            Route::post('/groups/{group}/graduate', [GroupController::class, 'graduateAll']);
             Route::post('/groups/{group}/sessions/generate', [GroupController::class, 'generateSessions']);
         });
 
