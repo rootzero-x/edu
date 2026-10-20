@@ -133,6 +133,7 @@ return [
         'auth.min_password_length' => ['group' => 'security', 'type' => 'int', 'min' => 8, 'max' => 64, 'label' => 'Parol minimal uzunligi', 'default' => 10],
         'security.login_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Login urinishlari / daqiqa', 'default' => 10],
         'security.login_per_hour_per_phone' => ['group' => 'security', 'type' => 'int', 'min' => 5, 'max' => 1000, 'label' => 'Bitta telefon uchun soatiga login urinishlari', 'default' => 30],
+        'security.teacher_phone_visible' => ['group' => 'security', 'type' => 'bool', 'label' => "O'qituvchi telefoni o'quvchi va ota-onalarga ko'rinsin", 'default' => false],
         'security.api_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => "API so'rovlari / daqiqa", 'default' => 120],
 
         // ── Telegram ─────────────────────────────────────────

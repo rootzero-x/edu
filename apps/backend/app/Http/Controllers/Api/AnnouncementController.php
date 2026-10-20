@@ -94,7 +94,7 @@ class AnnouncementController
     public function update(Request $request, Announcement $announcement): JsonResponse
     {
         $this->authorizeOwn($request->user(), $announcement);
-        $announcement->update($this->validated($request, partial: true));
+        $announcement->update($this->validated($request, partial: true, current: $announcement));
 
         return response()->json(['announcement' => $this->present($announcement->fresh(['author', 'group']))]);
     }
@@ -104,6 +104,8 @@ class AnnouncementController
         $this->authorizeOwn($request->user(), $announcement);
         $data = $request->validate(['published' => ['required', 'boolean']]);
         if ($data['published']) {
+            // O'qituvchi guruhdan olib tashlangan bo'lsa, eski e'lonini endi u guruhga yubora olmaydi.
+            $this->assertTeacherGroup($request->user(), $announcement->audience, $announcement->group_id);
             $sent = $this->doPublish($announcement, $settings, $notifier);
         } else {
             $announcement->update(['published_at' => null]);
@@ -129,10 +131,14 @@ class AnnouncementController
     private function doPublish(Announcement $a, Settings $settings, Notifier $notifier): int
     {
         $a->update(['published_at' => $a->published_at ?? now()]);
-        if (! $a->notify_telegram || $a->notified_at) {
+        if (! $a->notify_telegram) {
             return 0;
         }
-        $a->update(['notified_at' => now()]);
+        // Atomar: bir vaqtdagi ikki so'rov (ikki marta bosish) xabarni ikki marta yubormasin.
+        $claimed = Announcement::whereKey($a->id)->whereNull('notified_at')->update(['notified_at' => now()]);
+        if ($claimed === 0) {
+            return 0;
+        }
         $recipients = $this->audienceUserIds($a);
         $url = rtrim((string) $settings->get('site.url'), '/').'/dashboard/news';
         $vars = ['title' => $a->title, 'body' => mb_strimwidth($a->body, 0, 1500, '…'), 'url' => $url];
@@ -170,12 +176,21 @@ class AnnouncementController
             ->count();
     }
 
+    private function assertTeacherGroup(User $user, ?string $audience, mixed $groupId): void
+    {
+        if ($user->isAdmin()) {
+            return;
+        }
+        abort_unless($audience === 'GROUP' && GroupController::visible($user)->where('teacher_id', $user->id)
+            ->whereKey((int) ($groupId ?? 0))->exists(), 403, "O'qituvchi faqat o'z guruhiga e'lon bera oladi.");
+    }
+
     private function authorizeOwn(User $user, Announcement $a): void
     {
         abort_unless($user->isAdmin() || (int) $a->created_by === (int) $user->id, 403, 'Bu e\'lonni faqat muallif yoki administrator o\'zgartiradi.');
     }
 
-    private function validated(Request $request, bool $partial = false): array
+    private function validated(Request $request, bool $partial = false, ?Announcement $current = null): array
     {
         $req = $partial ? 'sometimes' : 'required';
         $data = $request->validate([
@@ -191,14 +206,21 @@ class AnnouncementController
         ]);
         $user = $request->user();
         $audience = $data['audience'] ?? null;
-        // O'qituvchi (admin emas) faqat o'z guruhlariga e'lon beradi.
-        if (! $user->isAdmin() && $audience !== null) {
-            abort_unless($audience === 'GROUP' && GroupController::visible($user)->where('teacher_id', $user->id)
-                ->whereKey($data['group_id'] ?? 0)->exists(), 403, "O'qituvchi faqat o'z guruhiga e'lon bera oladi.");
-        }
+        // O'qituvchi (admin emas) faqat o'z guruhlariga e'lon beradi — auditoriya yoki guruh
+        // so'rovda bo'lmasa ham, yakuniy (saqlanadigan) qiymatlar tekshiriladi.
+        $this->assertTeacherGroup($user, $audience ?? $current?->audience,
+            array_key_exists('group_id', $data) ? $data['group_id'] : $current?->group_id);
         if ($audience !== null) {
             $data['audience_role'] = $audience === 'ROLE' ? $data['audience_role'] : null;
             $data['group_id'] = $audience === 'GROUP' ? $data['group_id'] : null;
+        } elseif ($current) {
+            // Auditoriya o'zgarmasa, unga tegishli bo'lmagan maydon saqlanmaydi.
+            if (array_key_exists('group_id', $data) && $current->audience !== 'GROUP') {
+                $data['group_id'] = null;
+            }
+            if (array_key_exists('audience_role', $data) && $current->audience !== 'ROLE') {
+                $data['audience_role'] = null;
+            }
         }
         // Ochiq (bosh sahifadagi) e'lon faqat "hammaga" bo'ladi.
         if (($data['is_public'] ?? false) && ($audience ?? 'ALL') !== 'ALL') {

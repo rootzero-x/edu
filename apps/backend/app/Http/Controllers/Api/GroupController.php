@@ -12,6 +12,7 @@ use App\Support\Settings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 
 class GroupController
@@ -52,8 +53,9 @@ class GroupController
     {
         // Telefon raqamlari faqat xodimlarga (o'quvchi/ota-ona sinfdoshlarining raqamini ko'rmaydi).
         $staff = $request->user()->hasPermission('attendance.mark') || $request->user()->hasPermission('group.manage');
+        $teacherPhone = $staff || app(Settings::class)->bool('security.teacher_phone_visible');
         $g = self::findVisible($request->user(), $group)
-            ->load(['course:id,title', 'teacher:id,first_name,last_name,phone', 'branch:id,name', 'schedules',
+            ->load(['course:id,title', 'teacher:id,first_name,last_name'.($teacherPhone ? ',phone' : ''), 'branch:id,name', 'schedules',
                 'students' => fn ($q) => $q->select(array_merge(['users.id', 'first_name', 'last_name'],
                     $staff ? ['phone'] : []))->orderBy('first_name')]);
 
@@ -80,6 +82,17 @@ class GroupController
         $data = $request->validate($this->rules(partial: true));
         if (isset($data['teacher_id'])) {
             $this->assertTeacher($data['teacher_id']);
+        }
+        // Qisman yangilashda sana oralig'i saqlangan qiymat bilan solishtiriladi.
+        $start = $data['start_date'] ?? $group->start_date?->toDateString();
+        $end = array_key_exists('end_date', $data) ? $data['end_date'] : $group->end_date?->toDateString();
+        if ($start && $end && strtotime((string) $end) < strtotime((string) $start)) {
+            throw ValidationException::withMessages(['end_date' => "Tugash sanasi boshlanish sanasidan oldin bo'lishi mumkin emas."]);
+        }
+        // Darslar/a'zolar bor guruhning kursi o'zgarmaydi: davomat, testlar va sertifikatlar eski kursga bog'langan.
+        if (isset($data['course_id']) && (int) $data['course_id'] !== (int) $group->course_id
+            && (DB::table('class_sessions')->where('group_id', $group->id)->exists() || DB::table('group_members')->where('group_id', $group->id)->exists())) {
+            throw ValidationException::withMessages(['course_id' => "Guruhda darslar yoki o'quvchilar bor — kursni o'zgartirib bo'lmaydi. Yangi guruh oching."]);
         }
         DB::transaction(function () use ($group, $data) {
             $group->update($data);

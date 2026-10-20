@@ -68,6 +68,10 @@ class BotAdmin
             'username' => $username ? '@'.$username : '',
         ]);
         foreach ((array) $this->settings->get('telegram.admin_chat_ids') as $chatId) {
+            // Ro'yxatda qolib ketgan, lekin endi admin bo'lmagan chatga telefon raqamlari ketmasin.
+            if (! $this->isAdmin((int) $chatId)) {
+                continue;
+            }
             try {
                 $this->tg->sendMessage((int) $chatId, $text);
             } catch (Throwable $e) {

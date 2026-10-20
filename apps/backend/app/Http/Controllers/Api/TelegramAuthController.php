@@ -49,7 +49,9 @@ class TelegramAuthController
         if ($row->status === 'PENDING') {
             return response()->json(['status' => now()->greaterThan($row->expires_at) ? 'expired' : 'pending']);
         }
+        // Tasdiqlangan, lekin muddatidan keyin olinmagan so'rov token bermaydi (2 daqiqa zaxira: tasdiq oxirgi soniyada bo'lishi mumkin).
         $consumed = DB::table('telegram_login_requests')->where('code', $row->code)->where('status', 'CONFIRMED')
+            ->where('expires_at', '>', now()->subMinutes(2))
             ->update(['status' => 'CONSUMED', 'updated_at' => now()]);
         if (! $consumed) {
             return response()->json(['status' => 'expired']);

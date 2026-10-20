@@ -67,9 +67,9 @@ class UserController
             'password' => ['sometimes', 'string', 'min:'.app(Settings::class)->int('auth.min_password_length')],
         ]);
         $actor = $request->user();
-        $this->guardRole($actor, $user->role);
+        $this->guardRole($actor, $user->role, $user);
         if (isset($data['role'])) {
-            $this->guardRole($actor, Role::from($data['role']));
+            $this->guardRole($actor, Role::from($data['role']), $user);
         }
         if ((int) $user->id === (int) $actor->id && (($data['active'] ?? true) === false || isset($data['role']))) {
             abort(422, 'O\'zingizning rolingiz yoki holatingizni o\'zgartira olmaysiz.');
@@ -112,11 +112,19 @@ class UserController
         return response()->json(['ok' => true]);
     }
 
-    /** ADMIN SUPER_ADMIN yarata/o'zgartira olmaydi. */
-    private function guardRole(User $actor, Role $target): void
+    /**
+     * Administratorlar faqat SUPER_ADMIN tomonidan yaratiladi/o'zgartiriladi: oddiy ADMIN boshqa
+     * admin akkauntini (telefon/parol/holat) o'zgartirib egallab ololmaydi va admin tayinlay olmaydi.
+     * O'z akkauntini (ism, parol) tahrirlash mumkin.
+     */
+    private function guardRole(User $actor, Role $target, ?User $subject = null): void
     {
-        if ($target === Role::SuperAdmin && $actor->role !== Role::SuperAdmin) {
-            abort(403, 'Ruxsat yo\'q.');
+        if ($actor->role === Role::SuperAdmin) {
+            return;
+        }
+        $self = $subject && (int) $subject->id === (int) $actor->id;
+        if (in_array($target, [Role::Admin, Role::SuperAdmin], true) && ! $self) {
+            abort(403, 'Administratorlarni faqat bosh administrator boshqaradi.');
         }
     }
 }

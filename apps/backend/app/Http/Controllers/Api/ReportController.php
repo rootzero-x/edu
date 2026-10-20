@@ -116,13 +116,19 @@ class ReportController
             foreach ($rows->groupBy(fn ($r) => $r->group_id.':'.$r->student_id) as $c) {
                 $sum = $this->summarize($c->pluck('status')->all());
                 fputcsv($out, array_merge(
-                    [$c->first()->group_name, trim($c->first()->s_first.' '.$c->first()->s_last), $c->first()->s_phone],
+                    array_map(self::cell(...), [$c->first()->group_name, trim($c->first()->s_first.' '.$c->first()->s_last), (string) $c->first()->s_phone]),
                     array_map(fn ($s) => $sum['counts'][$s], self::STATUSES),
                     [$sum['rate'] ?? ''],
                 ), ';');
             }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Excel formula injection'dan himoya: =, @, +, - bilan boshlanuvchi matn (oddiy telefon raqamidan tashqari) qiymat sifatida yoziladi. */
+    private static function cell(string $v): string
+    {
+        return preg_match('/^[=@\t\r]|^[+\-](?!\d+$)/', $v) ? "'".$v : $v;
     }
 
     /** @return array{0:Carbon,1:Carbon,2:list<int>} */

@@ -125,12 +125,22 @@ class QuizController
     {
         CourseController::authorizeEdit($request->user(), $question->quiz->course);
         $data = $this->validateQuestion($request, $question->type);
-        DB::transaction(function () use ($question, $data) {
+        $attempted = QuizAttempt::where('quiz_id', $question->quiz_id)->exists();
+        if ($attempted && isset($data['options'])) {
+            // Topshirilgan javoblar variant id'lariga bog'langan: variantlar o'chirilib qayta yaratilmaydi.
+            abort_if(count($data['options']) !== $question->options()->count(), 409,
+                "Testni topshirganlar bor: variantlar sonini o'zgartirib bo'lmaydi (matnini tahrirlash mumkin).");
+        }
+        DB::transaction(function () use ($question, $data, $attempted) {
             $question->update(array_filter([
                 'text' => $data['text'] ?? null, 'points' => $data['points'] ?? null, 'position' => $data['position'] ?? null,
                 'accepted_answers' => $question->type === 'TEXT' && isset($data['accepted_answers']) ? array_values($data['accepted_answers']) : null,
             ], fn ($v) => $v !== null));
-            if (isset($data['options'])) {
+            if (isset($data['options']) && $attempted) {
+                foreach ($question->options()->orderBy('position')->orderBy('id')->get()->values() as $i => $opt) {
+                    $opt->update(['text' => $data['options'][$i]['text'], 'is_correct' => (bool) $data['options'][$i]['is_correct']]);
+                }
+            } elseif (isset($data['options'])) {
                 $question->options()->delete();
                 foreach ($data['options'] as $i => $o) {
                     $question->options()->create(['text' => $o['text'], 'is_correct' => (bool) $o['is_correct'], 'position' => $i + 1]);
@@ -144,6 +154,8 @@ class QuizController
     public function destroyQuestion(Request $request, Question $question): JsonResponse
     {
         CourseController::authorizeEdit($request->user(), $question->quiz->course);
+        abort_if(QuizAttempt::where('quiz_id', $question->quiz_id)->exists(), 409,
+            "Testni topshirganlar bor: savolni o'chirib bo'lmaydi. Yangi test yarating yoki testni yashiring.");
         $question->delete();
 
         return response()->json(['ok' => true]);
@@ -198,12 +210,12 @@ class QuizController
         $user = $request->user();
         abort_unless((int) $attempt->student_id === (int) $user->id, 404);
         abort_if($attempt->submitted_at, 422, 'Bu urinish allaqachon topshirilgan.');
-        $data = $request->validate(['answers' => ['present', 'array'], 'answers.*' => ['array', 'max:50'], 'answers.*.*' => ['string', 'max:2000']]);
+        $data = $request->validate(['answers' => ['present', 'array', 'max:500'], 'answers.*' => ['array', 'max:50'], 'answers.*.*' => ['nullable', 'string', 'max:2000']]);
 
         $quiz = $attempt->quiz->load('questions.options');
         $blocker = QuizGrader::submitBlocker($quiz->max_attempts, $quiz->time_limit_sec, 0, $attempt->started_at, now(),
             $settings->int('quiz.submit_grace_seconds'));
-        $answers = $blocker === 'TIME_EXPIRED' ? [] : array_map(fn ($a) => array_values(array_map('strval', $a)), $data['answers']);
+        $answers = $blocker === 'TIME_EXPIRED' ? [] : array_map(fn ($a) => array_values(array_filter(array_map('strval', $a), fn ($x) => trim($x) !== '')), $data['answers']);
 
         $questions = $quiz->questions->mapWithKeys(fn ($q) => [(string) $q->id => $q->forGrader()])->all();
         $result = QuizGrader::grade($questions, $answers, $quiz->pass_percent);

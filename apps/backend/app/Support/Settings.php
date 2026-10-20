@@ -66,6 +66,10 @@ final class Settings
                 $errors[$key] = "Noma'lum sozlama.";
                 continue;
             }
+            // Bo'sh maydon (ConvertEmptyStringsToNull tufayli null keladi) — bo'sh satr.
+            if ($value === null && in_array($defs[$key]['type'], ['string', 'text'], true)) {
+                $value = '';
+            }
             // Obyekt sozlamalar qisman yangilanadi: yuborilmagan kalitlar saqlanib qoladi.
             if ($defs[$key]['type'] === 'object' && is_array($value) && ! array_is_list($value)) {
                 $current = (array) $this->get($key);
