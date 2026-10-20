@@ -91,7 +91,7 @@ export default function Overview({ initial, firstName, children }: { initial: Su
 
       <div className={s.cols}>
         <Card>
-          <CardHeader title="Bugungi jadval" description={`${data.today.length} ta mashg'ulot`} actions={<ButtonLink href="/dashboard/groups" variant="ghost" size="sm">Guruhlar</ButtonLink>} />
+          <CardHeader title="Bugungi jadval" description={`${data.today.length} ta mashg'ulot`} actions={<ButtonLink href="/dashboard/calendar" variant="ghost" size="sm">Taqvim</ButtonLink>} />
           {data.today.length === 0 ? (
             <EmptyState compact icon={<CalendarX2 />} title="Bugun mashg'ulot yo'q">Jadvaldagi mashg&apos;ulotlar shu yerda ko&apos;rinadi.</EmptyState>
           ) : (

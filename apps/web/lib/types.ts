@@ -16,7 +16,7 @@ export type Summary = {
 export type Person = { id: number; first_name: string; last_name: string | null; phone?: string };
 export type Schedule = { weekday: number; start_time: string; end_time: string };
 export type GroupRow = {
-  id: number; name: string; active: boolean; room: string | null; students_count: number; start_date: string;
+  id: number; name: string; active: boolean; room: string | null; room_id?: number | null; students_count: number; start_date: string;
   course: { id?: number; title: string } | null; teacher: Person | null; schedules: Schedule[];
 };
 export type GroupDetail = GroupRow & { students: Person[] };

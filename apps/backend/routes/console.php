@@ -49,3 +49,6 @@ $tracked(Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping(
 // To'lovlar: bugungi kunni hisoblash (o'tkazib yuborilgan kunlar bilan) va qarz eslatmasi — vaqt app.timezone bo'yicha.
 $tracked(Schedule::command('tisu:billing-accrue')->dailyAt('00:20')->withoutOverlapping(), 'tisu:billing-accrue');
 $tracked(Schedule::command('tisu:billing-remind-debts')->dailyAt('10:00')->withoutOverlapping(), 'tisu:billing-remind-debts');
+// Uyga vazifa: muddat eslatmasi va o'qituvchiga natija; egasiz qolgan yuklangan fayllarni tozalash.
+$tracked(Schedule::command('tisu:remind-homework')->everyFifteenMinutes()->withoutOverlapping(), 'tisu:remind-homework');
+$tracked(Schedule::command('tisu:files-sweep')->dailyAt('04:40')->withoutOverlapping(), 'tisu:files-sweep');

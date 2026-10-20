@@ -143,9 +143,16 @@ class AnnouncementController
         $url = rtrim((string) $settings->get('site.url'), '/').'/dashboard/news';
         $vars = ['title' => $a->title, 'body' => mb_strimwidth($a->body, 0, 1500, '…'), 'url' => $url];
         $id = $a->id;
-        defer(function () use ($notifier, $recipients, $vars, $id) {
+        $markRead = $settings->bool('notifications.mark_pushed_news_read');
+        defer(function () use ($notifier, $recipients, $vars, $id, $markRead) {
             foreach ($recipients as $uid) {
                 $notifier->sendTemplate((int) $uid, 'announcement:'.$id, 'telegram.text.announcement', $vars);
+            }
+            // Telegram'ga yuborilgan yangilik o'qilgan hisoblanadi (panelda "o'qilmagan" bo'lib qolmaydi).
+            if ($markRead) {
+                foreach (array_chunk($recipients, 500) as $chunk) {
+                    DB::table('announcement_reads')->insertOrIgnore(array_map(fn ($uid) => ['announcement_id' => $id, 'user_id' => (int) $uid, 'read_at' => now()], $chunk));
+                }
             }
         });
 
