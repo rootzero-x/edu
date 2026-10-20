@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\SystemStatusController;
 use App\Http\Controllers\Api\TelegramAuthController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -49,7 +50,13 @@ Route::prefix('v1')->group(function () {
         Route::middleware('perm:user.manage')->group(function () {
             Route::get('/users', [UserController::class, 'index']);
             Route::post('/users', [UserController::class, 'store']);
-            Route::patch('/users/{user}', [UserController::class, 'update']);
+            Route::get('/users/duplicates', [UserController::class, 'duplicates']);
+            Route::patch('/users/{user}', [UserController::class, 'update'])->whereNumber('user');
+            Route::post('/users/{user}/approve', [UserController::class, 'approve'])->whereNumber('user');
+            Route::post('/users/{user}/reject', [UserController::class, 'reject'])->whereNumber('user');
+            Route::post('/users/{user}/merge', [UserController::class, 'merge'])->whereNumber('user');
+            // Tizim holati: cron, vazifalar, zaxira, Telegram navbati.
+            Route::get('/system/status', SystemStatusController::class);
         });
         Route::middleware('perm:user.manage')->group(function () {
             Route::get('/users/{parent}/children', [UserController::class, 'children']);
@@ -146,8 +153,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/lessons/{lesson}', [CurriculumController::class, 'showLesson']);
         });
 
-        // Kurslar (boshqarish)
-        Route::middleware('perm:course.manage')->group(function () {
+        // Kurslar (boshqarish): course.manage — hamma kurslar, course.author — faqat o'zi yaratganlari (CourseController::authorizeEdit)
+        Route::middleware('perm:course.manage|course.author')->group(function () {
             Route::post('/courses', [CourseController::class, 'store']);
             Route::patch('/courses/{course}', [CourseController::class, 'update']);
             Route::delete('/courses/{course}', [CourseController::class, 'destroy']);

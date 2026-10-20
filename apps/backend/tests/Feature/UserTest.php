@@ -20,7 +20,12 @@ class UserTest extends TestCase
             ->assertCreated()->assertJsonPath('user.role', 'TEACHER');
         $this->postJson('/v1/users', ['phone' => '+998901112234', 'first_name' => 'Vali', 'role' => 'SUPER_ADMIN'])
             ->assertForbidden();
-        $this->postJson('/v1/users', ['phone' => '998901112235', 'first_name' => 'X', 'role' => 'STUDENT'])
+        // Har qanday yozuv normal shaklga keltiriladi; yaroqsizi rad etiladi.
+        $this->postJson('/v1/users', ['phone' => '90 111 22 35', 'first_name' => 'X', 'role' => 'STUDENT'])
+            ->assertCreated()->assertJsonPath('user.phone', '+998901112235');
+        $this->postJson('/v1/users', ['phone' => '+998 (90) 111-22-35', 'first_name' => 'Y', 'role' => 'STUDENT'])
+            ->assertUnprocessable()->assertJsonValidationErrors('phone');
+        $this->postJson('/v1/users', ['phone' => '12345', 'first_name' => 'Z', 'role' => 'STUDENT'])
             ->assertUnprocessable();
         $this->getJson('/v1/users?role=TEACHER')->assertOk()->assertJsonPath('meta.total', 1);
     }
