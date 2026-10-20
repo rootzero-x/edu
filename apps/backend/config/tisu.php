@@ -27,6 +27,7 @@ return [
 
     'settings' => [
         // ── Sayt (ochiq) ──────────────────────────────────────
+        'site.url' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Sayt manzili (sitemap, havolalar uchun)', 'default' => 'https://tisu.uzstudents.uz'],
         'site.name' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Sayt nomi', 'default' => 'TISU Edu'],
         'site.tagline' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Qisqa tavsif', 'default' => "O'quv markazi platformasi"],
         'site.description' => ['group' => 'site', 'type' => 'text', 'public' => true, 'label' => 'SEO tavsif', 'default' => "TISU o'quv platformasi: kurslar, testlar, guruhlar va davomat"],
