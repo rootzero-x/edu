@@ -1,0 +1,87 @@
+name: Desktop (Linux)
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["desktop-linux-v*"]
+    paths:
+      - "apps/desktop-linux/**"
+      - ".github/workflows/desktop-linux.yml"
+  pull_request:
+    paths:
+      - "apps/desktop-linux/**"
+      - ".github/workflows/desktop-linux.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deb:
+    name: Tests + .deb (Ubuntu 24.04, libadwaita 1.5)
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: apps/desktop-linux } }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-soup-3.0 gir1.2-secret-1 \
+            meson ninja-build libglib2.0-bin desktop-file-utils appstream \
+            pyflakes3 xvfb xauth dbus dbus-x11 adwaita-icon-theme
+      - name: Lint
+        run: pyflakes3 src tests
+      - name: Unit tests
+        run: python3 tests/test_core.py -v
+      - name: Build .deb (runs meson tests incl. desktop/AppStream/schema validation)
+        run: packaging/deb/build-deb.sh dist
+      - name: Install .deb and smoke-test the app
+        run: |
+          sudo apt-get install -y ./dist/tisu-desktop_*_all.deb
+          # The window must come up and keep running (timeout → exit 124) without crashing.
+          set +e
+          TISU_API_URL=http://127.0.0.1:9 GDK_BACKEND=x11 \
+            dbus-run-session -- xvfb-run -a timeout 15 tisu 2>&1 | tee smoke.log
+          code=${PIPESTATUS[0]}
+          set -e
+          if grep -E "Traceback|CRITICAL" smoke.log; then exit 1; fi
+          test "$code" -eq 124
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tisu-desktop-deb
+          path: apps/desktop-linux/dist/*.deb
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak (GNOME 50)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: tisu-edu.flatpak
+          manifest-path: apps/desktop-linux/build-aux/flatpak/uz.uzstudents.tisu.json
+          cache-key: flatpak-builder-${{ github.sha }}
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/desktop-linux-v')
+    needs: [deb, flatpak]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: TISU Edu Linux ${{ github.ref_name }}
+          files: |
+            artifacts/tisu-desktop-deb/*.deb
+            artifacts/**/*.flatpak

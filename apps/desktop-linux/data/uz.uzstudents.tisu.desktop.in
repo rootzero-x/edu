@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=TISU Edu
+GenericName=O'quv markazi
+Comment=Kurslar, guruhlar, davomat, testlar va sertifikatlar
+Comment[en]=Courses, groups, attendance, quizzes and certificates
+Exec=tisu
+Icon=uz.uzstudents.tisu
+Terminal=false
+Type=Application
+Categories=Education;GTK;
+Keywords=education;school;attendance;quiz;course;ta'lim;davomat;test;kurs;
+StartupNotify=true
+DBusActivatable=false
+X-GNOME-UsesNotifications=true

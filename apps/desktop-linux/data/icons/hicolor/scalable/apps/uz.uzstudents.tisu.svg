@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+  </defs>
+  <!-- base plate with a darker "thickness" edge, GNOME HIG style -->
+  <rect x="8" y="14" width="112" height="106" rx="20" fill="url(#side)"/>
+  <rect x="8" y="8" width="112" height="104" rx="20" fill="url(#bg)"/>
+  <!-- book pages -->
+  <path d="M30 76c10-4 22-4 34 3 12-7 24-7 34-3v16c-10-4-22-4-34 3-12-7-24-7-34-3z" fill="#dbeafe"/>
+  <path d="M64 79v16" stroke="#93c5fd" stroke-width="2"/>
+  <!-- mortarboard -->
+  <path d="M64 28 22 46l42 18 42-18z" fill="#ffffff"/>
+  <path d="M40 54v12c0 6 11 11 24 11s24-5 24-11V54L64 64z" fill="#eff6ff"/>
+  <path d="M100 48v18" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="100" cy="69" r="4" fill="#fbbf24"/>
+</svg>

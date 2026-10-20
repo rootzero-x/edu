@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="tisu">
+  <schema id="uz.uzstudents.tisu" path="/uz/uzstudents/tisu/">
+    <key name="window-width" type="i">
+      <default>1100</default>
+      <summary>Window width</summary>
+    </key>
+    <key name="window-height" type="i">
+      <default>760</default>
+      <summary>Window height</summary>
+    </key>
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized</summary>
+    </key>
+    <key name="api-url" type="s">
+      <default>''</default>
+      <summary>API base URL</summary>
+      <description>Empty means https://api.tisu.uzstudents.uz. The TISU_API_URL environment variable overrides it.</description>
+    </key>
+    <key name="run-in-background" type="b">
+      <default>false</default>
+      <summary>Keep running after the window is closed</summary>
+      <description>Keeps polling for new announcements and shows desktop notifications.</description>
+    </key>
+    <key name="notified-announcements" type="ax">
+      <default>[]</default>
+      <summary>Announcements already shown as desktop notifications</summary>
+    </key>
+    <key name="last-phone" type="s">
+      <default>''</default>
+      <summary>Phone number used for the last password sign-in</summary>
+    </key>
+  </schema>
+</schemalist>
