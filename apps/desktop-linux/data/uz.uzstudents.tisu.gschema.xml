@@ -27,6 +27,10 @@
       <default>[]</default>
       <summary>Announcements already shown as desktop notifications</summary>
     </key>
+    <key name="last-notification-id" type="x">
+      <default>0</default>
+      <summary>Newest notification already shown on the desktop</summary>
+    </key>
     <key name="setup-dismissed" type="b">
       <default>false</default>
       <summary>Setup checklist hidden on the overview</summary>

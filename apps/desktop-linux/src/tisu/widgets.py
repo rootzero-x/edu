@@ -302,6 +302,7 @@ class Signal(GObject.Object):
 
     __gsignals__ = {
         "unread-changed": (GObject.SignalFlags.RUN_FIRST, None, (int,)),
+        "inbox-changed": (GObject.SignalFlags.RUN_FIRST, None, (int,)),
         "user-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 

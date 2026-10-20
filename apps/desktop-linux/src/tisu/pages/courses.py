@@ -2,6 +2,7 @@
 
 from gi.repository import Adw, GLib, Gtk
 
+from ..files import human_size, open_file, pick_and_upload, save_file_as
 from ..forms import confirm, form
 from ..webview import open_in_app
 from ..widgets import Page, done_toast, group, icon_button, join, label, menu_button, pill, prefs_page, row
@@ -23,6 +24,11 @@ def _short(text, n=140):
 
 def material_form(page, lesson_id, material=None, on_done=None):
     m = material or {}
+    if m.get("file"):  # an uploaded file: only the title can change
+        form(page.win, "Materialni qayta nomlash", [{"name": "title", "label": "Nomi", "value": m.get("title"), "required": True}],
+             lambda v, done: page.api.patch(f"materials/{m['id']}", {"title": v["title"]},
+                                            lambda _d, err: (done(err), err is None and on_done and on_done())))
+        return
 
     def submit(v, done):
         body = {"type": v["type"], "title": v["title"],
@@ -350,8 +356,13 @@ class LessonPage(Page):
                 done_toast(self.win, "Dars e'lon qilindi" if w.get_active() else "Dars qoralamaga o'tkazildi", self.changed)))
             eg.add(pub)
             eg.add(row("Darsni tahrirlash", "Nomi va matni", icon="document-edit-symbolic", on_activate=self.edit_lesson))
-            eg.add(row("Material qo'shish", "Video, fayl, havola yoki matn", icon="list-add-symbolic",
+            eg.add(row("Material qo'shish", "Video, havola yoki matn", icon="list-add-symbolic",
                        on_activate=lambda: material_form(self, les["id"], on_done=self.changed)))
+            if self.settings.get("uploads.enabled", True) is not False:
+                eg.add(row("Fayl yuklash", f"PDF, Word, Excel, rasm, audio, video · {self.settings.int('uploads.max_mb', 20)} MB gacha",
+                           icon="document-open-symbolic", on_activate=lambda: pick_and_upload(
+                               self.win, self.api, f"lessons/{les['id']}/materials/upload",
+                               lambda _d: (self.win.toast("Fayl yuklandi"), self.changed()))))
             eg.add(row("Darsni o'chirish", None, icon="edit-delete-symbolic", on_activate=self.delete_lesson))
             groups_.append(eg)
 
@@ -375,6 +386,15 @@ class LessonPage(Page):
                         exp.add_suffix(actions)
                     exp.add_row(_text_row(m.get("content") or ""))
                     mg.add(exp)
+                elif m.get("file"):
+                    f = m["file"]
+                    r = row(m["title"], f"{f.get('original_name')} · {human_size(f.get('size'))}", icon=icon, chevron=False,
+                            on_activate=lambda f=f: open_file(self.win, self.api, f["id"]))
+                    r.add_suffix(icon_button("document-save-symbolic", "Saqlash…",
+                                             lambda f=f: save_file_as(self.win, self.api, f["id"], f.get("original_name"))))
+                    if actions:
+                        r.add_suffix(actions)
+                    mg.add(r)
                 elif m.get("url"):
                     r = row(m["title"], m["url"], icon=icon, chevron=True,
                             on_activate=lambda m=m: open_in_app(self, m["title"], m["url"]))

@@ -26,6 +26,7 @@ install_data(
   'tisu/__main__.py',
   'tisu/api.py',
   'tisu/csvexport.py',
+  'tisu/files.py',
   'tisu/forms.py',
   'tisu/fmt.py',
   'tisu/main.py',

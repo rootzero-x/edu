@@ -82,6 +82,37 @@ class ApiClient:
     def delete(self, path, callback, body=None):
         return self.request("DELETE", path, callback, body=body)
 
+    def upload(self, path, filename, content, callback, fields=None, mime="application/octet-stream"):
+        """multipart/form-data POST with the file in field ``file`` (homework, lesson materials)."""
+        mp = Soup.Multipart.new("multipart/form-data")
+        for k, v in (fields or {}).items():
+            if v is not None:
+                mp.append_form_string(k, str(v))
+        mp.append_form_file("file", filename, mime, GLib.Bytes.new(content))
+        msg = Soup.Message.new_from_multipart(self.url(path), mp)
+        headers = msg.get_request_headers()
+        headers.append("Accept", "application/json")
+        if self.token:
+            headers.append("Authorization", f"Bearer {self.token}")
+
+        def done(session, result, _d):
+            try:
+                gbytes = session.send_and_read_finish(result)
+            except GLib.Error:
+                callback(None, ApiError(ApiError.NETWORK, "Server bilan aloqa yo'q. Internetni tekshiring."))
+                return
+            status = msg.get_status()
+            try:
+                data = json.loads(gbytes.get_data().decode("utf-8")) if gbytes and gbytes.get_size() else {}
+            except (ValueError, UnicodeDecodeError):
+                data = {}
+            if 200 <= status < 300:
+                callback(data, None)
+            else:
+                callback(None, self._error(status, data))
+
+        self.session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, None, done, None)
+
     def fetch_bytes(self, absolute_url, callback, max_bytes=15 * 1024 * 1024):
         """GET any https URL (e.g. an announcement image) → callback(bytes|None). No auth header is sent."""
         msg = Soup.Message.new("GET", absolute_url) if absolute_url else None

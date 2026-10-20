@@ -12,7 +12,11 @@ from .pages.leads import LeadsPage
 from .pages.login import LoginView
 from .pages.news import NewsDetailPage, NewsPage
 from .pages.profile import ProfilePage
+from .pages.audit import AuditPage
 from .pages.billing import BillingPage
+from .pages.calendar import CalendarPage
+from .pages.homework import HomeworkPage
+from .pages.notifications import NotificationsPage
 from .pages.reports import ReportsPage
 from .pages.settings_admin import SettingsPage
 from .pages.users import UsersPage
@@ -20,7 +24,7 @@ from .widgets import pill, spinner
 
 
 class Section:
-    def __init__(self, key, path, default_label, icon, factory=None, perm=None, any_perm=None, own=False, admin=False):
+    def __init__(self, key, path, default_label, icon, factory=None, perm=None, any_perm=None, own=False, admin=False, setting=None):
         self.key = key
         self.path = path
         self.default_label = default_label
@@ -30,10 +34,13 @@ class Section:
         self.any_perm = any_perm
         self.own = own  # also visible to students (their own data)
         self.admin = admin  # listed under the "Boshqaruv" header
+        self.setting = setting  # public boolean setting that switches the section off
 
 
 SECTIONS = [
     Section("dashboard", "/dashboard", "Bosh sahifa", "go-home-symbolic", DashboardPage),
+    Section("calendar", "/dashboard/calendar", "Taqvim", "x-office-calendar-symbolic", CalendarPage),
+    Section("homework", "/dashboard/homework", "Uyga vazifa", "tisu-quiz-symbolic", HomeworkPage, setting="homework.enabled"),
     Section("courses", "/dashboard/courses", "Kurslar", "tisu-book-symbolic", CoursesPage, perm="course.view"),
     Section("groups", "/dashboard/groups", "Guruhlar", "tisu-people-symbolic", GroupsPage),
     Section("news", "/dashboard/news", "Yangiliklar", "tisu-bell-symbolic", NewsPage),
@@ -43,8 +50,11 @@ SECTIONS = [
     Section("billing", "/dashboard/billing", "To'lovlar", "tisu-wallet-symbolic", BillingPage, perm="billing.manage",
             any_perm=None, own=True),
     Section("leads", "/dashboard/leads", "Arizalar", "send-to-symbolic", LeadsPage, perm="lead.manage"),
+    Section("notifications", "/dashboard/notifications", "Bildirishnomalar", "mail-unread-symbolic", NotificationsPage,
+            setting="notifications.inbox_enabled"),
     Section("profile", "/dashboard/profile", "Profil", "avatar-default-symbolic", ProfilePage),
     Section("users", "/dashboard/users", "Foydalanuvchilar", "tisu-people-symbolic", UsersPage, perm="user.manage", admin=True),
+    Section("audit", "/dashboard/audit", "Audit jurnali", "document-open-recent-symbolic", AuditPage, perm="audit.view", admin=True),
     Section("settings", "/dashboard/settings", "Sozlamalar", "preferences-system-symbolic", SettingsPage,
             perm="settings.manage", admin=True),
 ]
@@ -99,6 +109,7 @@ class TisuWindow(Adw.ApplicationWindow):
         self._on_network(monitor)
 
         self.bus.connect("unread-changed", lambda _b, n: self._set_badge("news", n))
+        self.bus.connect("inbox-changed", lambda _b, n: self._set_badge("notifications", n))
         self.public.connect_changed(self._apply_labels)
 
     # ── Layout ───────────────────────────────────────────────
@@ -145,6 +156,8 @@ class TisuWindow(Adw.ApplicationWindow):
 
     def _visible_sections(self):
         def visible(s):
+            if s.setting and self.public.get(s.setting, True) is False:
+                return False
             if s.own and self.role == "STUDENT":
                 return self.public.get("billing.enabled", True) is not False
             return self.has(s.perm)
@@ -382,6 +395,30 @@ class TisuWindow(Adw.ApplicationWindow):
 
         u = urlparse(href or "")
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        parts = u.path.rstrip("/").split("/")
+        if len(parts) == 4 and parts[2] in ("homework", "sessions", "groups", "users", "courses", "lessons") and parts[3].isdigit():
+            ident = int(parts[3])
+            sect = {"homework": "homework", "sessions": "calendar", "groups": "groups", "users": "users", "courses": "courses",
+                    "lessons": "courses"}[parts[2]]
+            if not self.show_section(sect, reset=True) and not self.show_section("dashboard", reset=True):
+                return
+            root = self.current_page()
+            from .pages.courses import CoursePage, LessonPage
+            from .pages.groups import GroupPage, SessionSheetPage
+            from .pages.homework import AssignmentPage
+            from .pages.users import UserPage
+
+            page = {"homework": lambda: AssignmentPage(self, ident), "sessions": lambda: SessionSheetPage(self, ident, "Dars"),
+                    "groups": lambda: GroupPage(self, ident, "Guruh"), "users": lambda: UserPage(self, {"id": ident, "first_name": ""}),
+                    "courses": lambda: CoursePage(self, ident, "Kurs"), "lessons": lambda: LessonPage(self, ident, "Dars")}[parts[2]]()
+            root.get_ancestor(Adw.NavigationView).push(page)
+            return
+        if u.path.startswith("/c/"):
+            from .pages.certificates import CertificateDetailPage
+
+            self.show_section("certificates", reset=True)
+            self.current_page().get_ancestor(Adw.NavigationView).push(CertificateDetailPage(self, u.path[3:]))
+            return
         key = next((s.key for s in SECTIONS if s.path == u.path), None)
         if u.path == "/dashboard":
             key = "dashboard"
@@ -397,6 +434,8 @@ class TisuWindow(Adw.ApplicationWindow):
                 from .pages.users import ImportPage
 
                 root.push(ImportPage(self, on_done=root.reload, group_id=int(q["group"]) if q.get("group") else None))
+        elif key == "homework" and q.get("tab") == "marks":
+            root.tab_dd.set_selected(2)
         elif key == "leads" and q.get("id"):
             from .pages.leads import LeadPage
 

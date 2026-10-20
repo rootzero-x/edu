@@ -37,6 +37,13 @@ asynchronous without threads and the UI never blocks.
 | Profile | Name editing, Telegram link status, change / set password, sign out | everyone |
 | Billing | Balances / debtors with filters, payment and adjustment entry (de-duplicated), voiding with reason, per-student ledger and monthly summary, income report, CSV exports; students see their own balance | `billing.manage` / own |
 | Users | Search, role and view filters (registration requests, no Telegram, bot blocked), create, edit, set password, block / unblock, approve / reject registrations, duplicates & merge, Excel/CSV student import (template, preview with per-row validation, commit), 360° profile (groups, enrollment history, attendance, quizzes, certificates, balance, leads) | `user.manage` |
+| Calendar | Week / month views of all visible lessons, teacher / room / group filters, homework and attendance badges; rooms management (capacity, active, clash-free schedules) | everyone (rooms: `group.manage`) |
+| Homework | Assignments with files and due dates, per-student grading with feedback, student submissions (text, link, files), "my marks", homework per lesson and per group, homework report | teachers / students |
+| Lesson marks | Per-lesson scores on the configured scale with notes, inside the attendance sheet | `attendance.mark` |
+| Files | Upload lesson materials and homework files (checked against the server's limits); files open with the local viewer or can be saved — no browser | by role |
+| Notifications | Inbox of everything the platform sent you (homework, marks, attendance, billing…), unread badge, desktop notifications, Telegram delivery report and unreachable users with CSV for admins | everyone / `user.manage` |
+| Audit log | Who changed what and when, with per-field before/after, filters by person, action, object and dates; per-setting history | `audit.view` / `settings.manage` |
+| KPI | Monthly trends (active / new / left students, attendance, quiz pass, homework, teacher hours, income, debt) with drill-down to students | `report.view` |
 | Leads (CRM) | Open/status/source/due-today filters, new lead (duplicate detection), lead card with calls and notes, trial lesson booking, conversion to a student (account + group), lost reason, reopen, history, funnel by source / course / lost reasons | `lead.manage` |
 | Search | Global search (Ctrl+K) across students, users, groups, courses, leads and certificates, plus sections | everyone (scoped by API) |
 | Overview for admins | Setup checklist (each step opens the right screen) and system status: cron, backups, Telegram queue, registration requests | `user.manage` |

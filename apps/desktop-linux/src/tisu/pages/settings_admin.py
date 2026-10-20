@@ -129,6 +129,7 @@ class SettingsPage(Page):
         self.by_key = {i["key"]: i for i in self.items}
         self.groups = data.get("groups") or {}
         self.permissions = data.get("permissions") or []
+        self.admin_only = set(data.get("admin_only_permissions") or [])
         self.draft = {k: v for k, v in self.draft.items() if k in self.by_key}
         self._dirty_changed()
         if self.pending_group:
@@ -187,6 +188,7 @@ class SettingsPage(Page):
         sub = GLib.markup_escape_text(" · ".join([key] + badges))
 
         reset = icon_button("document-revert-symbolic", "Standart qiymatni tiklash", lambda: self.reset(key))
+        history = icon_button("document-open-recent-symbolic", "O'zgarishlar tarixi", lambda: self._history(it))
         reset.set_sensitive(v != it["default"] or key in self.draft)
 
         if t == "bool":
@@ -221,8 +223,14 @@ class SettingsPage(Page):
                               activatable=True, title_lines=0, subtitle_lines=3)
             r.add_suffix(Gtk.Image.new_from_icon_name("document-edit-symbolic"))
             r.connect("activated", lambda *_: self.edit_complex(it))
+        r.add_suffix(history)
         r.add_suffix(reset)
         return r
+
+    def _history(self, it):
+        from .audit import SettingHistoryPage
+
+        self.push(SettingHistoryPage(self.win, it["key"], it.get("label") or it["key"]))
 
     def edit_complex(self, it):
         key, t = it["key"], it["type"]
@@ -290,7 +298,24 @@ class SettingsGroupPage(Page):
         g = group(None, f"{len(items)} ta sozlama. O'zgarishlar «Saqlash» bosilganda serverga yuboriladi.")
         for it in items:
             g.add(self.root.item_row(it))
-        self.set_content(prefs_page(g))
+        page = prefs_page(g)
+        self.set_content(page)
+        if self.group_name == "uploads":
+            def usage(d, err):
+                if not d:
+                    return
+                from ..files import human_size
+
+                ug = group("Fayllar hajmi")
+                quota = d.get("quota_bytes")
+                ug.add(row(f"{d.get('files', 0)} ta fayl · {human_size(d.get('bytes'))}",
+                           f"Kvota: {human_size(quota)}" if quota else "Kvota cheklanmagan", icon="folder-documents-symbolic"))
+                ug.add(row("Ruxsat etilgan turlar", ", ".join(d.get("allowed_types") or []), icon="text-x-generic-symbolic"))
+                for p_ in d.get("paths") or []:
+                    ug.add(row("Saqlash joyi", str(p_), icon="folder-symbolic"))
+                page.add(ug)
+
+            self.api.get("files/usage", usage)
 
 
 class PermissionsDialog(Adw.Dialog):
@@ -323,6 +348,9 @@ class PermissionsDialog(Adw.Dialog):
             grid.attach(label(perm, css=("monospace",)), 0, r_i, 1, 1)
             for c, role in enumerate(self.roles, 1):
                 cb = Gtk.CheckButton(active=perm in (value.get(role) or []), halign=Gtk.Align.CENTER)
+                if perm in root.admin_only and role != "ADMIN":
+                    cb.set_sensitive(False)
+                    cb.set_tooltip_text("Faqat administrator uchun")
                 self.checks[(role, perm)] = cb
                 grid.attach(cb, c, r_i, 1, 1)
         note = label("Super-admin har doim barcha huquqlarga ega.", css=("dim-label", "caption"))
