@@ -5,7 +5,7 @@ import { personName } from "../_lib/format";
 import { Async, Badge, Empty, Page, Row, Section, useApi } from "../_ui/ui";
 import { billingLabels, fmtYmd, type BillingMe } from "@/lib/billing";
 
-/** Balans (BillingController::me): o'quvchi — o'zi, ota-ona — farzandlari. */
+/** Balans (BillingController::me): o'quvchining o'zi. */
 export default function TgBalance() {
   const { t, settings } = useTg();
   const L = billingLabels(settings);

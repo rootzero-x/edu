@@ -120,7 +120,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     version.current++;
     setSaving(new Set(ids));
     setSaveState("saving");
-    const r = await call<{ changed: number; notified: number }>("PUT", `sessions/${session.id}/attendance`, { items, reason: reasonRef.current.trim() || null });
+    const r = await call<{ changed: number }>("PUT", `sessions/${session.id}/attendance`, { items, reason: reasonRef.current.trim() || null });
     version.current++;
     setSaving(new Set());
     // Saqlash davomida yangi tahrir qilinmagan qatorlarnigina "toza" deb belgilaymiz.
@@ -147,7 +147,6 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     setEdits(dropSent);
     setFailed(new Set());
     setSaveState("saved");
-    if (r.data.notified) toast.info(`Ota-onalarga ${r.data.notified} ta xabar yuborildi`);
     void refreshNow(); // avtomatik aniqlangan holatlarni olish uchun
   }, [session.id, toast, refreshNow, reasonRequired]);
 

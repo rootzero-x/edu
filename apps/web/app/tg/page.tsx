@@ -12,7 +12,6 @@ export default function TgHome() {
   const { me, t, can, settings } = useTg();
   const groups = useApi<{ data: Group[] }>("groups");
   const staff = can("attendance.mark");
-  const parent = me.role === "PARENT";
   const roleLabel = (settings["telegram.role_labels"] as Record<string, string> | undefined)?.[me.role] ?? me.role;
 
   const tiles: { href: string; icon: string; label: string }[] = [];
@@ -23,8 +22,7 @@ export default function TgHome() {
     tiles.push({ href: "/tg/attendance", icon: "✅", label: t("nav_attendance") });
     tiles.push({ href: "/tg/quizzes", icon: "📝", label: t("nav_quizzes") });
   }
-  if (parent) tiles.push({ href: "/tg/attendance", icon: "👨‍👩‍👧", label: t("nav_children") });
-  if ((me.role === "STUDENT" || parent) && settings["billing.enabled"] !== false) tiles.push({ href: "/tg/balance", icon: "💰", label: t("nav_balance") });
+  if (me.role === "STUDENT" && settings["billing.enabled"] !== false) tiles.push({ href: "/tg/balance", icon: "💰", label: t("nav_balance") });
   tiles.push({ href: "/tg/certificates", icon: "🎓", label: t("nav_certificates") });
   tiles.push({ href: "/tg/news", icon: "📢", label: t("nav_news") });
 

@@ -33,5 +33,5 @@ export const NAV: NavItem[] = [
 export const NAV_ICONS = { Award, ClipboardCheck };
 
 export const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi", PARENT: "Ota-ona",
+  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi",
 };

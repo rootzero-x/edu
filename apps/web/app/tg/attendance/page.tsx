@@ -10,7 +10,7 @@ import { Async, Empty, Failed, Loading, Page, Progress, Section, useApi } from "
 type ReportRow = { student_id: number; name: string; counts: Record<string, number>; rate: number };
 
 /**
- * Davomat (AttendanceController::report): o'quvchi — o'zi, ota-ona — farzandlari,
+ * Davomat (AttendanceController::report): o'quvchi — o'zi,
  * o'qituvchi/admin — guruhdagi hamma (ko'rinish doirasini API belgilaydi).
  */
 function Reports({ groups }: { groups: Group[] }) {
@@ -56,12 +56,12 @@ function Reports({ groups }: { groups: Group[] }) {
 }
 
 export default function TgAttendance() {
-  const { t, me } = useTg();
+  const { t } = useTg();
   const groups = useApi<{ data: Group[] }>("groups");
   return (
-    <Page title={me.role === "PARENT" ? t("my_children") : t("nav_attendance")}>
+    <Page title={t("nav_attendance")}>
       <Async q={groups}>
-        {(d) => d.data.length ? <Reports groups={d.data.filter((g) => g.active)} /> : <Empty text={me.role === "PARENT" ? t("children_empty") : t("attendance_empty")} icon="✅" />}
+        {(d) => d.data.length ? <Reports groups={d.data.filter((g) => g.active)} /> : <Empty text={t("attendance_empty")} icon="✅" />}
       </Async>
     </Page>
   );

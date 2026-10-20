@@ -18,9 +18,7 @@ export default async function CertificatesPage() {
     ? "Kursni tamomlab, shartlarni bajargan o'quvchilarga sertifikat guruh sahifasidan beriladi."
     : user?.permissions.includes("attendance.mark")
       ? "Siz o'qitayotgan guruhlar o'quvchilariga berilgan sertifikatlar shu yerda ko'rinadi. Sertifikatni administrator beradi."
-      : user?.role === "PARENT"
-        ? "Farzandingiz kursni tamomlab, shartlarni bajargach, sertifikati shu yerda paydo bo'ladi."
-        : "Kursni tamomlab, shartlarni bajarganingizdan so'ng sertifikatingiz shu yerda paydo bo'ladi.";
+      : "Kursni tamomlab, shartlarni bajarganingizdan so'ng sertifikatingiz shu yerda paydo bo'ladi.";
   return (
     <>
       <PageHeader title="Sertifikatlar" description={`${rows.length} ta`} />

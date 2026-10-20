@@ -1,4 +1,4 @@
-"""Certificates: own (student), children's (parent) or all (group.manage). Each opens its public verify page."""
+"""Certificates: own (student), own groups' (teacher) or all (group.manage). Each opens its public verify page."""
 
 from gi.repository import Gdk
 
