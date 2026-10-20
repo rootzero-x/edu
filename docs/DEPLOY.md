@@ -22,7 +22,7 @@ Doimiy ishlaydigan Node jarayoni yo'q, shuning uchun backend PHP'da.
    ```
 2. **Sayt.** ISPmanager → Sites → Create: `api.tisu.uzstudents.uz`, PHP **8.3** (lsapi). Let's Encrypt SSL.
 3. **DNS.** `api.tisu.uzstudents.uz` → A `176.9.111.172` (domen DNS'i turgan joyda).
-4. **.env.** `/www/api.tisu.uzstudents.uz/.env` ni `apps/backend/.env.example` asosida yarating (`chmod 600`).
+4. **.env.** Parolni bitta tirnoqda yozing: `DB_PASSWORD='...'` (`$` va `#` belgilari uchun). `~/www/api.tisu.uzstudents.uz/.env` ni `apps/backend/.env.example` asosida yarating (`chmod 600`).
    `APP_KEY` uchun: `php artisan key:generate --show` (lokal), natijani qo'ying.
 5. Tekshiruv (faqat o'qish):
    ```bash
@@ -40,10 +40,10 @@ Birinchi admin: serverda `php artisan tisu:create-admin +99890XXXXXXX Ism` (paro
 
 ## Orqaga qaytarish
 ```bash
-cd /www/api.tisu.uzstudents.uz && tar -xzf ~/tisu-backups/code-<REL>.tgz
+cd ~/www/api.tisu.uzstudents.uz && tar -xzf ~/tisu-backups/code-<REL>.tgz
 gunzip -c ~/tisu-backups/db-<REL>.sql.gz | mysql -u <user> -p <db>
 ```
 
 ## Boshqa loyihalar xavfsizligi
-Skript faqat `/www/api.tisu.uzstudents.uz` va `~/tisu-backups` ga yozadi.
+Skript faqat `~/www/api.tisu.uzstudents.uz` va `~/tisu-backups` ga yozadi.
 `api.hast.uz`, `api.onlinecompiler.uz`, boshqa bazalar, crontab va `.htaccess`'larga tegilmaydi.

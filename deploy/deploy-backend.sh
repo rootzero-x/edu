@@ -10,7 +10,7 @@ HOST="${DEPLOY_HOST:-176.9.111.172}"
 USER_="${DEPLOY_USER:-694fc8f1e180d}"
 KEY="${DEPLOY_KEY:-$HOME/.ssh/tisu_deploy}"
 DOMAIN="${DEPLOY_DOMAIN:-api.tisu.uzstudents.uz}"
-REMOTE_DIR="${REMOTE_DIR:-/www/$DOMAIN}"
+REMOTE_DIR="${REMOTE_DIR:-www/$DOMAIN}"  # uy katalogiga nisbatan
 PHP_BIN="${PHP_BIN:-/opt/alt/php83/usr/bin/php}"
 
 SSH=(ssh -i "$KEY" -o StrictHostKeyChecking=accept-new "$USER_@$HOST")
@@ -42,6 +42,8 @@ REL=$(date -u +%Y%m%d%H%M%S)
 echo "→ upload $REL"
 "${SSH[@]}" "test -d $REMOTE_DIR && test -f $REMOTE_DIR/.env" \
   || { echo "XATO: $REMOTE_DIR yoki undagi .env yo'q (docs/DEPLOY.md)."; exit 1; }
+"${SSH[@]}" "grep -qE '^DB_PASSWORD=.+' $REMOTE_DIR/.env" \
+  || { echo "XATO: $REMOTE_DIR/.env da DB_PASSWORD bo'sh. Avval uni to'ldiring."; exit 1; }
 "${SSH[@]}" "cat > ~/tisu-release-$REL.tgz" < "$BUILD.tgz"
 
 "${SSH[@]}" "bash -s" <<REMOTE
@@ -52,7 +54,8 @@ mkdir -p ~/tisu-backups
 # 1) Zaxira: kod va baza
 tar --exclude=./storage/logs -czf ~/tisu-backups/code-$REL.tgz . 2>/dev/null || true
 DB_HOST=\$(grep -E '^DB_HOST=' .env | cut -d= -f2-); DB_DATABASE=\$(grep -E '^DB_DATABASE=' .env | cut -d= -f2-)
-DB_USERNAME=\$(grep -E '^DB_USERNAME=' .env | cut -d= -f2-); DB_PASSWORD=\$(grep -E '^DB_PASSWORD=' .env | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//')
+DB_USERNAME=\$(grep -E '^DB_USERNAME=' .env | cut -d= -f2-); DB_PASSWORD=\$(grep -E '^DB_PASSWORD=' .env | cut -d= -f2-)
+case "\$DB_PASSWORD" in \'*\') DB_PASSWORD=\${DB_PASSWORD:1:-1};; \"*\") DB_PASSWORD=\${DB_PASSWORD:1:-1};; esac
 if command -v mysqldump >/dev/null; then
   MYSQL_PWD="\$DB_PASSWORD" mysqldump --single-transaction --no-tablespaces -h"\${DB_HOST:-localhost}" -u"\$DB_USERNAME" "\$DB_DATABASE" 2>/dev/null \
     | gzip > ~/tisu-backups/db-$REL.sql.gz || echo "ogohlantirish: mysqldump muvaffaqiyatsiz"
