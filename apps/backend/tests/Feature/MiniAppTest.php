@@ -144,11 +144,12 @@ class MiniAppTest extends TestCase
         $course = Course::create(['title' => 'Ingliz', 'created_by' => $admin->id]);
         $branch = Branch::create(['name' => 'Markaz']);
         Sanctum::actingAs($admin);
-        $mk = fn (string $name, User $t) => $this->postJson('/v1/groups', [
+        // Har guruh boshqa vaqtda: bitta o'qituvchining guruhlari jadvalda to'qnashmasin (ScheduleClash).
+        $mk = fn (string $name, User $t, string $at) => $this->postJson('/v1/groups', [
             'name' => $name, 'course_id' => $course->id, 'branch_id' => $branch->id, 'teacher_id' => $t->id, 'start_date' => '2026-10-19',
-            'schedules' => [['weekday' => 1, 'start_time' => '07:00', 'end_time' => '07:30']],
+            'schedules' => [['weekday' => 1, 'start_time' => $at, 'end_time' => date('H:i', strtotime($at) + 1800)]],
         ])->assertCreated()->json('group.id');
-        [$g1, $g2, $g3] = [$mk('A-1', $t1), $mk('B-2', $t2), $mk('C-3', $t2)];
+        [$g1, $g2, $g3] = [$mk('A-1', $t1, '07:00'), $mk('B-2', $t2, '08:00'), $mk('C-3', $t2, '09:00')];
         foreach ([[$g1, $s1], [$g1, $s2], [$g2, $s2]] as [$g, $s]) {
             $this->postJson("/v1/groups/$g/members", ['student_id' => $s->id])->assertCreated();
         }
