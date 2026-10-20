@@ -55,9 +55,18 @@ return [
         // ── Testlar ──────────────────────────────────────────
         'quiz.default_pass_percent' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Yangi test uchun o'tish foizi", 'default' => 60],
         'quiz.default_max_attempts' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Yangi test uchun urinishlar soni', 'default' => 3],
+        'quiz.show_correct_answers' => ['group' => 'quiz', 'type' => 'bool', 'label' => "Topshirgandan keyin to'g'ri javoblarni ko'rsatish", 'default' => true],
         'quiz.submit_grace_seconds' => ['group' => 'quiz', 'type' => 'int', 'min' => 0, 'max' => 600, 'label' => "Vaqt tugagach qo'shimcha soniyalar", 'default' => 15],
 
         // ── Sertifikat ───────────────────────────────────────
+        'certificate.code_prefix' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat raqami prefiksi', 'default' => 'TISU'],
+        'certificate.title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat sarlavhasi', 'default' => 'SERTIFIKAT'],
+        'certificate.body' => ['group' => 'certificate', 'type' => 'text', 'public' => true, 'label' => 'Sertifikat matni ({name}, {course}, {date}, {hours})', 'default' => "{name}\n«{course}» kursini muvaffaqiyatli tamomlagani uchun berildi."],
+        'certificate.signer_name' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi F.I.Sh.', 'default' => ''],
+        'certificate.signer_title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi lavozimi', 'default' => 'Direktor'],
+        'certificate.background_url' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat fon rasmi URL (A4 landshaft)', 'default' => ''],
+        'telegram.text.certificate_issued' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: sertifikat berildi', 'default' => "🎓 Tabriklaymiz, {name}! «{course}» kursi bo'yicha sertifikat berildi: {url}"],
+        'certificate.public_base_url' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => "Sertifikatni tekshirish sahifasi manzili", 'default' => 'https://tisu.uzstudents.uz/c/'],
         'certificate.min_attendance_percent' => ['group' => 'certificate', 'type' => 'int', 'min' => 0, 'max' => 100, 'label' => 'Minimal davomat (%)', 'default' => 75],
         'certificate.require_final_quiz' => ['group' => 'certificate', 'type' => 'bool', 'label' => "Yakuniy testdan o'tish shart", 'default' => true],
         'certificate.require_no_debt' => ['group' => 'certificate', 'type' => 'bool', 'label' => "Qarzdorlik bo'lmasligi shart", 'default' => true],
