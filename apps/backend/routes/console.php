@@ -32,3 +32,4 @@ Schedule::command('tisu:generate-sessions')->dailyAt('03:10')->withoutOverlappin
 Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping();
+Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping();

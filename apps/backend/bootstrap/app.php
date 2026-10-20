@@ -23,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $r) => true);
+        // Haqiqiy server xatolari (404/403/validatsiya emas) — admin chatiga ogohlantirish.
+        $exceptions->report(fn (\Throwable $e) => \App\Support\ErrorAlerter::report($e));
         // Foydalanuvchiga tushunarli (tarjima qilinadigan) xabarlar; ichki tafsilotlar ko'rsatilmaydi.
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e) {
             // abort(404, '...') matni saqlanadi; Laravel'ning standart inglizcha xabarlari o'rniga — tarjima.

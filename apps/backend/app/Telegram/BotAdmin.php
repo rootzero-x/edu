@@ -36,6 +36,25 @@ class BotAdmin
         return $user !== null && $user->active && $user->hasPermission('user.manage');
     }
 
+    /** Barcha (haqiqiy) admin chatlarga matn yuborish; xatolarni yutadi — ogohlantirish o'zi yiqilmasin. */
+    public function alert(string $text): int
+    {
+        $sent = 0;
+        foreach ((array) $this->settings->get('telegram.admin_chat_ids') as $chatId) {
+            if (! $this->isAdmin((int) $chatId)) {
+                continue;
+            }
+            try {
+                $this->tg->sendMessage((int) $chatId, mb_substr($text, 0, 3500));
+                $sent++;
+            } catch (\Throwable) {
+                // Telegram ishlamasa ham asosiy jarayon to'xtamasin.
+            }
+        }
+
+        return $sent;
+    }
+
     /** Yangi ro'yxatdan o'tgan foydalanuvchi haqida barcha adminlarga xabar. */
     public function notifyNewUser(User $user, ?string $username): void
     {

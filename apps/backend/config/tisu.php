@@ -450,6 +450,14 @@ return [
         'telegram.text.lesson_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: dars eslatmasi ({name}, {group}, {time}, {room}, {topic})', 'default' => "⏰ {name}, bugun {time} da «{group}» darsi bor. Xona: {room}."],
         'telegram.text.unmarked_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga davomat eslatmasi ({name}, {group}, {time})", 'default' => "📋 {name}, «{group}» guruhining {time} dagi darsi uchun davomat hali belgilanmagan."],
 
+        // ── Zaxira va ogohlantirishlar ───────────────────────
+        'backup.enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni bazadan zaxira nusxa olish', 'default' => true],
+        'backup.keep_days' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Zaxira nusxalar necha kun saqlansin', 'default' => 14],
+        'alerts.errors_enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => "Server xatolari haqida admin chatiga xabar", 'default' => true],
+        'alerts.error_throttle_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 1440, 'label' => 'Bir xil xato haqida qayta xabar oralig\'i (daqiqa)', 'default' => 30],
+        'telegram.text.alert_error' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga server xatosi ({type}, {message}, {where}, {url})', 'default' => "⚠️ Serverda xato\n{type}: {message}\n{where}\n{url}"],
+        'telegram.text.alert_backup_failed' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga zaxira xatosi ({message})', 'default' => "❗️ Bazaning kunlik zaxira nusxasi olinmadi: {message}"],
+
         // ── Tarjimalar ───────────────────────────────────────
         'i18n.overrides' => ['group' => 'i18n', 'type' => 'object', 'label' => "Xabarlarni qayta yozish {\"validation.required\": \":attribute majburiy.\"}", 'default' => (object) []],
 
