@@ -39,9 +39,11 @@ class ReportController
         $risk = $students->filter(fn ($s) => $s['rate'] !== null && $s['rate'] < $threshold)
             ->sortBy([['rate', 'asc'], ['counts.ABSENT', 'desc']])->take($settings->int('reports.top_n'))->values();
 
+        // Belgilanmagan = belgilanganlar faol a'zolardan kam (AttendanceController::unmarked qoidasi).
         $unmarked = DB::table('class_sessions')->whereIn('group_id', $groupIds)->where('cancelled', false)
             ->whereBetween('starts_at', [$from, min($to, now())])
-            ->whereNotExists(fn ($q) => $q->from('attendances')->whereColumn('attendances.session_id', 'class_sessions.id'))
+            ->whereRaw('(select count(*) from attendances where attendances.session_id = class_sessions.id)
+                < (select count(*) from group_members where group_members.group_id = class_sessions.group_id and group_members.left_at is null)')
             ->count();
 
         return response()->json([
@@ -62,7 +64,10 @@ class ReportController
     {
         [$from, $to, $groupIds] = $this->scope($request, $settings);
         $courseIds = DB::table('study_groups')->whereIn('id', $groupIds)->distinct()->pluck('course_id');
-        $studentIds = DB::table('group_members')->whereIn('group_id', $groupIds)->distinct()->pluck('student_id');
+        // Guruhdan chiqqan o'quvchilar standart bo'yicha hisobga olinmaydi (include_left=1 — ular ham).
+        $includeLeft = $request->boolean('include_left');
+        $studentIds = DB::table('group_members')->whereIn('group_id', $groupIds)
+            ->when(! $includeLeft, fn ($q) => $q->whereNull('left_at'))->distinct()->pluck('student_id');
 
         $data = DB::table('quiz_attempts')
             ->join('quizzes', 'quizzes.id', '=', 'quiz_attempts.quiz_id')
@@ -109,8 +114,9 @@ class ReportController
         $rows = $this->attendanceRows($groupIds, $from, $to);
         $labels = (array) $settings->get('attendance.status_labels');
         $name = 'davomat_'.$from->format('Ymd').'_'.$to->format('Ymd').'.csv';
+        $locale = (string) $settings->get('site.default_locale');
 
-        return response()->streamDownload(function () use ($rows, $labels) {
+        return response()->streamDownload(function () use ($rows, $labels, $locale) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, array_merge(['Guruh', "O'quvchi", 'Telefon'], array_map(fn ($s) => $labels[$s] ?? $s, self::STATUSES), ['Davomat %']), ';');
@@ -119,7 +125,7 @@ class ReportController
                 fputcsv($out, array_merge(
                     array_map(Csv::cell(...), [$c->first()->group_name, trim($c->first()->s_first.' '.$c->first()->s_last), (string) $c->first()->s_phone]),
                     array_map(fn ($s) => $sum['counts'][$s], self::STATUSES),
-                    [$sum['rate'] ?? ''],
+                    [Csv::decimal($sum['rate'], $locale)],
                 ), ';');
             }
             fclose($out);
