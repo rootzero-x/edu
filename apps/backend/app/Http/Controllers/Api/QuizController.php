@@ -131,6 +131,15 @@ class QuizController
         CourseController::authorizeEdit($request->user(), $question->quiz->course);
         $data = $this->validateQuestion($request, $question->type);
         $attempted = QuizAttempt::where('quiz_id', $question->quiz_id)->exists();
+        if ($attempted) {
+            // Ball va matnli javoblar kaliti saqlangan natijalarni (o'tdi/o'tmadi, sertifikat sharti) belgilaydi.
+            abort_if(isset($data['points']) && (int) $data['points'] !== (int) $question->points, 409,
+                "Testni topshirganlar bor: savol balini o'zgartirib bo'lmaydi. Yangi test yarating.");
+            $norm = fn (array $a) => collect($a)->map(fn ($v) => mb_strtolower(trim((string) $v)))->filter(fn ($v) => $v !== '')->unique()->sort()->values()->all();
+            abort_if($question->type === 'TEXT' && isset($data['accepted_answers'])
+                && $norm($data['accepted_answers']) !== $norm((array) $question->accepted_answers), 409,
+                "Testni topshirganlar bor: qabul qilinadigan javoblarni o'zgartirib bo'lmaydi (savol matnini tahrirlash mumkin). Yangi test yarating.");
+        }
         if ($attempted && isset($data['options'])) {
             // Topshirilgan javoblar variant id'lariga bog'langan: variantlar o'chirilib qayta yaratilmaydi.
             abort_if(count($data['options']) !== $question->options()->count(), 409,

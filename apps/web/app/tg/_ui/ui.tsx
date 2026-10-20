@@ -16,7 +16,8 @@ export function useApi<T>(path: string | null) {
     const r = await tg<T>("GET", path);
     setState({
       data: r.ok ? r.data : null,
-      error: r.ok ? null : (r.data as any)?.message || String(r.status),
+      // Xabarsiz xato (masalan, server 500 HTML qaytarsa) — foydalanuvchiga raqam emas, umumiy matn ko'rsatiladi.
+      error: r.ok ? null : (r.data as any)?.message || "",
       loading: false,
       denial: r.status === 403 && isDenial(r.data) ? r.data : null,
     });
