@@ -103,23 +103,23 @@ export default function TakeQuiz({ quizId }: { quizId: number }) {
             <Card key={q.id}>
               <CardBody>
                 <div className={s.qHead}>
-                  <p className={s.qText}><b>{i + 1}.</b> {q.text}</p>
+                  <p className={s.qText} id={`q${q.id}-text`}><b>{i + 1}.</b> {q.text}</p>
                   <span className={s.qMeta}>
                     <Badge>{q.points} ball</Badge>
                     {rv && <Badge tone={rv.earned ? "success" : "danger"}>{rv.earned ? "To'g'ri" : "Noto'g'ri"}</Badge>}
                   </span>
                 </div>
                 {q.type === "TEXT" ? (
-                  <Input disabled={!!result} value={a[0] ?? ""} placeholder="Javobingiz" onChange={(e) => setAnswers({ ...answers, [q.id]: [e.target.value] })} />
+                  <Input disabled={!!result} value={a[0] ?? ""} placeholder="Javobingiz" aria-labelledby={`q${q.id}-text`} onChange={(e) => setAnswers({ ...answers, [q.id]: [e.target.value] })} />
                 ) : (
-                  <div className={s.options} role={q.type === "SINGLE" ? "radiogroup" : "group"}>
+                  <div className={s.options} role={q.type === "SINGLE" ? "radiogroup" : "group"} aria-labelledby={`q${q.id}-text`}>
                     {q.options.map((o) => {
                       const checked = a.includes(String(o.id));
                       const isRight = rv?.correct?.includes(String(o.id));
                       return (
                         <label key={o.id} className={cx(s.opt, checked && s.checked, result && isRight && s.right, result && checked && !isRight && s.wrong)}>
                           <input
-                            type={q.type === "SINGLE" ? "radio" : "checkbox"} name={`q${q.id}`} disabled={!!result} checked={checked}
+                            type={q.type === "SINGLE" ? "radio" : "checkbox"} name={`q${q.id}`} aria-label={o.text} disabled={!!result} checked={checked}
                             onChange={() => setAnswers({ ...answers, [q.id]: q.type === "SINGLE" ? [String(o.id)]
                               : checked ? a.filter((x) => x !== String(o.id)) : [...a, String(o.id)] })}
                           />
