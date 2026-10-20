@@ -255,7 +255,7 @@ export default async function Home() {
               <div className={s.contacts}>
                 {contacts.map((c) => {
                   const Icon = c.icon;
-                  const inner = <><span className={s.contactIcon} aria-hidden><Icon /></span><span className={s.contactValue}>{c.value}</span></>;
+                  const inner = <><span className={s.contactIcon} aria-hidden><Icon /></span><span className={s.contactValue}>{c.value.includes("@") && !c.value.startsWith("@") ? <>{c.value.split("@")[0]}@<wbr />{c.value.split("@").slice(1).join("@")}</> : c.value}</span></>;
                   return c.href ? (
                     <a key={c.label} href={c.href} className={s.contact} target={c.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer">{inner}</a>
                   ) : <div key={c.label} className={s.contact}>{inner}</div>;
