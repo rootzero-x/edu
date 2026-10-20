@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 class BotMenu
 {
     /** Menyu amallari (telegram.menu sozlamasida ishlatiladi). */
-    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'balance', 'profile', 'today', 'unmarked', 'children', 'news', 'app'];
+    public const ACTIONS = ['courses', 'schedule', 'homework', 'attendance', 'quizzes', 'certificates', 'balance', 'profile', 'today', 'unmarked', 'children', 'news', 'app'];
 
     private const STATUS_CODES = ['P' => 'PRESENT', 'L' => 'LATE', 'A' => 'ABSENT', 'E' => 'EXCUSED'];
 
@@ -161,6 +161,7 @@ class BotMenu
                 'today' => $this->today($user),
                 'unmarked' => $this->unmarked($user),
                 'news' => $this->news($user),
+                'homework' => $this->homework($user),
                 'children' => $this->children($user),
                 'app' => [$this->t->get('telegram.text.app_open'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])],
                 default => [$this->t->get('telegram.text.unknown'), null],
@@ -418,6 +419,10 @@ class BotMenu
         if ($items->isEmpty()) {
             return [$this->t->get('telegram.text.news_empty'), null];
         }
+        // Botda ko'rsatilgan yangiliklar o'qilgan hisoblanadi (panel qo'ng'iroqchasi bilan sinxron).
+        if ($this->settings->bool('notifications.mark_pushed_news_read')) {
+            DB::table('announcement_reads')->insertOrIgnore($items->map(fn ($a) => ['announcement_id' => $a->id, 'user_id' => $user->id, 'read_at' => now()])->all());
+        }
         $lines = [$this->t->get('telegram.text.news_title'), ''];
         foreach ($items as $a) {
             $lines[] = ($a->pinned ? '📌 ' : '• ').$a->title.' — '.$a->published_at->format('d.m');
@@ -426,6 +431,51 @@ class BotMenu
         }
 
         return [implode("\n", $lines), $this->inline([[$this->webApp('telegram.text.btn_open_app', '/news')]])];
+    }
+
+    /** Uyga vazifalar: o'quvchiga — ochiq vazifalari va holati, o'qituvchiga — guruhlaridagi so'nggi vazifalar (topshirganlar soni). */
+    private function homework(User $user): array
+    {
+        if (! $this->settings->bool('homework.enabled')) {
+            return [$this->t->get('telegram.text.unknown'), null];
+        }
+        $teacher = $user->hasPermission('attendance.mark');
+        $groupIds = $teacher
+            ? GroupController::visible($user)->where('active', true)
+                ->when(! $user->hasPermission('group.manage'), fn ($q) => $q->where('teacher_id', $user->id))->pluck('id')
+            : DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->pluck('group_id');
+        $items = \App\Models\Assignment::with('group:id,name')->whereIn('group_id', $groupIds)
+            ->where(fn ($w) => $w->whereNull('due_at')->orWhere('due_at', '>=', now()->subDays($teacher ? 7 : 3)))
+            ->orderByRaw('case when due_at is null then 1 else 0 end')->orderBy('due_at')->limit($this->limit())->get();
+        if ($items->isEmpty()) {
+            return [$this->t->get('telegram.text.homework_empty'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '/homework')]])];
+        }
+        $lines = [$this->t->get('telegram.text.homework_title'), ''];
+        if ($teacher) {
+            $members = DB::table('group_members')->whereIn('group_id', $items->pluck('group_id'))->whereNull('left_at')
+                ->selectRaw('group_id, count(*) as c')->groupBy('group_id')->pluck('c', 'group_id');
+            $submitted = DB::table('assignment_submissions')->whereIn('assignment_id', $items->pluck('id'))->whereNotNull('submitted_at')
+                ->selectRaw('assignment_id, count(*) as c')->groupBy('assignment_id')->pluck('c', 'assignment_id');
+            foreach ($items as $a) {
+                $lines[] = $this->t->get('telegram.text.homework_teacher_line', [
+                    'title' => $a->title, 'group' => $a->group->name, 'due' => $a->due_at?->format('d.m H:i') ?? '—',
+                    'submitted' => (int) ($submitted[$a->id] ?? 0), 'total' => (int) ($members[$a->group_id] ?? 0),
+                ]);
+            }
+        } else {
+            $labels = (array) $this->settings->get('homework.status_labels');
+            $subs = \App\Models\AssignmentSubmission::whereIn('assignment_id', $items->pluck('id'))->where('student_id', $user->id)->get()->keyBy('assignment_id');
+            foreach ($items as $a) {
+                $s = $subs[$a->id] ?? null;
+                $status = \App\Domain\Homework::status($s?->submitted_at, $s?->score, $a->due_at, now());
+                $lines[] = $this->t->get('telegram.text.homework_line', [
+                    'title' => $a->title, 'group' => $a->group->name, 'due' => $a->due_at?->format('d.m H:i') ?? '—',
+                    'status' => ($labels[$status] ?? $status).($s?->score !== null ? ' ('.$s->score.')' : ''),
+                ]);
+            }
+        }
+
+        return [implode("\n", $lines), $this->inline([[$this->webApp('telegram.text.btn_open_app', '/homework')]])];
     }
 
     /** O'tgan, davomati to'liq belgilanmagan darslar (AttendanceController::unmarked orqali). */
