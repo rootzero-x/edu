@@ -11,12 +11,28 @@
  */
 
 $allPermissions = [
-    'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
+    'course.manage', 'course.author', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
     'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage',
 ];
 
 return [
     'permissions' => $allPermissions,
+
+    // Huquqlarning odam o'qiydigan nomlari (Sozlamalar → Rollar huquqlari).
+    'permission_labels' => [
+        'course.manage' => "Barcha kurslarni boshqarish (yashirinlari ham)",
+        'course.author' => "O'z kurslarini yaratish va tahrirlash",
+        'course.view' => "Kurslarni ko'rish",
+        'group.manage' => 'Guruhlar va jadvalni boshqarish',
+        'attendance.mark' => 'Davomat belgilash',
+        'quiz.manage' => 'Testlar tuzish (o\'z kurslarida)',
+        'quiz.take' => 'Test topshirish',
+        'report.view' => "Hisobotlarni ko'rish",
+        'user.manage' => 'Foydalanuvchilarni boshqarish',
+        'settings.manage' => 'Sozlamalarni o\'zgartirish',
+        'announcement.manage' => "E'lonlar yozish",
+        'billing.manage' => "To'lovlarni boshqarish",
+    ],
 
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
@@ -120,6 +136,8 @@ return [
         'certificate.title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat sarlavhasi', 'default' => 'SERTIFIKAT'],
         'certificate.body' => ['group' => 'certificate', 'type' => 'text', 'public' => true, 'label' => 'Sertifikat matni ({name}, {course}, {date}, {months})', 'default' => "{name}\n«{course}» kursini muvaffaqiyatli tamomlagani uchun berildi."],
         'certificate.verified_text' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Tekshiruv sahifasidagi tasdiq matni', 'default' => '✅ Sertifikat haqiqiy'],
+        'certificate.revoked_text' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Tekshiruv sahifasi: bekor qilingan sertifikat', 'default' => '❌ Sertifikat bekor qilingan'],
+        'certificate.revoke_reasons' => ['group' => 'certificate', 'type' => 'list', 'public' => true, 'label' => 'Bekor qilish sabablari (tanlash uchun)', 'default' => ["Xato bilan berilgan", "Ma'lumotlar noto'g'ri", 'Qoidabuzarlik']],
         'certificate.signer_name' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi F.I.Sh.', 'default' => ''],
         'certificate.signer_title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi lavozimi', 'default' => 'Direktor'],
         'certificate.background_url' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat fon rasmi URL (A4 landshaft)', 'default' => ''],
@@ -136,10 +154,28 @@ return [
         'security.login_per_hour_per_phone' => ['group' => 'security', 'type' => 'int', 'min' => 5, 'max' => 1000, 'label' => 'Bitta telefon uchun soatiga login urinishlari', 'default' => 30],
         'security.teacher_phone_visible' => ['group' => 'security', 'type' => 'bool', 'label' => "O'qituvchi telefoni o'quvchi va ota-onalarga ko'rinsin", 'default' => false],
         'security.api_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => "API so'rovlari / daqiqa", 'default' => 120],
+        'auth.allow_foreign_phones' => ['group' => 'security', 'type' => 'bool', 'label' => "Xorijiy telefon raqamlarini qabul qilish (o'chiq — faqat +998)", 'default' => false],
+        'auth.phone_hint' => ['group' => 'security', 'type' => 'string', 'public' => true, 'label' => 'Telefon maydoni izohi', 'default' => '+998 90 123 45 67'],
 
         // ── Telegram ─────────────────────────────────────────
         'telegram.bot_username' => ['group' => 'telegram', 'type' => 'string', 'public' => true, 'label' => 'Bot username (@siz)', 'default' => ''],
         'telegram.self_registration' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Bot orqali yangi o'quvchi ro'yxatdan o'tishi", 'default' => true],
+        'telegram.self_registration_approval' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Bot orqali ro'yxatdan o'tganlar administrator tasdiqlaguncha faol emas (o'chirilsa — darhol faol o'quvchi)", 'default' => true],
+        'telegram.self_registration_ask_role' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Ariza qoldirganda «O'quvchi / Ota-ona» deb so'rash", 'default' => true],
+        'telegram.text.ask_role' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza — kim sifatida ({name})", 'default' => "{name}, siz kim sifatida ro'yxatdan o'tyapsiz?"],
+        'telegram.text.btn_role_student' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot tugmasi: ariza — o'quvchi", 'default' => "🎓 O'quvchi"],
+        'telegram.text.btn_role_parent' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: ariza — ota-ona', 'default' => '👨‍👩‍👧 Ota-ona'],
+        'telegram.text.registration_pending' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza qabul qilindi ({name})", 'default' => "Rahmat, {name}! Arizangiz qabul qilindi. Administrator tasdiqlagach, shu yerda xabar beramiz."],
+        'telegram.text.account_pending' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza ko'rib chiqilmoqda", 'default' => "Arizangiz hali ko'rib chiqilmoqda. Administrator tasdiqlagach, shu yerda xabar beramiz."],
+        'telegram.text.registration_approved' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza tasdiqlandi ({name}, {role})", 'default' => "✅ {name}, arizangiz tasdiqlandi ({role}). Menyuni ochish uchun /start ni bosing."],
+        'telegram.text.registration_rejected' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza rad etildi ({name})", 'default' => "{name}, arizangiz rad etildi. Savollar bo'lsa, administratorga murojaat qiling."],
+        'telegram.text.phone_not_supported' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: raqam qabul qilinmaydi (xorijiy)", 'default' => "Kechirasiz, faqat O'zbekiston (+998) raqamlari bilan ro'yxatdan o'tish mumkin. Administratorga murojaat qiling."],
+        'telegram.text.admin_new_applicant' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga yangi ariza ({name}, {phone}, {role}, {username})", 'default' => "📝 Yangi ariza (bot orqali)\n👤 {name} {username}\n📱 {phone}\n🏷 So'ralgan rol: {role}\n\nTasdiqlash — pastdagi tugmalar yoki saytdagi «Foydalanuvchilar → Arizalar»."],
+        'telegram.text.admin_btn_approve' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Admin tugmasi: arizani tasdiqlash ({role})', 'default' => '✅ {role}'],
+        'telegram.text.admin_btn_reject' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Admin tugmasi: arizani rad etish', 'default' => '❌ Rad etish'],
+        'telegram.text.admin_applicant_approved' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza tasdiqlandi — adminga ({name}, {phone}, {role})', 'default' => "✅ {name} ({phone}) {role} sifatida faollashtirildi."],
+        'telegram.text.admin_applicant_rejected' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ariza rad etildi — adminga ({name}, {phone})', 'default' => "❌ {name} ({phone}) arizasi rad etildi."],
+        'telegram.text.admin_applicant_done' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ariza allaqachon ko'rib chiqilgan", 'default' => "Bu ariza allaqachon ko'rib chiqilgan."],
         'telegram.login_code_ttl_seconds' => ['group' => 'telegram', 'type' => 'int', 'min' => 60, 'max' => 3600, 'label' => 'Kirish havolasi amal qilish muddati (soniya)', 'default' => 300],
         'telegram.miniapp_auth_max_age_seconds' => ['group' => 'telegram', 'type' => 'int', 'min' => 60, 'max' => 86400, 'label' => 'Mini App initData amal qilish muddati (soniya)', 'default' => 3600],
         'telegram.text.welcome' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: salomlashish', 'default' => "Assalomu alaykum! {site} botiga xush kelibsiz.\nDavom etish uchun telefon raqamingizni yuboring."],
@@ -248,8 +284,13 @@ return [
         'telegram.admin_chat_ids' => ['group' => 'telegram', 'type' => 'list', 'items' => 'int', 'label' => 'Bot adminlari (chat id ro\'yxati)', 'default' => []],
         'telegram.admin_notify_registrations' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Yangi ro'yxatdan o'tganlar haqida adminlarga xabar", 'default' => true],
         'telegram.broadcast_per_second' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 30, 'label' => 'Tarqatish tezligi (xabar/soniya)', 'default' => 20],
+        'telegram.outbox_enabled' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Xabarlarni navbat orqali yuborish (cron har daqiqada; 429/403 hisobga olinadi). O'chirilsa — darhol yuboriladi", 'default' => true],
+        'telegram.send_per_second' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 30, 'label' => 'Navbatdan yuborish tezligi (xabar/soniya, Telegram chegarasi ~30)', 'default' => 25],
+        'telegram.outbox_max_attempts' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 20, 'label' => 'Xato bo\'lganda necha marta qayta urinish', 'default' => 5],
+        'telegram.outbox_inline_limit' => ['group' => 'telegram', 'type' => 'int', 'min' => 0, 'max' => 200, 'label' => "So'rovdan keyin darhol yuboriladigan xabarlar soni (qolgani — cron, 0 — faqat cron)", 'default' => 30],
         'telegram.schedule_days' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 31, 'label' => 'Botdagi jadval necha kunlik', 'default' => 7],
         'telegram.list_limit' => ['group' => 'telegram', 'type' => 'int', 'min' => 3, 'max' => 50, 'label' => "Bot ro'yxatlaridagi elementlar soni", 'default' => 15],
+        'telegram.sheet_page_size' => ['group' => 'telegram', 'type' => 'int', 'min' => 10, 'max' => 90, 'label' => "Botdagi davomat varaqasida bir sahifadagi o'quvchilar", 'default' => 40],
         // Har rol uchun reply-klaviatura: qatorlar → amallar.
         // Amallar: courses, schedule, attendance, quizzes, certificates, balance, profile, today, children, app
         'telegram.menu' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot menyusi (rol → tugmalar qatorlari)', 'default' => [
@@ -285,6 +326,10 @@ return [
         'telegram.text.unknown' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: tushunarsiz xabar', 'default' => "Buyruq tushunilmadi. Pastdagi menyudan foydalaning yoki /help ni bosing."],
         'telegram.text.no_permission' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ruxsat yo'q", 'default' => "Bu bo'lim sizning rolingiz uchun mavjud emas."],
         'telegram.text.error' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: xato', 'default' => '⚠️ {message}'],
+        'telegram.text.error_generic' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kutilmagan xato', 'default' => "⚠️ Xatolik yuz berdi. Birozdan keyin qayta urinib ko'ring."],
+        'telegram.text.reason_prompt' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: davomat o'zgartirish sababini so'rash ({days})", 'default' => "✍️ Bu dars {days} kun oldin bo'lgan — o'zgartirish sababini bitta xabarda yozing (masalan: ma'lumotnoma keltirdi).\nBekor qilish: /cancel"],
+        'telegram.text.btn_prev' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Inline tugma: oldingi sahifa', 'default' => '◀️'],
+        'telegram.text.btn_next' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Inline tugma: keyingi sahifa', 'default' => '▶️'],
         'telegram.text.app_open' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ilovani ochish', 'default' => "To'liq imkoniyatlar ilovada: darslar, testlar, jadval va davomat 👇"],
         'telegram.text.courses_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kurslar sarlavhasi', 'default' => '📚 Kurslaringiz:'],
         'telegram.text.course_line' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kurs qatori ({n}, {course}, {group})', 'default' => '{n}. {course} — guruh «{group}»'],
@@ -518,16 +563,28 @@ return [
         'automation.unmarked_after_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 0, 'max' => 1440, 'label' => "Dars tugaganidan necha daqiqa keyin eslatilsin", 'default' => 30],
         'automation.cleanup_days' => ['group' => 'automation', 'type' => 'int', 'min' => 7, 'max' => 3650, 'label' => 'Bildirishnoma jurnali necha kun saqlansin', 'default' => 180],
         'telegram.text.lesson_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: dars eslatmasi ({name}, {group}, {time}, {room}, {topic})', 'default' => "⏰ {name}, bugun {time} da «{group}» darsi bor. Xona: {room}."],
+        'telegram.text.lesson_reminder_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ota-onaga dars eslatmasi ({name}, {child}, {group}, {time}, {room}, {topic})', 'default' => "⏰ Farzandingiz {child}ning bugun {time} da «{group}» darsi bor. Xona: {room}."],
         'telegram.text.lesson_reminder_teacher' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga dars eslatmasi ({name}, {group}, {time}, {room}, {topic}, {students})", 'default' => "📋 {name}, bugun {time} da «{group}» guruhida darsingiz bor. Xona: {room}. O'quvchilar: {students} ta."],
         'telegram.text.unmarked_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga davomat eslatmasi ({name}, {group}, {time})", 'default' => "📋 {name}, «{group}» guruhining {time} dagi darsi uchun davomat hali belgilanmagan."],
 
         // ── Zaxira va ogohlantirishlar ───────────────────────
         'backup.enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni bazadan zaxira nusxa olish', 'default' => true],
         'backup.keep_days' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Zaxira nusxalar necha kun saqlansin', 'default' => 14],
+        'backup.offsite_telegram' => ['group' => 'automation', 'type' => 'bool', 'label' => "Zaxirani admin Telegram chat(lar)iga hujjat sifatida yuborish (serverdan tashqarida saqlash)", 'default' => true],
+        'backup.offsite_require_encryption' => ['group' => 'automation', 'type' => 'bool', 'label' => "Shifrlanmagan zaxirani tashqariga yubormaslik (BACKUP_ENCRYPTION_KEY kerak)", 'default' => true],
+        'backup.telegram_part_mb' => ['group' => 'automation', 'type' => 'int', 'min' => 5, 'max' => 49, 'label' => "Telegram'ga yuboriladigan bo'lak hajmi (MB, Telegram chegarasi 50)", 'default' => 45],
+        'backup.offsite_max_mb' => ['group' => 'automation', 'type' => 'int', 'min' => 10, 'max' => 2000, 'label' => "Shundan katta zaxira Telegram'ga yuborilmaydi (ogohlantirish beriladi), MB", 'default' => 450],
+        'automation.heartbeat_stale_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 3, 'max' => 1440, 'label' => "Cron shuncha daqiqa ishlamasa adminlarga ogohlantirish", 'default' => 10],
+        'automation.heartbeat_alert_every_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 10, 'max' => 1440, 'label' => "Cron/vazifa ogohlantirishini qayta yuborish oralig'i (daqiqa)", 'default' => 60],
         'alerts.errors_enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => "Server xatolari haqida admin chatiga xabar", 'default' => true],
         'alerts.error_throttle_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 1440, 'label' => 'Bir xil xato haqida qayta xabar oralig\'i (daqiqa)', 'default' => 30],
         'telegram.text.alert_error' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga server xatosi ({type}, {message}, {where}, {url})', 'default' => "⚠️ Serverda xato\n{type}: {message}\n{where}\n{url}"],
         'telegram.text.alert_backup_failed' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga zaxira xatosi ({message})', 'default' => "❗️ Bazaning kunlik zaxira nusxasi olinmadi: {message}"],
+        'telegram.text.alert_backup_offsite_failed' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga zaxira tashqariga yuborilmadi ({message})", 'default' => "❗️ Zaxira serverda saqlandi, lekin Telegram'ga yuborilmadi: {message}"],
+        'telegram.text.alert_backup_unencrypted' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga zaxira shifrlanmagan', 'default' => "⚠️ BACKUP_ENCRYPTION_KEY .env da berilmagan: zaxira shifrlanmagan va serverdan tashqariga yuborilmadi."],
+        'telegram.text.backup_caption' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: zaxira fayli izohi ({site}, {file}, {size}, {part}, {sha})", 'default' => "🗄 {site} — bazaning zaxira nusxasi\n{file}\n{size} · {part}\nSHA-256: {sha}"],
+        'telegram.text.alert_cron_stale' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga cron ishlamayapti ({minutes}, {last})", 'default' => "⏱ Cron (schedule:run) {minutes} daqiqadan beri ishlamayapti — eslatmalar, zaxira va to'lov hisoblari to'xtagan bo'lishi mumkin.\nOxirgi ishga tushish: {last}"],
+        'telegram.text.alert_job_overdue' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: adminga vazifa kechikmoqda ({job}, {last}, {error})", 'default' => "⏱ Avtomatik vazifa kechikmoqda: {job}\nOxirgi muvaffaqiyatli ishga tushish: {last}\n{error}"],
 
         // ── Tarjimalar ───────────────────────────────────────
         'i18n.overrides' => ['group' => 'i18n', 'type' => 'object', 'label' => "Xabarlarni qayta yozish {\"validation.required\": \":attribute majburiy.\"}", 'default' => (object) []],
@@ -545,9 +602,10 @@ return [
         // ── Rollar ───────────────────────────────────────────
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
-            'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
+            'ADMIN' => ['course.manage', 'course.author', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
                 'report.view', 'user.manage', 'announcement.manage', 'billing.manage'],
-            'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
+            // course.author — faqat o'zi yaratgan kurslarni tahrirlaydi; o'qitadigan kurslari kontentini ko'radi.
+            'TEACHER' => ['course.author', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
             'STUDENT' => ['course.view', 'quiz.take'],
             'PARENT' => ['course.view'],
         ]],
