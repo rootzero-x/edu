@@ -58,6 +58,10 @@ class GroupController
             ->load(['course:id,title', 'teacher:id,first_name,last_name'.($teacherPhone ? ',phone' : ''), 'schedules',
                 'students' => fn ($q) => $q->select(array_merge(['users.id', 'first_name', 'last_name'],
                     $staff ? ['phone'] : []))->orderBy('first_name')]);
+        if (! $staff) {
+            // A'zolik tafsilotlari (chegirma, qo'shilgan sana) — faqat xodimlarga.
+            $g->students->each->makeHidden('pivot');
+        }
 
         return response()->json(['group' => $g]);
     }
