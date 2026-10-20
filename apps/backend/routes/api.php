@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\LandingController;
+use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\PublicLeadController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
@@ -30,6 +32,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/announcements', [AnnouncementController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/courses', [LandingController::class, 'courses'])->middleware('throttle:api');
+    Route::post('/public/leads', [PublicLeadController::class, 'store'])->middleware('throttle:leads');
 
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
@@ -98,6 +101,21 @@ Route::prefix('v1')->group(function () {
             Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update']);
             Route::post('/announcements/{announcement}/publish', [AnnouncementController::class, 'publish']);
             Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+        });
+
+        // Arizalar (CRM)
+        Route::middleware('perm:lead.manage')->group(function () {
+            Route::get('/leads', [LeadController::class, 'index']);
+            Route::post('/leads', [LeadController::class, 'store']);
+            Route::get('/leads/stats', [LeadController::class, 'stats']);
+            Route::get('/leads/options', [LeadController::class, 'owners']);
+            Route::get('/leads/trial-sessions', [LeadController::class, 'trialSessions']);
+            Route::get('/leads/{lead}', [LeadController::class, 'show'])->whereNumber('lead');
+            Route::patch('/leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead');
+            Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->whereNumber('lead');
+            Route::post('/leads/{lead}/status', [LeadController::class, 'status'])->whereNumber('lead');
+            Route::post('/leads/{lead}/activities', [LeadController::class, 'addActivity'])->whereNumber('lead');
+            Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])->whereNumber('lead');
         });
 
         // Hisobotlar

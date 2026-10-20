@@ -186,6 +186,7 @@ return [
                 ['command' => 'children', 'description' => 'Farzandlarim (ota-ona)'],
                 ['command' => 'profile', 'description' => 'Profil'],
                 ['command' => 'app', 'description' => 'Ilovani ochish'],
+                ['command' => 'ariza', 'description' => 'Kursga ariza qoldirish'],
                 ['command' => 'help', 'description' => 'Yordam'],
             ],
             'ru' => [
@@ -200,6 +201,7 @@ return [
                 ['command' => 'children', 'description' => 'Мои дети (родитель)'],
                 ['command' => 'profile', 'description' => 'Профиль'],
                 ['command' => 'app', 'description' => 'Открыть приложение'],
+                ['command' => 'ariza', 'description' => 'Оставить заявку на курс'],
                 ['command' => 'help', 'description' => 'Помощь'],
             ],
             'en' => [
@@ -214,6 +216,7 @@ return [
                 ['command' => 'children', 'description' => 'My children (parent)'],
                 ['command' => 'profile', 'description' => 'Profile'],
                 ['command' => 'app', 'description' => 'Open the app'],
+                ['command' => 'ariza', 'description' => 'Apply for a course'],
                 ['command' => 'help', 'description' => 'Help'],
             ],
         ]],

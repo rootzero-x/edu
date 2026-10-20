@@ -49,6 +49,17 @@ class AppServiceProvider extends ServiceProvider
 
             return $limits;
         });
+        // Ochiq ariza formasi: IP bo'yicha soatiga va telefon bo'yicha kuniga (IP almashtirib spam qilishdan himoya).
+        RateLimiter::for('leads', function (Request $r) {
+            $s = app(Settings::class);
+            $limits = [Limit::perHour($s->int('leads.public_per_hour'))->by('lead-ip:'.$r->ip())];
+            $digits = preg_replace('/\D+/', '', (string) $r->input('phone'));
+            if ($digits !== '') {
+                $limits[] = Limit::perDay($s->int('leads.public_per_phone_per_day'))->by('lead-phone:'.substr($digits, -9));
+            }
+
+            return $limits;
+        });
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(
             app(Settings::class)->int('security.api_per_minute'))->by($r->user()?->id ?: $r->ip()));
     }
