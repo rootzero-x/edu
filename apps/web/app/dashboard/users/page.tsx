@@ -5,11 +5,12 @@ import Users, { type UserRow } from "./Users";
 
 export const metadata: Metadata = { title: "Foydalanuvchilar" };
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ role?: string; q?: string; page?: string }> }) {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ role?: string; q?: string; page?: string; import?: string; group?: string }> }) {
   const user = await me();
   if (!user?.permissions.includes("user.manage")) redirect("/dashboard");
   const sp = await searchParams;
-  const qs = new URLSearchParams(Object.entries(sp).filter(([, v]) => v) as [string, string][]).toString();
+  const { import: openImport, group, ...filters } = sp;
+  const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]).toString();
   const { data } = await api<{ data: UserRow[]; meta: { total: number; page: number; pages: number } }>(`/v1/users${qs ? `?${qs}` : ""}`);
   return (
     <Users
@@ -19,6 +20,8 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       q={sp.q ?? ""}
       actorRole={user.role}
       selfId={user.id}
+      openImport={openImport === "1"}
+      importGroup={group && /^\d+$/.test(group) ? Number(group) : undefined}
     />
   );
 }

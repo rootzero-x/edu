@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, KeyRound, Link2, Unlink, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, Users as UsersIcon } from "lucide-react";
-import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, FileSpreadsheet, KeyRound, Link2, Unlink, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, UserRound, Users as UsersIcon } from "lucide-react";
+import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Field, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
+import PersonPicker from "@/components/PersonPicker";
+import ImportDialog from "./ImportDialog";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { obj } from "@/lib/settings";
 import { ROLE_LABELS } from "@/components/shell/nav";
@@ -14,13 +17,18 @@ export type UserRow = { id: number; phone: string; first_name: string; last_name
 const ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"];
 const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", PARENT: "neutral", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
-export default function Users({ rows: initialRows, meta, role, q, actorRole, selfId }: {
+export default function Users({ rows: initialRows, meta, role, q, actorRole, selfId, openImport = false, importGroup }: {
   rows: UserRow[]; meta: { total: number; page: number; pages: number }; role: string; q: string; actorRole: string; selfId: number;
+  openImport?: boolean; importGroup?: number;
 }) {
   // Rol nomlari sozlamalardan (telegram.role_labels) — bot, Mini App va sayt bir xil ko'rsatadi.
   const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels") };
   const confirm = useConfirm();
   const [kids, setKids] = useState<{ parent: UserRow; list: UserRow[] } | null>(null);
+  const [importing, setImporting] = useState(openImport);
+  const [linkKid, setLinkKid] = useState<UserRow | null>(null);
+  const [linkParent, setLinkParent] = useState<UserRow | null>(null);
+  useEffect(() => setImporting(openImport), [openImport]);
   const router = useRouter();
   const path = usePathname();
   const toast = useToast();
@@ -96,21 +104,15 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
     },
   });
 
-  const linkChild = (u: UserRow) => prompt({
-    title: "Farzandni bog'lash",
-    description: `${personName(u)} farzandining davomati bo'yicha Telegram xabar oladi.`,
-    fields: [{ name: "phone", label: "Farzandning telefon raqami", type: "tel", required: true, defaultValue: "+998" }],
-    submitText: "Bog'lash",
-    onSubmit: async (v) => {
-      const f = await call<{ data: UserRow[] }>("GET", `users?role=STUDENT&q=${encodeURIComponent(v.phone)}`);
-      const child = (f.data.data ?? []).find((x) => x.phone === v.phone);
-      if (!child) return "Bu raqamli o'quvchi topilmadi.";
-      const r = await call("POST", `users/${u.id}/children`, { child_id: child.id });
-      if (!r.ok) return errorText(r.data);
-      toast.success("Farzand bog'landi", personName(child));
-      if (kids?.parent.id === u.id) void openKids(u);
-    },
-  });
+  const linkChild = (u: UserRow) => setLinkKid(u);
+
+  async function pickChild(parent: UserRow, child: { id: number; first_name: string; last_name: string | null }) {
+    const r = await call("POST", `users/${parent.id}/children`, { child_id: child.id });
+    if (!r.ok) return toast.error("Bog'lanmadi", errorText(r.data));
+    toast.success("Farzand bog'landi", personName(child));
+    setLinkKid(null);
+    if (kids?.parent.id === parent.id) void openKids(parent);
+  }
 
   async function openKids(u: UserRow) {
     const r = await call<{ data: UserRow[] }>("GET", `users/${u.id}/children`);
@@ -138,7 +140,12 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
 
   return (
     <>
-      <PageHeader title="Foydalanuvchilar" description={`Jami: ${meta.total}`} actions={<Button icon={<UserPlus />} onClick={addUser}>Qo&apos;shish</Button>} />
+      <PageHeader title="Foydalanuvchilar" description={`Jami: ${meta.total}`} actions={
+        <>
+          <Button variant="secondary" icon={<FileSpreadsheet />} onClick={() => setImporting(true)}>Import</Button>
+          <Button icon={<UserPlus />} onClick={addUser}>Qo&apos;shish</Button>
+        </>
+      } />
       <div className="row" style={{ marginBottom: 16, alignItems: "flex-start" }}>
         <Tabs
           variant="pills"
@@ -163,7 +170,7 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
                   <Td>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                       <Avatar name={personName(u)} size={30} />
-                      <strong style={{ fontWeight: 600 }}>{personName(u)}</strong>
+                      <Link href={`/dashboard/users/${u.id}`} className="a"><strong style={{ fontWeight: 600 }}>{personName(u)}</strong></Link>
                       {u.id === selfId && <Badge tone="accent">Siz</Badge>}
                     </span>
                   </Td>
@@ -175,9 +182,11 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
                       <Dropdown
                         trigger={(p) => <Button size="sm" variant="ghost" iconOnly aria-label={`${personName(u)} — amallar`} icon={<MoreHorizontal />} {...p} />}
                         items={[
+                          { label: "Profil", icon: <UserRound />, href: `/dashboard/users/${u.id}` },
                           { label: "Tahrirlash", icon: <Pencil />, onSelect: () => edit(u) },
                           { label: "Parol o'rnatish", icon: <KeyRound />, onSelect: () => password(u) },
                           ...(u.role === "PARENT" ? [{ label: "Farzandlari", icon: <UsersIcon />, onSelect: () => openKids(u) }, { label: "Farzandni bog'lash", icon: <Link2 />, onSelect: () => linkChild(u) }] : []),
+                          ...(u.role === "STUDENT" ? [{ label: "Ota-onani bog'lash", icon: <Link2 />, onSelect: () => setLinkParent(u) }] : []),
                           { type: "separator" as const },
                           u.active
                             ? { label: "Bloklash", icon: <ShieldOff />, danger: true, onSelect: () => toggleActive(u) }
@@ -213,6 +222,52 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
           </ul>
         ))}
       </Dialog>
+      <Dialog open={linkKid !== null} onClose={() => setLinkKid(null)} title="Farzandni bog'lash" icon={<Link2 />} width={520}
+        description={linkKid ? `${personName(linkKid)} farzandining davomati, natijalari va to'lovlarini ko'radi.` : undefined}>
+        {linkKid && <PersonPicker role="STUDENT" label="O'quvchini qidirish" exclude={new Set(kids?.parent.id === linkKid.id ? kids.list.map((k) => k.id) : [])} onPick={(c) => pickChild(linkKid, c)} />}
+      </Dialog>
+      <LinkParentDialog student={linkParent} onClose={() => setLinkParent(null)} />
+      <ImportDialog open={importing} onClose={() => setImporting(false)} onDone={() => router.refresh()} defaultGroupId={importGroup} />
     </>
+  );
+}
+
+/** O'quvchiga ota-ona: mavjudini qidirib yoki yangisini (ism + telefon) yaratib. Raqam mavjud ota-onaniki bo'lsa — o'sha bog'lanadi. */
+function LinkParentDialog({ student, onClose }: { student: UserRow | null; onClose: () => void }) {
+  const toast = useToast();
+  const [tab, setTab] = useState("find");
+  const [form, setForm] = useState({ first_name: "", last_name: "", phone: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { setTab("find"); setForm({ first_name: "", last_name: "", phone: "" }); setError(null); }, [student]);
+
+  async function link(body: Record<string, unknown>) {
+    if (!student) return;
+    setBusy(true); setError(null);
+    const r = await call<{ parent: UserRow; created: boolean }>("POST", `users/${student.id}/parents`, body);
+    setBusy(false);
+    if (!r.ok) return setError(errorText(r.data));
+    toast.success(r.data.created ? "Ota-ona yaratildi va bog'landi" : "Ota-ona bog'landi", personName(r.data.parent));
+    onClose();
+  }
+
+  return (
+    <Dialog open={student !== null} onClose={onClose} title="Ota-onani bog'lash" icon={<Link2 />} width={520}
+      description={student ? personName(student) : undefined}
+      onSubmit={tab === "new" ? () => link({ ...form, last_name: form.last_name || null }) : undefined}
+      footer={tab === "new" ? <><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button type="submit" loading={busy}>Yaratish va bog&apos;lash</Button></> : undefined}>
+      <Tabs variant="pills" label="Ota-ona" value={tab} onChange={setTab} items={[{ id: "find", label: "Mavjud ota-ona" }, { id: "new", label: "Yangi ota-ona" }]} />
+      {tab === "find" ? (
+        <PersonPicker role="PARENT" label="Ota-onani qidirish" onPick={(p) => link({ parent_id: p.id })}
+          empty={<>Ro&apos;yxatda yo&apos;q bo&apos;lsa, «Yangi ota-ona» bo&apos;limida yarating.</>} />
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          <Field label="Ism" required><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></Field>
+          <Field label="Familiya"><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></Field>
+          <Field label="Telefon" required hint="90 123 45 67 yoki +998901234567"><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+        </div>
+      )}
+      {error && <p role="alert" style={{ color: "var(--danger)", margin: 0, fontWeight: 550 }}>{error}</p>}
+    </Dialog>
   );
 }
