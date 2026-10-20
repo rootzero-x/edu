@@ -5,7 +5,7 @@ import { cleanAnswers } from "@/lib/quiz";
 import { useParams } from "next/navigation";
 import { errorText, tg } from "../../_lib/api";
 import { useTg } from "../../_lib/TgProvider";
-import { confirmDialog, haptic, openLink, webApp } from "../../_lib/webapp";
+import { confirmDialog, haptic, openLink, setBackGuard, webApp } from "../../_lib/webapp";
 import { date } from "../../_lib/format";
 import { Async, Badge, Empty, MainButton, Page, Row, Section, useApi } from "../../_ui/ui";
 
@@ -56,11 +56,15 @@ export default function TgQuiz() {
   const [result, setResult] = useState<{ res: Result; attempt: Attempt; answers: Answers } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const starting = useRef(false);
 
   async function start() {
+    if (starting.current) return;
+    starting.current = true;
     setBusy(true);
     setErr(null);
     const r = await tg<{ attempt: Attempt }>("POST", `quizzes/${id}/attempts`);
+    starting.current = false;
     setBusy(false);
     if (!r.ok) {
       haptic.error();
@@ -109,7 +113,7 @@ export default function TgQuiz() {
               </Section>
             )}
             {!can_take && <Empty text={t("quiz_not_allowed")} icon="🔒" />}
-            {err && <p className="tg-hint" style={{ color: "var(--c-danger)", textAlign: "center", marginTop: 14 }}>{err}</p>}
+            {err && <p className="tg-hint tg-msg bad" role="alert">{err}</p>}
             <MainButton
               text={open ? t("quiz_continue") : t("quiz_start")}
               onClick={start}
@@ -137,7 +141,7 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
 
   useEffect(() => saveAnswers(attempt.id, answers), [attempt.id, answers]);
 
-  // Yopishdan oldin so'rash — javoblar yo'qolmasin.
+  // Yopishdan va BackButton bilan chiqishdan oldin so'rash — urinish tasodifan tashlab ketilmasin.
   useEffect(() => {
     const wa = webApp();
     try {
@@ -145,14 +149,16 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
     } catch {
       /* eski versiya */
     }
+    setBackGuard(() => (submitted.current ? Promise.resolve(true) : confirmDialog(t("quiz_leave_confirm"))));
     return () => {
+      setBackGuard(null);
       try {
         wa?.disableClosingConfirmation();
       } catch {
         /* eski versiya */
       }
     };
-  }, []);
+  }, [t]);
 
   const submit = useCallback(async (force = false) => {
     // Vaqt tugaganda avto-topshirish bir marta urinadi (xatoda har soniya qayta yuborib, ogohlantirish chiqarmasin).
@@ -260,6 +266,10 @@ function AttemptView({ attempt, onDone }: { attempt: Attempt; onDone: (r: Result
 
 function ResultView({ res, attempt, answers, onBack }: { res: Result; attempt: Attempt; answers: Answers; onBack: () => void }) {
   const { t } = useTg();
+  // Natija oxirgi savol pastida emas, sahifa boshida ko'rinsin.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, []);
   const r = res.result;
   const review = new Map((res.review ?? []).map((x) => [x.question_id, x]));
   return (
