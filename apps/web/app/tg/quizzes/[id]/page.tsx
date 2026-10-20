@@ -78,7 +78,7 @@ export default function TgQuiz() {
   if (attempt) return <AttemptView attempt={attempt} onDone={(res, answers) => setResult({ res, attempt, answers })} />;
 
   return (
-    <Async q={info}>
+    <Async q={info} title={t("quiz")}>
       {({ quiz, attempts, can_take, can_start }) => {
         // Boshqaruvchilar (javob kalitini ko'radiganlar) uchun API urinishlarsiz to'liq testni qaytaradi.
         if (!Array.isArray(attempts)) {

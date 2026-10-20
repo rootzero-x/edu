@@ -6,8 +6,10 @@ use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Models\LessonMaterial;
+use App\Models\StoredFile;
 use App\Support\Audit;
 use App\Support\CourseAccess;
+use App\Support\Uploads;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -131,6 +133,9 @@ class CurriculumController
     {
         CourseController::authorizeEdit($request->user(), $material->lesson->module->course);
         $material->delete();
+        if ($material->file_id && ($file = StoredFile::find($material->file_id))) {
+            app(Uploads::class)->delete($file);
+        }
 
         return response()->json(['ok' => true]);
     }

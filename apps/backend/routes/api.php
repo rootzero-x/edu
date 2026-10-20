@@ -2,21 +2,29 @@
 
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\HomeworkController;
 use App\Http\Controllers\Api\ImportController;
+use App\Http\Controllers\Api\KpiController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\MarksController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PublicLeadController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\SystemStatusController;
@@ -37,6 +45,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
     Route::get('/public/courses', [LandingController::class, 'courses'])->middleware('throttle:api');
     Route::post('/public/leads', [PublicLeadController::class, 'store'])->middleware('throttle:leads');
+    // Yuklangan fayl: imzolangan muddatli havola (token shart emas — havolani faqat ruxsati bor foydalanuvchi oladi).
+    Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download')
+        ->middleware(['signed:relative', 'throttle:api'])->whereNumber('file');
 
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
@@ -177,6 +188,60 @@ Route::prefix('v1')->group(function () {
             Route::get('/groups/{group}/certificates', [CertificateController::class, 'preview']);
             Route::post('/groups/{group}/certificates', [CertificateController::class, 'issue']);
             Route::delete('/certificates/{code}', [CertificateController::class, 'revoke']);
+        });
+
+        // ── Sprint 3 ─────────────────────────────────────────
+        // Taqvim va xonalar
+        Route::get('/calendar', [CalendarController::class, 'index']);
+        Route::get('/rooms', [RoomController::class, 'index']);
+        Route::middleware('perm:group.manage')->group(function () {
+            Route::post('/rooms', [RoomController::class, 'store']);
+            Route::patch('/rooms/{room}', [RoomController::class, 'update']);
+            Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
+        });
+
+        // Uyga vazifa va baholar (ruxsatlar controller'da: guruh o'qituvchisi / group.manage / guruh a'zosi)
+        Route::get('/assignments', [HomeworkController::class, 'index']);
+        Route::get('/assignments/{assignment}', [HomeworkController::class, 'show'])->whereNumber('assignment');
+        Route::post('/groups/{group}/assignments', [HomeworkController::class, 'store'])->whereNumber('group');
+        Route::patch('/assignments/{assignment}', [HomeworkController::class, 'update']);
+        Route::delete('/assignments/{assignment}', [HomeworkController::class, 'destroy']);
+        Route::post('/assignments/{assignment}/files', [HomeworkController::class, 'uploadFile']);
+        Route::put('/assignments/{assignment}/grades', [HomeworkController::class, 'grade']);
+        Route::put('/assignments/{assignment}/submission', [HomeworkController::class, 'submit']);
+        Route::post('/assignments/{assignment}/submission/files', [HomeworkController::class, 'uploadSubmissionFile']);
+        Route::get('/marks/me', [HomeworkController::class, 'myMarks']);
+        Route::get('/sessions/{session}/marks', [MarksController::class, 'show']);
+        Route::put('/sessions/{session}/marks', [MarksController::class, 'update'])->middleware('perm:attendance.mark');
+
+        // Fayllar
+        Route::get('/files/{file}/link', [FileController::class, 'link'])->whereNumber('file');
+        Route::delete('/files/{file}', [FileController::class, 'destroy'])->whereNumber('file');
+        Route::get('/files/usage', [FileController::class, 'usage'])->middleware('perm:settings.manage');
+        Route::post('/lessons/{lesson}/materials/upload', [FileController::class, 'uploadMaterial'])->middleware('perm:course.manage|course.author');
+
+        // Bildirishnomalar markazi; yetkazish hisoboti — foydalanuvchilarni boshqaruvchiga
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/unread', [NotificationController::class, 'unread']);
+        Route::post('/notifications/read', [NotificationController::class, 'markRead']);
+        Route::middleware('perm:user.manage')->group(function () {
+            Route::get('/notifications/report', [NotificationController::class, 'report']);
+            Route::get('/notifications/unreachable', [NotificationController::class, 'unreachable']);
+            Route::get('/notifications/unreachable.csv', [NotificationController::class, 'unreachableCsv']);
+        });
+
+        // Audit jurnali (faqat administratorlar) va sozlama tarixi
+        Route::middleware('perm:audit.view')->group(function () {
+            Route::get('/audit', [AuditController::class, 'index']);
+            Route::get('/audit/facets', [AuditController::class, 'facets']);
+        });
+        Route::get('/settings/{key}/history', [AuditController::class, 'settingHistory'])->middleware('perm:settings.manage');
+
+        // Ko'rsatkichlar (KPI) va uyga vazifa hisoboti
+        Route::middleware('perm:report.view')->group(function () {
+            Route::get('/reports/kpi', [KpiController::class, 'kpi']);
+            Route::get('/reports/kpi/students', [KpiController::class, 'students']);
+            Route::get('/reports/homework', [KpiController::class, 'homework']);
         });
 
         // Kurslar (ko'rish)

@@ -16,7 +16,7 @@ export default function TgCourse() {
   const course = useApi<{ course: Course; access?: { granted: boolean } & Denial }>(`courses/${id}`);
   const quizzes = useApi<{ data: QuizItem[] }>(`courses/${id}/quizzes`);
   return (
-    <Async q={course}>
+    <Async q={course} title={t("nav_courses")}>
       {({ course: c, access }) => (
         <Page title={c.title} subtitle={c.description ?? undefined}>
           {access && !access.granted && <Denied denial={access} />}

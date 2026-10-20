@@ -14,6 +14,8 @@ final class Settings
 {
     private const CACHE_KEY = 'tisu.settings.v1';
 
+    /** Faqat ADMIN (va har doim SUPER_ADMIN) ga beriladigan huquqlar. */
+    public const ADMIN_ONLY_PERMISSIONS = ['audit.view'];
     /** roles.permissions da tahrirlanadigan rollar (SUPER_ADMIN har doim hamma huquqqa ega). */
     private const PERMISSION_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
 
@@ -196,6 +198,12 @@ final class Settings
             }
             if (! is_array($perms) || array_diff($perms, $known)) {
                 return "$role uchun noma'lum huquq: ".implode(', ', array_diff((array) $perms, $known));
+            }
+            // Ba'zi huquqlar faqat administratorlarga beriladi (audit jurnalida IP, telefon va barcha o'zgarishlar bor).
+            foreach (self::ADMIN_ONLY_PERMISSIONS as $perm) {
+                if ($role !== 'ADMIN' && in_array($perm, $perms, true)) {
+                    return "«{$perm}» huquqi faqat administratorga beriladi.";
+                }
             }
         }
 

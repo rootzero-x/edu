@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Role;
 use App\Models\ClassSession;
+use App\Models\Room;
 use App\Models\StudyGroup;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\ScheduleClash;
 use App\Support\Enrollments;
 use App\Support\SessionGenerator;
 use App\Support\Settings;
@@ -40,7 +42,7 @@ class GroupController
     public function index(Request $request): JsonResponse
     {
         $groups = self::visible($request->user())
-            ->with(['course:id,title', 'teacher:id,first_name,last_name', 'schedules'])
+            ->with(['course:id,title,published', 'teacher:id,first_name,last_name', 'schedules'])
             ->withCount('students')
             ->orderByDesc('active')->orderBy('name')
             ->get();
@@ -67,8 +69,11 @@ class GroupController
 
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate($this->rules());
+        $data = $this->resolveRoom($request->validate($this->rules()));
         $this->assertTeacher($data['teacher_id']);
+        if ($data['active'] ?? true) {
+            $this->assertNoClash($data['schedules'] ?? [], (int) $data['teacher_id'], $data['room_id'] ?? null, $data['start_date'], $data['end_date'] ?? null, null);
+        }
         $group = DB::transaction(function () use ($data) {
             $g = StudyGroup::create($data);
             $g->schedules()->createMany($data['schedules'] ?? []);
@@ -82,7 +87,7 @@ class GroupController
 
     public function update(Request $request, StudyGroup $group): JsonResponse
     {
-        $data = $request->validate($this->rules(partial: true));
+        $data = $this->resolveRoom($request->validate($this->rules(partial: true)));
         if (isset($data['teacher_id'])) {
             $this->assertTeacher($data['teacher_id']);
         }
@@ -97,6 +102,18 @@ class GroupController
             && (DB::table('class_sessions')->where('group_id', $group->id)->exists() || DB::table('group_members')->where('group_id', $group->id)->exists())) {
             throw ValidationException::withMessages(['course_id' => "Guruhda darslar yoki o'quvchilar bor — kursni o'zgartirib bo'lmaydi. Yangi guruh oching."]);
         }
+        // Jadval, o'qituvchi, xona, sanalar yoki faollik o'zgarsa — to'qnashuv qaytadan tekshiriladi.
+        $relevant = array_intersect_key($data, array_flip(['schedules', 'teacher_id', 'room_id', 'start_date', 'end_date', 'active']));
+        if ($relevant && ($data['active'] ?? $group->active)) {
+            $this->assertNoClash(
+                $data['schedules'] ?? $group->schedules->map(fn ($s) => $s->only(['weekday', 'start_time', 'end_time']))->all(),
+                (int) ($data['teacher_id'] ?? $group->teacher_id),
+                array_key_exists('room_id', $data) ? $data['room_id'] : $group->room_id,
+                (string) $start, $end ? (string) $end : null, $group->id,
+            );
+        }
+        $fields = array_values(array_diff(array_keys($data), ['schedules']));
+        $before = self::auditable($group, $fields, array_key_exists('schedules', $data));
         DB::transaction(function () use ($group, $data) {
             $group->update($data);
             if (array_key_exists('schedules', $data)) {
@@ -109,7 +126,7 @@ class GroupController
                     ->delete();
             }
         });
-        Audit::log('group.update', 'group', $group->id, $data);
+        Audit::log('group.update', 'group', $group->id, ['before' => $before, 'after' => self::auditable($group->fresh(), $fields, array_key_exists('schedules', $data))]);
 
         return response()->json(['group' => $group->fresh()->load('schedules')]);
     }
@@ -260,8 +277,10 @@ class GroupController
     public function generateSessions(Request $request, SessionGenerator $generator, StudyGroup $group): JsonResponse
     {
         $data = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
+        $result = $generator->generate($group, $data['from'] ?? null, $data['to'] ?? null);
+        Audit::log('session.generate', 'group', $group->id, $result);
 
-        return response()->json($generator->generate($group, $data['from'] ?? null, $data['to'] ?? null));
+        return response()->json($result);
     }
 
     public function sessions(Request $request, int $group): JsonResponse
@@ -328,6 +347,13 @@ class GroupController
         $starts = $data['starts_at'] ?? $session->starts_at;
         $ends = $data['ends_at'] ?? $session->ends_at;
         abort_if($ends <= $starts, 422, 'Tugash vaqti boshlanishdan keyin bo\'lishi kerak.');
+        if (isset($data['starts_at']) || isset($data['ends_at']) || (array_key_exists('cancelled', $data) && ! $data['cancelled'] && $session->cancelled)) {
+            $clash = app(ScheduleClash::class)->forSession($session->id, (int) $session->group->teacher_id, $session->group->room_id,
+                \Illuminate\Support\Carbon::parse($starts), \Illuminate\Support\Carbon::parse($ends));
+            if ($clash) {
+                throw ValidationException::withMessages([$clash['field'] => $clash['message']]);
+            }
+        }
         abort_if(isset($data['starts_at']) && ClassSession::where('group_id', $session->group_id)->where('id', '!=', $session->id)
             ->where('starts_at', $data['starts_at']->format('Y-m-d H:i:s'))->exists(), 422, 'Bu vaqtda guruhning boshqa darsi bor.');
         $session->update($data);
@@ -346,6 +372,8 @@ class GroupController
             'teacher_id' => [$req, 'integer', 'exists:users,id'],
             'start_date' => [$req, 'date'],
             'end_date' => ['sometimes', 'nullable', 'date', 'after_or_equal:start_date'],
+            // Xona: room_id (xonalar ro'yxatidan). Eski mijozlar uchun erkin matn ham qabul qilinadi — xona ro'yxatga qo'shiladi.
+            'room_id' => ['sometimes', 'nullable', 'integer', 'exists:rooms,id'],
             'room' => ['sometimes', 'nullable', 'string', 'max:60'],
             'active' => ['sometimes', 'boolean'],
             'schedules' => ['sometimes', 'array', 'max:14'],
@@ -367,6 +395,48 @@ class GroupController
             ->values();
 
         return response()->json(['data' => $rows]);
+    }
+
+    /** Audit uchun maydonlar qiymati (sanalar — satr, jadval — "1 14:00-15:30; ..." ko'rinishida). */
+    private static function auditable(StudyGroup $g, array $fields, bool $withSchedules): array
+    {
+        $out = [];
+        foreach ($fields as $f) {
+            $v = $g->getAttribute($f);
+            $out[$f] = $v instanceof \DateTimeInterface ? $v->format('Y-m-d') : $v;
+        }
+        if ($withSchedules) {
+            $out['schedules'] = $g->schedules()->get()->map(fn ($s) => $s->weekday.' '.substr($s->start_time, 0, 5).'-'.substr($s->end_time, 0, 5))->implode('; ');
+        }
+
+        return $out;
+    }
+
+    /** room_id → room (nom, bot matnlari uchun); faqat room berilgan bo'lsa — nom bo'yicha xona topiladi yoki yaratiladi. */
+    private function resolveRoom(array $data): array
+    {
+        if (array_key_exists('room_id', $data)) {
+            $data['room'] = $data['room_id'] ? Room::whereKey($data['room_id'])->value('name') : null;
+        } elseif (array_key_exists('room', $data)) {
+            $name = trim((string) $data['room']);
+            if ($name === '') {
+                $data['room'] = $data['room_id'] = null;
+            } else {
+                $room = Room::whereRaw('lower(name) = ?', [mb_strtolower($name)])->first() ?? Room::create(['name' => $name]);
+                $data['room'] = $room->name;
+                $data['room_id'] = $room->id;
+            }
+        }
+
+        return $data;
+    }
+
+    private function assertNoClash(array $slots, int $teacherId, ?int $roomId, string $start, ?string $end, ?int $exceptGroupId): void
+    {
+        $clash = app(ScheduleClash::class)->forSchedule($slots, $teacherId, $roomId, $start, $end, $exceptGroupId);
+        if ($clash) {
+            throw ValidationException::withMessages([$clash['field'] => $clash['message']]);
+        }
     }
 
     private function assertTeacher(int $id): void

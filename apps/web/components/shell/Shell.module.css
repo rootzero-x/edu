@@ -59,3 +59,24 @@
 }
 
 .count { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-fg, #fff); font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Qo'ng'iroqcha (bildirishnomalar) */
+.bell { position: relative; }
+.bellDot { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--danger); color: #fff; font-size: .68rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; }
+.bellPanel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; width: min(380px, calc(100vw - 24px)); background: var(--card, var(--surface)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+.bellHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); min-height: 48px; }
+.bellNews { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--accent-soft); color: var(--accent-text); font-weight: 500; font-size: var(--text-sm); }
+.bellNews svg { width: 16px; height: 16px; }
+.bellList { list-style: none; margin: 0; padding: 0; max-height: min(60vh, 420px); overflow-y: auto; }
+.bellList li + li { border-top: 1px solid var(--border); }
+.bellList button { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: var(--space-3) var(--space-4); text-align: left; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.bellList button:hover, .bellList button:focus-visible { background: var(--surface-2); outline: none; }
+.bellType { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-xs); font-weight: 600; color: var(--accent-text); }
+.bellType time { color: var(--fg-subtle); font-weight: 400; }
+.bellText { font-size: var(--text-sm); color: var(--fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+.bellEmpty { margin: 0; padding: var(--space-6) var(--space-4); text-align: center; color: var(--fg-subtle); font-size: var(--text-sm); }
+.bellAll { display: block; text-align: center; padding: var(--space-3); border-top: 1px solid var(--border); font-weight: 500; font-size: var(--text-sm); color: var(--accent-text); }
+.bellAll:hover { background: var(--surface-2); }
+@media (max-width: 600px) {
+  .bellPanel { position: fixed; left: 12px; right: 12px; top: calc(var(--topbar-h) + 4px); width: auto; }
+}

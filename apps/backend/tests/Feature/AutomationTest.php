@@ -78,7 +78,7 @@ class AutomationTest extends TestCase
         $this->artisan('tisu:remind-lessons')->assertSuccessful();
         Http::assertSentCount(1);
         Http::assertSent(fn ($r) => (int) $r['chat_id'] === 100
-            && $r['text'] === "📋 Ustoz, bugun 14:00 da «ENG-1» guruhida darsingiz bor. Xona: 101. O'quvchilar: 1 ta.");
+            && $r['text'] === "📋 Ustoz, bugun 14:00 da «ENG-1» guruhida mashg'ulotingiz bor. Xona: 101. O'quvchilar: 1 ta.");
 
         // Sozlamadan o'chiriladi; o'quvchisiz guruhda o'qituvchiga ham yuborilmaydi.
         DB::table('notifications_log')->delete();

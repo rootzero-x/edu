@@ -6,13 +6,15 @@ import { Button, Dialog, Field, Input, Select, useToast } from "@/components/ui"
 import { call, errorText } from "@/lib/client";
 import { WEEKDAYS_LONG, personName } from "@/lib/format";
 import type { GroupDetail, Person, Schedule } from "@/lib/types";
+import RoomSelect from "@/components/rooms/RoomSelect";
 
 /** Guruhni tahrirlash: nom, o'qituvchi, xona, tugash sanasi va haftalik jadval. */
 export default function EditGroup({ open, onClose, group, onSaved }: { open: boolean; onClose: () => void; group: GroupDetail & { end_date?: string | null }; onSaved: () => void }) {
   const toast = useToast();
   const [teachers, setTeachers] = useState<Person[]>([]);
   const [busy, setBusy] = useState(false);
-  const [f, setF] = useState({ name: "", teacher_id: "", room: "", end_date: "" });
+  const [f, setF] = useState({ name: "", teacher_id: "", room_id: "", end_date: "" });
+  const [err, setErr] = useState<string | null>(null);
   const [slots, setSlots] = useState<Schedule[]>([]);
 
   useEffect(() => {
@@ -20,9 +22,10 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
     setF({
       name: group.name,
       teacher_id: group.teacher ? String(group.teacher.id) : "",
-      room: group.room ?? "",
+      room_id: group.room_id ? String(group.room_id) : "",
       end_date: (group.end_date ?? "").slice(0, 10),
     });
+    setErr(null);
     setSlots(group.schedules.map((x) => ({ weekday: x.weekday, start_time: x.start_time.slice(0, 5), end_time: x.end_time.slice(0, 5) })));
     call<{ data: Person[] }>("GET", "groups/teachers").then((r) => r.ok && setTeachers(r.data.data ?? []));
     // Faqat ochilganda to'ldiriladi: polling yangilagan `group` yozilayotgan qiymatlarni o'chirmasin.
@@ -33,16 +36,17 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
     const r = await call("PATCH", `groups/${group.id}`, {
       name: f.name,
       ...(f.teacher_id ? { teacher_id: Number(f.teacher_id) } : {}),
-      room: f.room || null,
+      room_id: f.room_id ? Number(f.room_id) : null,
       end_date: f.end_date || null,
       schedules: slots,
     });
-    if (!r.ok) { setBusy(false); return toast.error("Saqlanmadi", errorText(r.data)); }
+    // To'qnashuv (o'qituvchi yoki xona band) — xabar oynaning o'zida, to'qnashgan guruh nomi bilan.
+    if (!r.ok) { setBusy(false); return setErr(errorText(r.data)); }
     // Jadval o'zgargan bo'lsa kelgusi darslar yangi jadvaldan qo'shiladi.
     const g = await call("POST", `groups/${group.id}/sessions/generate`, {});
     setBusy(false);
     if (g.ok) toast.success("Guruh yangilandi");
-    else toast.error("Guruh saqlandi, lekin darslar yaratilmadi", errorText(g.data));
+    else toast.error("Guruh saqlandi, lekin mashg'ulotlar yaratilmadi", errorText(g.data));
     onClose();
     onSaved();
   }
@@ -66,9 +70,9 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
           {teachers.map((t) => <option key={t.id} value={t.id}>{personName(t)}</option>)}
         </Select>
       </Field>
-      <Field label="Xona"><Input value={f.room} onChange={(e) => setF({ ...f, room: e.target.value })} /></Field>
+      <Field label="Xona"><RoomSelect value={f.room_id} onChange={(room_id) => setF({ ...f, room_id })} current={{ id: group.room_id ?? null, name: group.room }} /></Field>
       <Field label="Tugash sanasi" hint="Bo'sh — muddatsiz"><Input type="date" value={f.end_date} min={group.start_date?.slice(0, 10)} onChange={(e) => setF({ ...f, end_date: e.target.value })} /></Field>
-      <Field label="Haftalik jadval" hint="O'zgarish faqat kelgusi yaratiladigan darslarga ta'sir qiladi">
+      <Field label="Haftalik jadval" hint="O'zgarish faqat kelgusi yaratiladigan mashg'ulotlarga ta'sir qiladi">
         <div style={{ display: "grid", gap: 8 }}>
           {slots.map((x, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr auto", gap: 8, alignItems: "center" }}>
@@ -83,6 +87,7 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
           <Button type="button" variant="secondary" size="sm" icon={<Plus />} onClick={() => setSlots([...slots, slots[slots.length - 1] ?? { weekday: 1, start_time: "14:00", end_time: "15:30" }])}>Kun qo&apos;shish</Button>
         </div>
       </Field>
+      {err && <p className="error" role="alert" style={{ margin: 0 }}>{err}</p>}
     </Dialog>
   );
 }

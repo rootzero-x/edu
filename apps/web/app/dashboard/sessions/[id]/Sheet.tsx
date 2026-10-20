@@ -292,7 +292,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
         <Card style={{ marginBottom: 16 }}>
           <CardBody>
             <div className={s.topic}>
-              <Field label="Dars mavzusi" hint="Maydondan chiqqanda saqlanadi">
+              <Field label="Mashg'ulot mavzusi" hint="Maydondan chiqqanda saqlanadi">
                 <Input value={topic} onChange={(e) => setTopic(e.target.value)} onBlur={saveTopic} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} placeholder="Masalan: Present Simple" />
               </Field>
             </div>

@@ -156,3 +156,10 @@ html, body, * { scrollbar-width: none; }
 .tg-balance b.ok { color: var(--c-ok); }
 .tg-balance small { color: var(--c-hint); }
 
+/* Uyga vazifa: bo'lim tugmalari */
+.tg-tabs { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+.tg-tabs button { flex: 1; min-height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--c-sep); background: transparent; color: var(--c-text); font: inherit; font-size: .88rem; cursor: pointer; white-space: nowrap; }
+.tg-tabs button.on { background: var(--c-btn); border-color: var(--c-btn); color: var(--c-btn-text, #fff); }
+.tg-textarea { min-height: 110px; resize: vertical; }
+.tg-score { width: 72px; min-height: 40px; text-align: center; }
+.tg-answer { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; margin: 6px 0 0; opacity: .9; }

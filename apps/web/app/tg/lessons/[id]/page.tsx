@@ -4,9 +4,13 @@ import { useParams } from "next/navigation";
 import { useTg } from "../../_lib/TgProvider";
 import { openLink } from "../../_lib/webapp";
 import { Async, Page, Row, Section, useApi } from "../../_ui/ui";
+import { FileRows } from "../../_ui/files";
 import { embedUrl } from "@/lib/embed";
 
-type Material = { id: number; type: "VIDEO" | "FILE" | "LINK" | "TEXT"; title: string; url: string | null; content: string | null };
+type Material = {
+  id: number; type: "VIDEO" | "FILE" | "LINK" | "TEXT"; title: string; url: string | null; content: string | null;
+  file?: { id: number; original_name: string; mime: string; size: number } | null;
+};
 type Lesson = { id: number; title: string; body: string | null; materials: Material[]; module: { course: { title: string } } };
 
 const ICONS: Record<Material["type"], string> = { VIDEO: "🎬", FILE: "📎", LINK: "🔗", TEXT: "📄" };
@@ -17,11 +21,13 @@ export default function TgLesson() {
   const hosts: string[] = Array.isArray(settings["course.embed_hosts"]) ? settings["course.embed_hosts"] : [];
   const q = useApi<{ lesson: Lesson }>(`lessons/${id}`);
   return (
-    <Async q={q}>
+    <Async q={q} title={t("lesson")}>
       {({ lesson }) => {
         const videos = lesson.materials.filter((m) => m.type === "VIDEO" && m.url);
         const texts = lesson.materials.filter((m) => m.type === "TEXT" && m.content);
         const links = lesson.materials.filter((m) => (m.type === "FILE" || m.type === "LINK") && m.url);
+        // Yuklangan fayllar — imzolangan muddatli havola orqali ochiladi.
+        const uploaded = lesson.materials.filter((m) => m.type === "FILE" && m.file);
         return (
           <Page title={lesson.title} subtitle={lesson.module?.course?.title}>
             {videos.map((v) => {
@@ -38,8 +44,9 @@ export default function TgLesson() {
             })}
             {lesson.body && <Section><div className="tg-prose">{lesson.body}</div></Section>}
             {texts.map((m) => <Section key={m.id} title={m.title}><div className="tg-prose">{m.content}</div></Section>)}
-            {links.length > 0 && (
+            {(links.length > 0 || uploaded.length > 0) && (
               <Section title={t("materials")}>
+                <FileRows files={uploaded.map((m) => ({ id: m.file!.id, name: m.title || m.file!.original_name, mime: m.file!.mime, size: m.file!.size }))} />
                 {links.map((m) => <Row key={m.id} icon={ICONS[m.type]} title={m.title} onClick={() => openLink(m.url!)} />)}
               </Section>
             )}

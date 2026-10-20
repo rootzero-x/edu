@@ -101,7 +101,7 @@ class TelegramBotTest extends TestCase
         foreach (['📚 Kurslarim', '🗓 Jadval', '✅ Davomatim', '📝 Testlarim', '🎓 Sertifikatlarim', '👤 Profil'] as $label) {
             $this->assertContains($label, $keyboard);
         }
-        $this->assertNotContains('📋 Bugungi darslar', $keyboard);
+        $this->assertNotContains("📋 Bugungi mashg'ulotlar", $keyboard);
         $this->assertNotContains('🛠 Admin panel', $keyboard);
 
         $this->text(102, '📚 Kurslarim');
@@ -178,7 +178,7 @@ class TelegramBotTest extends TestCase
     public function test_teacher_marks_attendance_with_inline_buttons(): void
     {
         $sid = $this->sessionId('2026-10-21 14:00:00');
-        $this->text(101, '📋 Bugungi darslar');
+        $this->text(101, "📋 Bugungi mashg'ulotlar");
         $button = $this->last(101)['reply_markup']['inline_keyboard'][0][0];
         $this->assertSame("a:s:$sid", $button['callback_data']);
         $this->assertStringContainsString('ENG-1 (0/1)', $button['text']);

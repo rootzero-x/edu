@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { api, me } from "@/lib/api";
-import ReportsView, { type Refs } from "./ReportsView";
+import { type Refs } from "./ReportsView";
+import ReportsTabs from "./ReportsTabs";
 
 export const metadata: Metadata = { title: "Hisobotlar" };
 
@@ -19,5 +20,5 @@ export default async function ReportsPage() {
     courses: courses.data.data ?? [],
     teachers: teachers?.data.data ?? [],
   };
-  return <ReportsView refs={refs} />;
+  return <ReportsTabs refs={refs} />;
 }
