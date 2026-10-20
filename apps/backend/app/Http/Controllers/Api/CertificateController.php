@@ -18,7 +18,9 @@ class CertificateController
     /** Guruh o'quvchilari uchun sertifikat shartlarini ko'rish (berishdan oldin). */
     public function preview(Request $request, Settings $settings, StudyGroup $group): JsonResponse
     {
-        return response()->json(['data' => $this->evaluate($group, $settings, $request->input('student_ids'))]);
+        $data = $request->validate(['student_ids' => ['nullable', 'array'], 'student_ids.*' => ['integer']]);
+
+        return response()->json(['data' => $this->evaluate($group, $settings, $data['student_ids'] ?? null)]);
     }
 
     /** Shartlarga mos o'quvchilarga sertifikat berish. Allaqachon berilganlar o'tkazib yuboriladi. */
@@ -32,16 +34,27 @@ class CertificateController
                 continue;
             }
             $code = $this->newCode($settings);
-            DB::table('certificates')->insertOrIgnore([
+            $inserted = DB::table('certificates')->insertOrIgnore([
                 'code' => $code, 'student_id' => $r['student_id'], 'course_id' => $group->course_id,
                 'group_id' => $group->id, 'issued_at' => now(),
             ]);
-            $issued[] = ['student_id' => $r['student_id'], 'code' => $code];
-            $notifier->sendTemplate($r['student_id'], 'certificate.issued', 'telegram.text.certificate_issued', [
-                'name' => $r['name'], 'course' => $group->course->title,
-                'url' => rtrim((string) $settings->get('certificate.public_base_url'), '/').'/'.$code,
-            ]);
+            // Parallel berilgan bo'lsa (unique student+group) — saqlanmagan kodni yubormaymiz.
+            if ($inserted) {
+                $issued[] = ['student_id' => $r['student_id'], 'code' => $code, 'name' => $r['name']];
+            }
         }
+        // Xabarlar javob yuborilgandan keyin: katta guruhda so'rov vaqt limitiga tushmasin.
+        $course = $group->course->title;
+        $base = rtrim((string) $settings->get('certificate.public_base_url'), '/');
+        $toNotify = $issued;
+        defer(function () use ($notifier, $toNotify, $course, $base) {
+            foreach ($toNotify as $i) {
+                $notifier->sendTemplate($i['student_id'], 'certificate.issued', 'telegram.text.certificate_issued', [
+                    'name' => $i['name'], 'course' => $course, 'url' => $base.'/'.$i['code'],
+                ]);
+            }
+        });
+        $issued = array_map(fn ($i) => ['student_id' => $i['student_id'], 'code' => $i['code']], $issued);
         Audit::log('certificate.issue', 'group', $group->id, ['issued' => $issued]);
 
         return response()->json(['issued' => $issued, 'data' => $this->evaluate($group, $settings, $data['student_ids'] ?? null)]);

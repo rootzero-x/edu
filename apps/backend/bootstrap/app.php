@@ -13,7 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // Faqat serverning o'z proksisiga (nginx → apache) ishonamiz; aks holda X-Forwarded-For soxtalashtirilib,
+        // IP bo'yicha limitlarni chetlab o'tish mumkin. Ro'yxat .env: TRUSTED_PROXIES="127.0.0.1,::1".
+        $middleware->trustProxies(at: array_values(array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1'))))));
         // API: mehmonni login sahifasiga yo'naltirmaslik, 401 JSON qaytarish.
         $middleware->redirectGuestsTo(fn () => null);
         $middleware->alias(['perm' => \App\Http\Middleware\RequirePermission::class]);

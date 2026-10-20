@@ -16,7 +16,13 @@ class BotHandler
     public function handle(array $update): void
     {
         if (isset($update['callback_query'])) {
-            $this->menu->onCallback($update['callback_query']);
+            $cq = $update['callback_query'];
+            if (str_starts_with((string) ($cq['data'] ?? ''), 'lg:')) {
+                $this->onLoginCallback($cq);
+
+                return;
+            }
+            $this->menu->onCallback($cq);
 
             return;
         }
@@ -55,7 +61,7 @@ class BotHandler
                 return;
             }
             if ($user) {
-                $this->confirmLogin($code, $user, $chatId);
+                $this->askLoginConfirm($code, $user, $chatId);
 
                 return;
             }
@@ -127,21 +133,60 @@ class BotHandler
 
         $code = Cache::pull($this->pendingKey((int) $from['id']));
         if ($code && $this->pendingRequest($code)) {
-            $this->confirmLogin($code, $user, $chatId);
+            $this->askLoginConfirm($code, $user, $chatId);
         }
     }
 
-    private function confirmLogin(string $code, User $user, int $chatId): void
+    /**
+     * Saytga kirishni tasdiqlash so'rovi. Havolani bosishning o'zi yetarli emas: begona odam yuborgan
+     * havola bilan akkauntni egallab olishning oldini olish uchun foydalanuvchi IP/vaqtni ko'rib tasdiqlaydi.
+     */
+    private function askLoginConfirm(string $code, User $user, int $chatId): void
     {
         if (! $user->active) {
             $this->say($chatId, 'telegram.text.account_blocked');
 
             return;
         }
+        $req = DB::table('telegram_login_requests')->where('code', $code)->first(['ip', 'created_at']);
+        $this->say($chatId, 'telegram.text.login_confirm', [
+            'name' => $user->first_name,
+            'ip' => $req->ip ?? '—',
+            'time' => $req ? \Illuminate\Support\Carbon::parse($req->created_at)->format('d.m.Y H:i') : '',
+        ], ['inline_keyboard' => [[
+            ['text' => $this->settings->get('telegram.text.btn_login_yes'), 'callback_data' => 'lg:y:'.$code],
+            ['text' => $this->settings->get('telegram.text.btn_login_no'), 'callback_data' => 'lg:n:'.$code],
+        ]]]);
+    }
+
+    private function onLoginCallback(array $cq): void
+    {
+        [, $answer, $code] = array_pad(explode(':', (string) $cq['data'], 3), 3, '');
+        $chatId = (int) ($cq['message']['chat']['id'] ?? 0);
+        $messageId = (int) ($cq['message']['message_id'] ?? 0);
+        $user = $this->linkedUser((int) $cq['from']['id']);
+        $render = function (string $key) use ($chatId, $messageId) {
+            $vars = ['site' => $this->settings->get('site.name')];
+            $text = strtr((string) $this->settings->get($key), array_combine(array_map(fn ($k) => '{'.$k.'}', array_keys($vars)), array_values($vars)));
+            $messageId ? $this->tg->editMessageText($chatId, $messageId, $text) : $this->tg->sendMessage($chatId, $text);
+        };
+        $this->tg->answerCallback((string) $cq['id']);
+        if (! $user || ! $user->active || ! $this->pendingRequest($code)) {
+            $render(! $user || $user->active ? 'telegram.text.login_expired' : 'telegram.text.account_blocked');
+
+            return;
+        }
+        if ($answer !== 'y') {
+            DB::table('telegram_login_requests')->where('code', $code)->where('status', 'PENDING')
+                ->update(['expires_at' => now()->subSecond(), 'updated_at' => now()]);
+            $render('telegram.text.login_rejected');
+
+            return;
+        }
         $updated = DB::table('telegram_login_requests')
             ->where('code', $code)->where('status', 'PENDING')->where('expires_at', '>', now())
             ->update(['status' => 'CONFIRMED', 'user_id' => $user->id, 'updated_at' => now()]);
-        $this->say($chatId, $updated ? 'telegram.text.login_confirmed' : 'telegram.text.login_expired');
+        $render($updated ? 'telegram.text.login_confirmed' : 'telegram.text.login_expired');
     }
 
     private function pendingRequest(string $code): bool

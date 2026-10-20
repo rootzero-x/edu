@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
+import { safeNext } from "@/lib/safe";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { TOKEN_COOKIE, me, publicSettings } from "@/lib/api";
 import { list, siteName, str } from "@/lib/settings";
@@ -19,7 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   // Allaqachon kirgan bo'lsa — kabinetga (token yaroqli bo'lsagina, aks holda sikl bo'lmasin).
   if ((await cookies()).get(TOKEN_COOKIE) && (await me())) {
     const n = (await searchParams).next;
-    redirect(n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard");
+    redirect(safeNext(n));
   }
   const st = await publicSettings();
   const name = siteName(st);

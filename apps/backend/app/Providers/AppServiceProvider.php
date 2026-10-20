@@ -36,9 +36,19 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // Limitlar sozlamalardan olinadi (security.*).
-        RateLimiter::for('login', fn (Request $r) => Limit::perMinute(
-            // Telefon + IP: bitta akkauntga parol tanlashni cheklaydi, umumiy proksi (Vercel) ortidagi boshqa foydalanuvchilarni bloklamaydi.
-            app(Settings::class)->int('security.login_per_minute'))->by(mb_strtolower((string) $r->input('phone')).'|'.$r->ip()));
+        RateLimiter::for('login', function (Request $r) {
+            $s = app(Settings::class);
+            $phone = mb_strtolower((string) $r->input('phone'));
+
+            // Telefon + IP: umumiy proksi (Vercel) ortidagi boshqa foydalanuvchilarni bloklamaydi.
+            $limits = [Limit::perMinute($s->int('security.login_per_minute'))->by('ip:'.$phone.'|'.$r->ip())];
+            if ($phone !== '') {
+                // Faqat telefon bo'yicha: IP almashtirib parol tanlashni to'xtatadi (telefonsiz so'rovlarga — Telegram — tegmaydi).
+                $limits[] = Limit::perHour($s->int('security.login_per_hour_per_phone'))->by('phone:'.$phone);
+            }
+
+            return $limits;
+        });
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(
             app(Settings::class)->int('security.api_per_minute'))->by($r->user()?->id ?: $r->ip()));
     }

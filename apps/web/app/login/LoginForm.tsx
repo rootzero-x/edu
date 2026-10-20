@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { safeNext } from "@/lib/safe";
 import { AlertCircle, ChevronDown, KeyRound, Phone } from "lucide-react";
 import { Button, Field, Input, Tabs } from "@/components/ui";
 import { useSiteSettings } from "@/components/SiteProvider";
@@ -10,9 +11,6 @@ import TelegramAuth from "./TelegramAuth";
 import s from "./login.module.css";
 
 /** Faqat sayt ichidagi yo'llarga qaytarish (open redirect'dan himoya). */
-function safeNext(v: string | null) {
-  return v && v.startsWith("/") && !v.startsWith("//") ? v : "/dashboard";
-}
 
 function PasswordForm({ next }: { next: string }) {
   const router = useRouter();

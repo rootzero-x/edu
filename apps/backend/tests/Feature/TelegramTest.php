@@ -33,6 +33,14 @@ class TelegramTest extends TestCase
             ['X-Telegram-Bot-Api-Secret-Token' => self::SECRET])->assertOk();
     }
 
+    private function tap(string $data, int $fromId = 555): void
+    {
+        $this->postJson('/v1/telegram/webhook', ['update_id' => 2, 'callback_query' => [
+            'id' => 'cb1', 'data' => $data, 'from' => ['id' => $fromId, 'first_name' => 'Ali'],
+            'message' => ['message_id' => 10, 'chat' => ['id' => $fromId, 'type' => 'private']],
+        ]], ['X-Telegram-Bot-Api-Secret-Token' => self::SECRET])->assertOk();
+    }
+
     public function test_webhook_rejects_wrong_secret(): void
     {
         $this->postJson('/v1/telegram/webhook', ['message' => []], ['X-Telegram-Bot-Api-Secret-Token' => 'nope'])->assertForbidden();
@@ -49,6 +57,10 @@ class TelegramTest extends TestCase
         $poll()->assertJsonPath('status', 'pending');
 
         $this->update(['contact' => ['phone_number' => '998901234567', 'user_id' => 555, 'first_name' => 'Ali']]);
+        // Kontakt yuborilgani yetarli emas — kirish alohida tasdiqlanadi.
+        $poll()->assertJsonPath('status', 'pending');
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/sendMessage') && ($r['reply_markup']['inline_keyboard'][0][0]['callback_data'] ?? '') === 'lg:y:'.$start['code']);
+        $this->tap('lg:y:'.$start['code']);
 
         $res = $poll()->assertOk()->assertJsonPath('status', 'ok')->assertJsonPath('user.phone', '+998901234567')
             ->assertJsonPath('user.role', 'STUDENT');
@@ -61,16 +73,37 @@ class TelegramTest extends TestCase
         Http::assertSent(fn ($r) => str_contains($r->url(), '/sendMessage') && str_contains($r['text'], "ro'yxatdan o'tdingiz"));
     }
 
-    public function test_linked_user_logs_in_with_one_tap(): void
+    public function test_linked_user_confirms_login_with_button(): void
     {
         $user = User::factory()->create(['phone' => '+998907777777']);
         $this->update(['contact' => ['phone_number' => '+998907777777', 'user_id' => 555]]);
         $this->assertSame($user->id, (int) DB::table('telegram_links')->where('telegram_id', 555)->value('user_id'));
 
         $start = $this->postJson('/v1/auth/telegram/start')->json();
+        $poll = fn () => $this->postJson('/v1/auth/telegram/poll', ['code' => $start['code'], 'poll_secret' => $start['poll_secret']]);
         $this->update(['text' => '/start login_'.$start['code']]);
-        $this->postJson('/v1/auth/telegram/poll', ['code' => $start['code'], 'poll_secret' => $start['poll_secret']])
-            ->assertJsonPath('status', 'ok')->assertJsonPath('user.id', $user->id);
+        $poll()->assertJsonPath('status', 'pending');
+        $this->tap('lg:y:'.$start['code']);
+        $poll()->assertJsonPath('status', 'ok')->assertJsonPath('user.id', $user->id);
+    }
+
+    /** Hujumchi o'z kodi bilan havola yuboradi — qurbon bossa ham, tasdiqlamasa token berilmaydi; rad etsa kod yopiladi. */
+    public function test_forwarded_login_link_cannot_take_over_account(): void
+    {
+        User::factory()->create(['phone' => '+998907777777']);
+        $this->update(['contact' => ['phone_number' => '+998907777777', 'user_id' => 555]]);
+        $attacker = $this->postJson('/v1/auth/telegram/start')->json();
+        $poll = fn () => $this->postJson('/v1/auth/telegram/poll', ['code' => $attacker['code'], 'poll_secret' => $attacker['poll_secret']]);
+
+        $this->update(['text' => '/start login_'.$attacker['code']]);
+        $poll()->assertJsonPath('status', 'pending');
+        // Boshqa telegram akkaunt tasdiqlay olmaydi.
+        $this->tap('lg:y:'.$attacker['code'], 999);
+        $poll()->assertJsonPath('status', 'pending');
+        $this->tap('lg:n:'.$attacker['code']);
+        $poll()->assertJsonPath('status', 'expired');
+        $this->tap('lg:y:'.$attacker['code']);
+        $poll()->assertJsonPath('status', 'expired');
     }
 
     public function test_foreign_contact_and_closed_registration(): void

@@ -130,6 +130,7 @@ return [
         'auth.token_ttl_days' => ['group' => 'security', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Kirish tokeni muddati (kun)', 'default' => 30],
         'auth.min_password_length' => ['group' => 'security', 'type' => 'int', 'min' => 8, 'max' => 64, 'label' => 'Parol minimal uzunligi', 'default' => 10],
         'security.login_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Login urinishlari / daqiqa', 'default' => 10],
+        'security.login_per_hour_per_phone' => ['group' => 'security', 'type' => 'int', 'min' => 5, 'max' => 1000, 'label' => 'Bitta telefon uchun soatiga login urinishlari', 'default' => 30],
         'security.api_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => "API so'rovlari / daqiqa", 'default' => 120],
 
         // ── Telegram ─────────────────────────────────────────
@@ -143,6 +144,10 @@ return [
         'telegram.text.linked' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: akkaunt bog\'landi', 'default' => "Rahmat, {name}! Telegram akkauntingiz bog'landi."],
         'telegram.text.registration_closed' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxat yopiq", 'default' => "Bu raqam tizimda topilmadi. Ro'yxatdan o'tish uchun administratorga murojaat qiling."],
         'telegram.text.not_own_contact' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: begona kontakt", 'default' => "Iltimos, pastdagi tugma orqali o'z raqamingizni yuboring."],
+        'telegram.text.login_confirm' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: saytga kirishni tasdiqlash so'rovi ({name}, {ip}, {time})", 'default' => "🔐 {name}, saytga kirish so'rovi.\nIP: {ip}\nVaqt: {time}\n\nAgar bu siz bo'lsangiz — tasdiqlang. Siz bo'lmasangiz — rad eting va havolani hech kimga bermang."],
+        'telegram.text.btn_login_yes' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: kirishni tasdiqlash', 'default' => '✅ Tasdiqlash'],
+        'telegram.text.btn_login_no' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: kirishni rad etish', 'default' => '❌ Rad etish'],
+        'telegram.text.login_rejected' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: kirish rad etildi', 'default' => "Kirish so'rovi rad etildi. Akkauntingiz xavfsiz."],
         'telegram.text.login_confirmed' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: saytga kirish tasdiqlandi', 'default' => "✅ Saytga kirish tasdiqlandi. Brauzerga qayting."],
         'telegram.text.login_expired' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: havola eskirgan', 'default' => "Havola eskirgan. Saytda qaytadan \"Telegram orqali kirish\" ni bosing."],
         'telegram.text.account_blocked' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: akkaunt bloklangan', 'default' => "Akkauntingiz faol emas. Administratorga murojaat qiling."],

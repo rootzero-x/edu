@@ -8,6 +8,7 @@ use App\Models\StudyGroup;
 use App\Models\User;
 use App\Support\Audit;
 use App\Support\SessionGenerator;
+use App\Support\Settings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,9 +50,12 @@ class GroupController
 
     public function show(Request $request, int $group): JsonResponse
     {
+        // Telefon raqamlari faqat xodimlarga (o'quvchi/ota-ona sinfdoshlarining raqamini ko'rmaydi).
+        $staff = $request->user()->hasPermission('attendance.mark') || $request->user()->hasPermission('group.manage');
         $g = self::findVisible($request->user(), $group)
-            ->load(['course:id,title,monthly_fee', 'teacher:id,first_name,last_name,phone', 'branch:id,name', 'schedules',
-                'students' => fn ($q) => $q->select('users.id', 'first_name', 'last_name', 'phone')->orderBy('first_name')]);
+            ->load(['course:id,title', 'teacher:id,first_name,last_name,phone', 'branch:id,name', 'schedules',
+                'students' => fn ($q) => $q->select(array_merge(['users.id', 'first_name', 'last_name'],
+                    $staff ? ['phone'] : []))->orderBy('first_name')]);
 
         return response()->json(['group' => $g]);
     }
@@ -139,20 +143,39 @@ class GroupController
         return response()->json(['data' => $sessions]);
     }
 
-    public function updateSession(Request $request, ClassSession $session): JsonResponse
+    public function updateSession(Request $request, Settings $settings, ClassSession $session): JsonResponse
     {
         $user = $request->user();
         self::findVisible($user, $session->group_id);
-        abort_unless($user->hasPermission('group.manage') || (int) $session->group->teacher_id === (int) $user->id, 403, 'Ruxsat yo\'q.');
+        $manager = $user->hasPermission('group.manage');
+        abort_unless($manager || (int) $session->group->teacher_id === (int) $user->id, 403, 'Ruxsat yo\'q.');
         $data = $request->validate([
             'topic' => ['sometimes', 'nullable', 'string', 'max:255'],
             'cancelled' => ['sometimes', 'boolean'],
             'starts_at' => ['sometimes', 'date'],
-            'ends_at' => ['sometimes', 'date', 'after:starts_at'],
+            'ends_at' => ['sometimes', 'date'],
         ]);
+        // Vaqtni faqat boshqaruvchi o'zgartiradi (o'qituvchi tahrir muddatini chetlab o'tmasligi uchun).
+        abort_if(! $manager && (isset($data['starts_at']) || isset($data['ends_at'])), 403, 'Dars vaqtini faqat administrator o\'zgartiradi.');
+        if (array_key_exists('cancelled', $data) && ! $manager) {
+            $w = AttendanceController::editWindow($settings, $session, false);
+            abort_if(! $w['can_edit'] && ! $session->starts_at->isFuture(), 403, $w['message'] ?? 'Ruxsat yo\'q.');
+        }
+        // Frontend ISO (UTC "Z") yuboradi — ilova vaqt zonasiga o'tkazib saqlaymiz.
+        foreach (['starts_at', 'ends_at'] as $k) {
+            if (isset($data[$k])) {
+                $data[$k] = \Illuminate\Support\Carbon::parse($data[$k])->setTimezone(config('app.timezone'));
+            }
+        }
+        $starts = $data['starts_at'] ?? $session->starts_at;
+        $ends = $data['ends_at'] ?? $session->ends_at;
+        abort_if($ends <= $starts, 422, 'Tugash vaqti boshlanishdan keyin bo\'lishi kerak.');
+        abort_if(isset($data['starts_at']) && ClassSession::where('group_id', $session->group_id)->where('id', '!=', $session->id)
+            ->where('starts_at', $data['starts_at']->format('Y-m-d H:i:s'))->exists(), 422, 'Bu vaqtda guruhning boshqa darsi bor.');
         $session->update($data);
+        Audit::log('session.update', 'session', $session->id, array_map(fn ($v) => $v instanceof \DateTimeInterface ? $v->format('Y-m-d H:i') : $v, $data));
 
-        return response()->json(['session' => $session]);
+        return response()->json(['session' => $session->fresh()]);
     }
 
     private function rules(bool $partial = false): array

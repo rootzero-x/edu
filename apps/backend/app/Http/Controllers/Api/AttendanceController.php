@@ -96,6 +96,7 @@ class AttendanceController
         $sameDay = $session->starts_at->isSameDay(now());
 
         $notified = 0;
+        $outbox = [];
         if ($settings->bool('attendance.notify_parents') && ($sameDay || ! $settings->bool('attendance.notify_only_same_day'))) {
             $notifyOn = (array) $settings->get('attendance.notify_statuses');
             $labels = (array) $settings->get('attendance.status_labels');
@@ -105,16 +106,24 @@ class AttendanceController
                 }
                 $child = DB::table('users')->where('id', $sid)->first(['first_name', 'last_name']);
                 foreach (DB::table('parent_child')->where('child_id', $sid)->pluck('parent_id') as $parentId) {
-                    $notifier->sendTemplate((int) $parentId, 'attendance.'.$status, 'telegram.text.attendance_parent', [
+                    $outbox[] = [(int) $parentId, 'attendance.'.$status, [
                         'child' => trim($child->first_name.' '.$child->last_name),
                         'group' => $group->name,
                         'date' => $session->starts_at->format('d.m.Y'),
                         'time' => $session->starts_at->format('H:i'),
                         'status' => $labels[$status] ?? $status,
-                    ]);
+                    ]];
                     $notified++;
                 }
             }
+        }
+        // Telegram'ga yuborish javobdan keyin — katta guruhda so'rov vaqt limitiga tushmasin.
+        if ($outbox) {
+            defer(function () use ($notifier, $outbox) {
+                foreach ($outbox as [$uid, $kind, $vars]) {
+                    $notifier->sendTemplate($uid, $kind, 'telegram.text.attendance_parent', $vars);
+                }
+            });
         }
 
         return response()->json(['ok' => true, 'changed' => count($changed), 'notified' => $notified]);

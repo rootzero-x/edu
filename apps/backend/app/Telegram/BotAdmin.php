@@ -21,9 +21,19 @@ class BotAdmin
 
     public function __construct(private TelegramClient $tg, private Settings $settings, private Texts $t) {}
 
+    /**
+     * Admin: chat sozlamadagi ro'yxatda VA unga bog'langan akkaunt faol hamda user.manage huquqiga ega
+     * (bloklangan yoki huquqi olingan admin bot orqali ham ishlay olmaydi).
+     */
     public function isAdmin(int $chatId): bool
     {
-        return in_array($chatId, array_map('intval', (array) $this->settings->get('telegram.admin_chat_ids')), true);
+        if (! in_array($chatId, array_map('intval', (array) $this->settings->get('telegram.admin_chat_ids')), true)) {
+            return false;
+        }
+        $userId = \Illuminate\Support\Facades\DB::table('telegram_links')->where('chat_id', $chatId)->value('user_id');
+        $user = $userId ? User::find($userId) : null;
+
+        return $user !== null && $user->active && $user->hasPermission('user.manage');
     }
 
     /** Yangi ro'yxatdan o'tgan foydalanuvchi haqida barcha adminlarga xabar. */
@@ -278,7 +288,10 @@ class BotAdmin
 
             return;
         }
-        // Ikki marta bosilsa ikki marta yuborilmasin.
+        // Ikki marta bosilsa (yoki Telegram qayta yuborsa) ikki marta yuborilmasin — atomik belgi.
+        if (! Cache::add('tg.broadcast.sent.'.$draft['token'], 1, self::STATE_TTL)) {
+            return;
+        }
         Cache::forget($this->draftKey($chatId));
         $total = $this->recipients($draft['audience'])->count();
         $this->tg->editMessageText($chatId, $messageId, $this->t->get('telegram.text.admin_broadcast_started', ['count' => $total]));

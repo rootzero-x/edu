@@ -43,7 +43,8 @@ class TelegramBotTest extends TestCase
         $this->teacher = User::factory()->role(Role::Teacher)->create(['first_name' => 'Ustoz']);
         $this->student = User::factory()->create(['first_name' => 'Aziz', 'last_name' => 'K']);
         $this->parent = User::factory()->role(Role::Parent)->create();
-        foreach ([[$this->teacher, 101], [$this->student, 102], [$this->parent, 103]] as [$u, $tg]) {
+        // Admin chati faol, user.manage huquqli akkauntga bog'langan (bot adminligi sharti).
+        foreach ([[$admin, self::ADMIN_CHAT], [$this->teacher, 101], [$this->student, 102], [$this->parent, 103]] as [$u, $tg]) {
             DB::table('telegram_links')->insert(['user_id' => $u->id, 'telegram_id' => $tg, 'chat_id' => $tg, 'linked_at' => now()]);
         }
         $course = Course::create(['title' => 'Ingliz tili', 'created_by' => $admin->id, 'published' => true]);
@@ -237,10 +238,15 @@ class TelegramBotTest extends TestCase
         $this->assertStringContainsString('Foydalanuvchilar: 4', $this->last(self::ADMIN_CHAT)['text']);
         $this->assertStringContainsString('Bugungi darslar: 1', $this->last(self::ADMIN_CHAT)['text']);
 
-        // Admin tugmasi faqat admin chatida ko'rinadi.
-        DB::table('telegram_links')->where('user_id', $this->teacher->id)->update(['telegram_id' => self::ADMIN_CHAT, 'chat_id' => self::ADMIN_CHAT]);
+        // Admin tugmasi admin chatida ko'rinadi.
         $this->text(self::ADMIN_CHAT, '/menu');
         $this->assertContains('🛠 Admin panel', collect($this->last(self::ADMIN_CHAT)['reply_markup']['keyboard'])->flatten(1)->pluck('text'));
+
+        // Chat ro'yxatda bo'lsa ham, bog'langan akkauntda user.manage bo'lmasa — admin emas.
+        DB::table('telegram_links')->where('telegram_id', self::ADMIN_CHAT)->delete();
+        DB::table('telegram_links')->where('user_id', $this->teacher->id)->update(['telegram_id' => self::ADMIN_CHAT, 'chat_id' => self::ADMIN_CHAT]);
+        $this->text(self::ADMIN_CHAT, '/menu');
+        $this->assertNotContains('🛠 Admin panel', collect($this->last(self::ADMIN_CHAT)['reply_markup']['keyboard'] ?? [])->flatten(1)->pluck('text'));
     }
 
     public function test_admin_search_by_phone(): void

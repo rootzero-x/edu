@@ -1,5 +1,7 @@
 "use client";
 
+import { WEB_HEADER } from "./safe";
+
 export type CallResult<T = any> = { ok: boolean; status: number; data: T };
 
 /** Brauzerdan API chaqiruvi — /api/proxy orqali (token httpOnly cookie'da, JS unga tegmaydi). */
@@ -8,7 +10,7 @@ export async function call<T = any>(method: string, path: string, body?: unknown
   try {
     res = await fetch(`/api/proxy/${path.replace(/^\//, "")}`, {
       method,
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "application/json", [WEB_HEADER]: "1" },
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
       signal: init.signal,

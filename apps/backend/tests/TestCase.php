@@ -6,5 +6,10 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    //
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // defer() bilan kechiktirilgan ishlar (Telegram xabarlari) testlarda darhol bajarilsin.
+        $this->withoutDefer();
+    }
 }

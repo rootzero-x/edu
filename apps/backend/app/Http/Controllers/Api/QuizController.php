@@ -64,7 +64,8 @@ class QuizController
     public function show(Request $request, CourseAccess $access, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
-        if ($user->hasPermission('quiz.manage')) {
+        // Javob kaliti faqat kursga aloqador xodimga (admin, muallif, shu kursdagi guruh o'qituvchisi).
+        if ($user->hasPermission('quiz.manage') && $this->canSeeKey($user, $quiz)) {
             return response()->json(['quiz' => $quiz->load('questions.options', 'course:id,title')]);
         }
         abort_unless($quiz->published && $quiz->course->published, 404);
@@ -151,9 +152,14 @@ class QuizController
     public function results(Request $request, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isAdmin() || (int) $quiz->course->created_by === (int) $user->id
-            || DB::table('study_groups')->where(['course_id' => $quiz->course_id, 'teacher_id' => $user->id])->exists(), 403, 'Ruxsat yo\'q.');
+        abort_unless($this->canSeeKey($user, $quiz), 403, 'Ruxsat yo\'q.');
+        // Admin va kurs muallifi — hammasini; boshqa o'qituvchi — faqat o'z guruhlari o'quvchilarini.
+        $limitToOwn = ! $user->isAdmin() && (int) $quiz->course->created_by !== (int) $user->id;
         $rows = QuizAttempt::where('quiz_id', $quiz->id)->whereNotNull('submitted_at')
+            ->when($limitToOwn, fn ($q) => $q->whereIn('quiz_attempts.student_id', DB::table('group_members')
+                ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
+                ->where('study_groups.teacher_id', $user->id)->where('study_groups.course_id', $quiz->course_id)
+                ->select('group_members.student_id')))
             ->join('users', 'users.id', '=', 'quiz_attempts.student_id')
             ->orderByDesc('quiz_attempts.percent')
             ->get(['quiz_attempts.*', 'users.first_name', 'users.last_name', 'users.phone']);
@@ -172,6 +178,8 @@ class QuizController
         abort_unless($this->eligible($user, $quiz), 403, 'Bu test sizning guruhingiz kursiga tegishli emas.');
 
         $attempt = DB::transaction(function () use ($quiz, $user) {
+            // Foydalanuvchi qatorini qulflaymiz: parallel so'rovlar urinishlar limitidan oshib ketmasin.
+            User::whereKey($user->id)->lockForUpdate()->first();
             $open = QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id])->whereNull('submitted_at')->lockForUpdate()->first();
             if ($open && ! $this->expired($quiz, $open)) {
                 return $open;
@@ -206,7 +214,10 @@ class QuizController
         abort_unless($updated, 422, 'Bu urinish allaqachon topshirilgan.');
 
         $review = null;
-        if ($settings->bool('quiz.show_correct_answers')) {
+        // To'g'ri javoblar faqat testdan o'tganda yoki urinishlar tugaganda ko'rsatiladi —
+        // aks holda bo'sh topshirib kalitni olish va qayta urinishda 100% olish mumkin bo'lardi.
+        $attemptsUsed = QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id])->count();
+        if ($settings->bool('quiz.show_correct_answers') && ($result['passed'] || $attemptsUsed >= $quiz->max_attempts)) {
             $review = $quiz->questions->map(fn ($q) => [
                 'question_id' => $q->id,
                 'correct' => $q->forGrader()['correct'],
@@ -221,6 +232,12 @@ class QuizController
     // ── Yordamchilar ─────────────────────────────────────────
 
     /** O'quvchi shu kursning faol guruhida bo'lishi kerak. */
+    private function canSeeKey(User $user, Quiz $quiz): bool
+    {
+        return $user->isAdmin() || (int) $quiz->course->created_by === (int) $user->id
+            || DB::table('study_groups')->where(['course_id' => $quiz->course_id, 'teacher_id' => $user->id])->exists();
+    }
+
     private function eligible(User $user, Quiz $quiz): bool
     {
         return $user->hasPermission('quiz.take') && app(CourseAccess::class)->enrolledStudent($user, (int) $quiz->course_id);
