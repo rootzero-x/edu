@@ -151,7 +151,7 @@
 .bandBtn { position: relative; z-index: 1; background: #fff !important; color: #0b0f17 !important; }
 @media (max-width: 560px) { .band { padding: var(--space-8) var(--space-5); } .bandBtn { width: 100%; } }
 
-.contacts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: var(--space-4); }
+.contacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: var(--space-4); }
 .contact {
   display: flex; gap: var(--space-4); align-items: flex-start; padding: var(--space-5); border-radius: var(--radius-xl);
   background: var(--surface); border: 1px solid var(--border); transition: border-color var(--dur), box-shadow var(--dur);
@@ -159,7 +159,7 @@
 a.contact:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
 .contactIcon { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: var(--radius-lg); background: var(--accent-soft); color: var(--accent-text); }
 .contactIcon svg { width: 20px; height: 20px; }
-.contactValue { font-weight: 650; word-break: break-word; }
+.contactValue { font-weight: 650; min-width: 0; align-self: center; overflow-wrap: break-word; }
 .socials { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: center; margin-top: var(--space-8); }
 
 .footer { padding: var(--space-8) 0; border-top: 1px solid var(--border); color: var(--fg-subtle); font-size: var(--text-sm); }
