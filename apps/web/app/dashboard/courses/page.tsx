@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { BookOpen, Layers } from "lucide-react";
 import { api, me, publicSettings } from "@/lib/api";
 import { str } from "@/lib/settings";
-import { fmtMoney } from "@/lib/format";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import Link from "next/link";
 import NewCourse from "./NewCourse";
@@ -14,7 +13,6 @@ type Course = { id: number; title: string; description: string | null; cover_url
 
 export default async function CoursesPage() {
   const [user, st, { data }] = await Promise.all([me(), publicSettings(), api<{ data: Course[] }>("/v1/courses")]);
-  const currency = str(st, "site.currency");
   const manage = Boolean(user?.permissions.includes("course.manage"));
   const list = data.data ?? [];
   return (
@@ -35,7 +33,6 @@ export default async function CoursesPage() {
                 {c.description && <p>{c.description}</p>}
                 <div className={s.meta}>
                   <span><Layers aria-hidden /> {c.modules_count} modul</span>
-                  {c.monthly_fee > 0 && <strong>{fmtMoney(c.monthly_fee, currency)}</strong>}
                 </div>
               </div>
             </Link>

@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { API_URL, publicCourses, publicSettings } from "@/lib/api";
 import { list, siteName, str } from "@/lib/settings";
-import { fmtMoney } from "@/lib/format";
 import { ButtonLink } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import s from "./landing.module.css";
@@ -47,7 +46,6 @@ export default async function Home() {
   const steps = list<{ title: string; text: string }>(st, "site.steps").filter((f) => f?.title);
   const stats = list<{ value: string; label: string }>(st, "site.stats").filter((x) => x?.value);
   const socials = list<{ label: string; url: string }>(st, "site.social_links").filter((x) => x?.url);
-  const currency = str(st, "site.currency");
   const heroImage = str(st, "site.hero_image_url");
 
   const phone = str(st, "site.contact_phone");
@@ -201,7 +199,6 @@ export default async function Home() {
                       {c.description && <p>{c.description}</p>}
                       <div className={s.courseMeta}>
                         <span>{c.duration_months} oy · {c.modules_count} modul</span>
-                        {c.monthly_fee > 0 && <span className={s.price}>{fmtMoney(c.monthly_fee, currency)}</span>}
                       </div>
                     </div>
                   </article>

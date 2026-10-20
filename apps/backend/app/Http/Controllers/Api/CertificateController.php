@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Attendance;
-use App\Domain\Billing;
 use App\Domain\CertificatePolicy;
 use App\Models\StudyGroup;
 use App\Support\Audit;
@@ -104,13 +103,11 @@ class CertificateController
             ->get(['attendances.student_id', 'attendances.status'])->groupBy('student_id');
         $finalQuizIds = DB::table('quizzes')->where('course_id', $group->course_id)->where('is_final', true)->pluck('id');
         $passed = DB::table('quiz_attempts')->whereIn('quiz_id', $finalQuizIds)->where('passed', true)->pluck('student_id')->flip();
-        $ledger = DB::table('ledger_entries')->where('group_id', $group->id)->get(['student_id', 'type', 'amount'])->groupBy('student_id');
         $existing = DB::table('certificates')->where('group_id', $group->id)->pluck('code', 'student_id');
 
-        return $students->map(function ($s) use ($statuses, $passed, $ledger, $existing, $settings, $finalQuizIds) {
+        return $students->map(function ($s) use ($statuses, $passed, $existing, $settings, $finalQuizIds) {
             $marked = ($statuses[$s->id] ?? collect())->pluck('status')->all();
             $rate = Attendance::rate($marked);
-            $debt = Billing::balance(($ledger[$s->id] ?? collect())->map(fn ($e) => ['type' => $e->type, 'amount' => (int) $e->amount]));
             $quizPassed = $finalQuizIds->isEmpty() ? true : isset($passed[$s->id]);
 
             return [
@@ -119,12 +116,10 @@ class CertificateController
                 'attendance_rate' => $rate,
                 'marked_sessions' => count($marked),
                 'final_quiz_passed' => $quizPassed,
-                'debt' => $debt,
                 'certificate' => $existing[$s->id] ?? null,
-                'blockers' => CertificatePolicy::blockers($rate, $quizPassed, $debt,
+                'blockers' => CertificatePolicy::blockers($rate, $quizPassed,
                     (float) $settings->int('certificate.min_attendance_percent'),
                     $settings->bool('certificate.require_final_quiz'),
-                    $settings->bool('certificate.require_no_debt'),
                     count($marked),
                     $settings->int('certificate.min_marked_sessions')),
             ];

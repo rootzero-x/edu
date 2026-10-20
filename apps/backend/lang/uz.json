@@ -1,0 +1,9 @@
+{
+    "(and :count more error)": "(yana :count ta xato)",
+    "(and :count more errors)": "(yana :count ta xato)",
+    "Unauthenticated.": "Tizimga kirilmagan.",
+    "This action is unauthorized.": "Ruxsat yo'q.",
+    "Too Many Attempts.": "Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring.",
+    "Not Found": "Topilmadi.",
+    "Server Error": "Server xatosi."
+}

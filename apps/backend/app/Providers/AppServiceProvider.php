@@ -19,6 +19,22 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Tarjimalarni sozlamalardan qayta yozish (i18n.overrides: {"validation.required": "..."}).
+        try {
+            $overrides = (array) app(Settings::class)->get('i18n.overrides');
+            $lines = [];
+            foreach ($overrides as $key => $text) {
+                if (is_string($key) && is_string($text) && str_contains($key, '.')) {
+                    $lines[$key] = $text;
+                }
+            }
+            if ($lines) {
+                app('translator')->addLines($lines, app()->getLocale());
+            }
+        } catch (\Throwable) {
+            // Baza hali tayyor bo'lmasa (masalan, birinchi migratsiya) standart tarjimalar ishlatiladi.
+        }
+
         // Limitlar sozlamalardan olinadi (security.*).
         RateLimiter::for('login', fn (Request $r) => Limit::perMinute(
             // Telefon + IP: bitta akkauntga parol tanlashni cheklaydi, umumiy proksi (Vercel) ortidagi boshqa foydalanuvchilarni bloklamaydi.

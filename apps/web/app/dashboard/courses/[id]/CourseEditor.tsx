@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, FileText, Layers, MoreHorizontal, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge, Button, Card, CardHeader, Dropdown, EmptyState, PageHeader, Switch, useConfirm, usePrompt, useToast } from "@/components/ui";
-import { useSiteSettings } from "@/components/SiteProvider";
 import { call, errorText } from "@/lib/client";
-import { fmtMoney } from "@/lib/format";
-import { str } from "@/lib/settings";
 import s from "./editor.module.css";
 
 type Lesson = { id: number; title: string; position: number; published: boolean };
@@ -22,7 +19,6 @@ export default function CourseEditor({ initial, canManage }: { initial: Course; 
   const toast = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
-  const currency = str(useSiteSettings(), "site.currency");
   const [c, setC] = useState(initial);
   useEffect(() => setC(initial), [initial]);
 
@@ -51,13 +47,12 @@ export default function CourseEditor({ initial, canManage }: { initial: Course; 
       { name: "title", label: "Nomi", required: true, defaultValue: c.title },
       { name: "description", label: "Tavsif", type: "textarea", defaultValue: c.description ?? "" },
       { name: "cover_url", label: "Muqova rasmi URL", type: "url", defaultValue: c.cover_url ?? "", placeholder: "https://…" },
-      { name: "monthly_fee", label: `Oylik to'lov${currency ? ` (${currency})` : ""}`, type: "number", defaultValue: String(c.monthly_fee ?? 0) },
       { name: "duration_months", label: "Davomiyligi (oy)", type: "number", defaultValue: String(c.duration_months ?? 1) },
     ],
     onSubmit: async (v) => {
       const r = await call("PATCH", `courses/${c.id}`, {
         title: v.title, description: v.description || null, cover_url: v.cover_url || null,
-        monthly_fee: Number(v.monthly_fee || 0), duration_months: Math.max(1, Number(v.duration_months || 1)),
+        duration_months: Math.max(1, Number(v.duration_months || 1)),
       });
       if (!r.ok) return errorText(r.data);
       toast.success("Kurs saqlandi");
@@ -174,7 +169,6 @@ export default function CourseEditor({ initial, canManage }: { initial: Course; 
       <div className={s.facts}>
         <Badge icon={<Layers />}>{c.modules.length} modul</Badge>
         <Badge icon={<BookOpen />}>{lessons} dars</Badge>
-        {c.monthly_fee > 0 && <Badge tone="accent">{fmtMoney(c.monthly_fee, currency)}</Badge>}
         {c.duration_months ? <Badge>{c.duration_months} oy</Badge> : null}
       </div>
       {c.description && <p className={`muted ${s.desc}`}>{c.description}</p>}

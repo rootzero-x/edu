@@ -12,7 +12,7 @@
 
 $allPermissions = [
     'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
-    'payment.manage', 'payment.view', 'report.view', 'user.manage', 'settings.manage',
+    'report.view', 'user.manage', 'settings.manage',
 ];
 
 return [
@@ -32,12 +32,10 @@ return [
             ['title' => 'Kurslar va darslar', 'text' => "Video, fayl va matnli darslar, modullar bo'yicha."],
             ['title' => 'Testlar', 'text' => 'Vaqt cheklovi, urinishlar soni, avtomatik baholash.'],
             ['title' => 'Guruhlar va davomat', 'text' => "Jadval, davomat, ota-onaga xabar."],
-            ['title' => "To'lovlar", 'text' => "Oylik to'lov, chegirma, qarzdorlik hisobi."],
             ['title' => 'Sertifikat', 'text' => "Kursni tugatganlarga QR-kodli sertifikat."],
             ['title' => 'Telegram', 'text' => 'Bot va Mini App orqali kirish.'],
         ]],
         'site.default_locale' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Standart til (uz/ru/en)', 'default' => 'uz'],
-        'site.currency' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Valyuta belgisi', 'default' => "so'm"],
 
         // ── Bosh sahifa (landing) matnlari ───────────────────
         'site.nav_login' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Bosh sahifa: «Kirish» tugmasi', 'default' => 'Kirish'],
@@ -116,11 +114,6 @@ return [
         'certificate.min_attendance_percent' => ['group' => 'certificate', 'type' => 'int', 'min' => 0, 'max' => 100, 'label' => 'Minimal davomat (%)', 'default' => 75],
         'certificate.min_marked_sessions' => ['group' => 'certificate', 'type' => 'int', 'min' => 0, 'max' => 1000, 'label' => "Kamida nechta dars davomati belgilangan bo'lishi kerak (0 — shart yo'q)", 'default' => 1],
         'certificate.require_final_quiz' => ['group' => 'certificate', 'type' => 'bool', 'label' => "Yakuniy testdan o'tish shart", 'default' => true],
-        'certificate.require_no_debt' => ['group' => 'certificate', 'type' => 'bool', 'label' => "Qarzdorlik bo'lmasligi shart", 'default' => true],
-
-        // ── Moliya ───────────────────────────────────────────
-        'billing.invoice_day' => ['group' => 'billing', 'type' => 'int', 'min' => 1, 'max' => 28, 'label' => "Oylik hisob chiqariladigan kun", 'default' => 1],
-        'billing.prorate_first_month' => ['group' => 'billing', 'type' => 'bool', 'label' => "Birinchi oy proporsional hisoblansin", 'default' => true],
 
         // ── Xavfsizlik ───────────────────────────────────────
         'auth.token_ttl_days' => ['group' => 'security', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Kirish tokeni muddati (kun)', 'default' => 30],
@@ -410,6 +403,9 @@ return [
             'quiz_back' => 'Test sahifasiga qaytish',
         ]],
 
+        // ── Tarjimalar ───────────────────────────────────────
+        'i18n.overrides' => ['group' => 'i18n', 'type' => 'object', 'label' => "Xabarlarni qayta yozish {\"validation.required\": \":attribute majburiy.\"}", 'default' => (object) []],
+
         // ── Interfeys ────────────────────────────────────────
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
         'ui.refresh_seconds' => ['group' => 'ui', 'type' => 'int', 'min' => 0, 'max' => 3600, 'public' => true, 'label' => "Avtomatik yangilanish oralig'i, soniya (0 — o'chiq)", 'default' => 20],
@@ -419,10 +415,10 @@ return [
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
             'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
-                'payment.manage', 'payment.view', 'report.view', 'user.manage'],
+                'report.view', 'user.manage'],
             'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view'],
-            'STUDENT' => ['course.view', 'quiz.take', 'payment.view'],
-            'PARENT' => ['course.view', 'payment.view'],
+            'STUDENT' => ['course.view', 'quiz.take'],
+            'PARENT' => ['course.view'],
         ]],
     ],
 ];

@@ -68,7 +68,13 @@ final class Settings
             }
             // Obyekt sozlamalar qisman yangilanadi: yuborilmagan kalitlar saqlanib qoladi.
             if ($defs[$key]['type'] === 'object' && is_array($value) && ! array_is_list($value)) {
-                $value = array_replace((array) $this->get($key), $value);
+                $current = (array) $this->get($key);
+                if ($key === 'roles.permissions') {
+                    // Endi mavjud bo'lmagan huquqlar (eski versiyadan qolgan) yangi qiymatni rad ettirmasin.
+                    $known = config('tisu.permissions');
+                    $current = array_map(fn ($perms) => array_values(array_intersect((array) $perms, $known)), $current);
+                }
+                $value = array_replace($current, $value);
             }
             $err = $this->validate($key, $defs[$key], $value);
             $err ? $errors[$key] = $err : $clean[$key] = $value;

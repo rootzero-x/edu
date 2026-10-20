@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { call, errorText } from "@/lib/client";
 
-const REASONS: Record<string, string> = { NO_ATTENDANCE_DATA: "davomat belgilanmagan", LOW_ATTENDANCE: "davomat past", QUIZ_NOT_PASSED: "yakuniy test o'tilmagan", HAS_DEBT: "qarzdorlik" };
+const REASONS: Record<string, string> = { NO_ATTENDANCE_DATA: "davomat belgilanmagan", LOW_ATTENDANCE: "davomat past", QUIZ_NOT_PASSED: "yakuniy test o'tilmagan" };
 
 export default function Certificates({ groupId }: { groupId: number }) {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -28,11 +28,11 @@ export default function Certificates({ groupId }: { groupId: number }) {
       </div>
       {rows && (
         <table>
-          <thead><tr><th>O&apos;quvchi</th><th>Davomat</th><th>Yakuniy test</th><th>Qarz</th><th>Holat</th></tr></thead>
+          <thead><tr><th>O&apos;quvchi</th><th>Davomat</th><th>Yakuniy test</th><th>Holat</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.student_id}>
-                <td>{r.name}</td><td>{r.attendance_rate}% <span className="muted">({r.marked_sessions} dars)</span></td><td>{r.final_quiz_passed ? "✅" : "—"}</td><td>{r.debt > 0 ? r.debt.toLocaleString("uz-UZ") : "—"}</td>
+                <td>{r.name}</td><td>{r.attendance_rate}% <span className="muted">({r.marked_sessions} dars)</span></td><td>{r.final_quiz_passed ? "✅" : "—"}</td>
                 <td>{r.certificate
                   ? <a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate}</a>
                   : r.blockers.length ? <span className="muted">{r.blockers.map((b: string) => REASONS[b] ?? b).join(", ")}</span>
