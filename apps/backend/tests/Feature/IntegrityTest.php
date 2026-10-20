@@ -249,16 +249,6 @@ class IntegrityTest extends TestCase
         $this->assertSame(1, $this->requests('sendMessage', 101)->count());
     }
 
-    public function test_parent_lesson_reminder_is_worded_for_parent(): void
-    {
-        app(Settings::class)->set(['automation.lesson_reminder_parents' => true, 'automation.lesson_reminder_teachers' => false], null);
-        Carbon::setTestNow('2026-10-21 13:30:00');
-        $this->artisan('tisu:remind-lessons')->assertSuccessful();
-        $toParent = (string) $this->requests('sendMessage', 103)->last()['text'];
-        $this->assertStringContainsString('Farzandingiz Aziz', $toParent);
-        $this->assertStringContainsString('Aziz, bugun', (string) $this->requests('sendMessage', 102)->last()['text']);
-    }
-
     public function test_audit_for_password_change_logout_and_csv(): void
     {
         Sanctum::actingAs($this->admin);

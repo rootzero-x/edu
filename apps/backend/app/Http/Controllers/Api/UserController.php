@@ -82,7 +82,7 @@ class UserController
 
     /**
      * Xavfsiz birlashtirish: tarixsiz (davomat, test, to'lov, guruh, sertifikat yo'q) takroriy akkaunt asosiysiga qo'shiladi —
-     * Telegram ulanishi va ota-ona bog'lanishlari ko'chiriladi, takroriy akkaunt o'chirilmaydi, arxivlanadi (faol emas).
+     * Telegram ulanishi ko'chiriladi, takroriy akkaunt o'chirilmaydi, arxivlanadi (faol emas).
      */
     public function merge(Request $request, PhoneDuplicates $duplicates, User $user): JsonResponse
     {

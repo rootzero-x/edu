@@ -22,7 +22,7 @@ const VIEWS = [
   { id: "tg_none", label: "Telegram ulanmagan" }, { id: "tg_blocked", label: "Botni bloklagan" },
 ];
 /** Ariza orqali beriladigan rollar (backend Registration::ROLES). */
-const APPLICANT_ROLES = ["STUDENT", "PARENT", "TEACHER"];
+const APPLICANT_ROLES = ["STUDENT", "TEACHER"];
 const ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"];
 const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", PARENT: "neutral", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
@@ -114,12 +114,11 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
   const linkChild = (u: UserRow) => prompt({
     title: "Farzandni bog'lash",
     description: `${personName(u)} farzandining davomati bo'yicha Telegram xabar oladi.`,
-    fields: [{ name: "phone", label: "Farzandning telefon raqami", type: "tel", required: true, defaultValue: "+998", placeholder: phoneHint }],
+    fields: [{ name: "phone", label: "Farzandning telefon raqami", type: "tel", required: true, defaultValue: "+998" }],
     submitText: "Bog'lash",
     onSubmit: async (v) => {
-      const phone = normalizePhone(v.phone);
-      const f = await call<{ data: UserRow[] }>("GET", `users?role=STUDENT&q=${encodeURIComponent(phone)}`);
-      const child = (f.data.data ?? []).find((x) => x.phone === phone);
+      const f = await call<{ data: UserRow[] }>("GET", `users?role=STUDENT&q=${encodeURIComponent(v.phone)}`);
+      const child = (f.data.data ?? []).find((x) => x.phone === v.phone);
       if (!child) return "Bu raqamli o'quvchi topilmadi.";
       const r = await call("POST", `users/${u.id}/children`, { child_id: child.id });
       if (!r.ok) return errorText(r.data);

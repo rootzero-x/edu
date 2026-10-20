@@ -39,16 +39,12 @@ class RemindLessonsCommand extends Command
                 ->get(['users.id', 'users.first_name']);
             if ($students) {
                 foreach ($members as $st) {
-                    $items[] = ['user_id' => (int) $st->id, 'kind' => $kind, 'key' => 'telegram.text.lesson_reminder', 'vars' => $vars + ['name' => $st->first_name]];
-                    if (! $withParents) {
-                        continue;
+                    $recipients = [$st->id];
+                    if ($withParents) {
+                        $recipients = array_merge($recipients, DB::table('parent_child')->where('child_id', $st->id)->pluck('parent_id')->all());
                     }
-                    // Ota-onaga alohida matn: "Farzandingiz {child}ning ..." (o'quvchiga yozilgandek emas).
-                    $parents = DB::table('parent_child')->join('users', 'users.id', '=', 'parent_child.parent_id')
-                        ->where('parent_child.child_id', $st->id)->get(['users.id', 'users.first_name']);
-                    foreach ($parents as $p) {
-                        $items[] = ['user_id' => (int) $p->id, 'kind' => $kind, 'key' => 'telegram.text.lesson_reminder_parent',
-                            'vars' => $vars + ['name' => $p->first_name, 'child' => $st->first_name]];
+                    foreach ($recipients as $uid) {
+                        $items[] = ['user_id' => (int) $uid, 'kind' => $kind, 'key' => 'telegram.text.lesson_reminder', 'vars' => $vars + ['name' => $st->first_name]];
                     }
                 }
             }

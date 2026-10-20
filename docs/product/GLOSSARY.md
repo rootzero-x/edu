@@ -9,7 +9,6 @@ Sayt, Mini App, bot va hujjatlarda quyidagi atamalar ishlatiladi. Apostrof — o
 | **kurs** | Yo'nalish (masalan, «Ingliz tili»): modullar, darslar, testlar | |
 | **guruh** | Bitta kurs bo'yicha birga o'qiydigan o'quvchilar, o'qituvchi va haftalik jadval | "sinf" |
 | **o'quvchi** | Talaba (rol STUDENT) | "student", "talaba" |
-| **ota-ona** | O'quvchining vakili (rol PARENT) | |
 | **ariza** | Bot orqali ro'yxatdan o'tgan, administrator tasdig'ini kutayotgan akkaunt | "pending" |
 | **bekor qilingan** | Mashg'ulot yoki sertifikat bekor qilingan (yozuv saqlanadi) | "bekor", "o'chirilgan" |
 | **arxivlangan** | Tarixi bor, lekin endi ishlatilmaydigan yozuv (o'chirilmaydi) | "o'chirilgan" |

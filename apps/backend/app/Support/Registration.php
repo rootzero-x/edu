@@ -13,7 +13,7 @@ use App\Telegram\Notifier;
 final class Registration
 {
     /** Ariza orqali berilishi mumkin bo'lgan rollar (admin rollari — faqat foydalanuvchilar bo'limidan). */
-    public const ROLES = [Role::Student, Role::Parent, Role::Teacher];
+    public const ROLES = [Role::Student, Role::Teacher];
 
     public function __construct(private Notifier $notifier, private Settings $settings) {}
 

@@ -82,20 +82,13 @@ final class PhoneDuplicates
         abort_if($tables !== [], 409, "Bu akkauntda tarix bor (".implode(', ', $tables)."): birlashtirib bo'lmaydi. Asosiy akkaunt sifatida shu akkauntni tanlang.");
 
         return DB::transaction(function () use ($from, $into) {
-            $moved = ['telegram' => false, 'parents' => 0, 'children' => 0];
+            $moved = ['telegram' => false];
             // Telegram: asosiy akkauntda yo'q bo'lsa ko'chiriladi.
             if (! DB::table('telegram_links')->where('user_id', $into->id)->exists()) {
                 $moved['telegram'] = (bool) DB::table('telegram_links')->where('user_id', $from->id)->update(['user_id' => $into->id]);
             } else {
                 DB::table('telegram_links')->where('user_id', $from->id)->delete();
             }
-            foreach (DB::table('parent_child')->where('child_id', $from->id)->pluck('parent_id') as $parentId) {
-                $moved['parents'] += DB::table('parent_child')->insertOrIgnore(['parent_id' => $parentId, 'child_id' => $into->id]);
-            }
-            foreach (DB::table('parent_child')->where('parent_id', $from->id)->pluck('child_id') as $childId) {
-                $moved['children'] += DB::table('parent_child')->insertOrIgnore(['parent_id' => $into->id, 'child_id' => $childId]);
-            }
-            DB::table('parent_child')->where('child_id', $from->id)->orWhere('parent_id', $from->id)->delete();
             $fromPhone = $from->phone;
             // Arxiv: telefon bo'shatiladi (asosiy akkaunt normal raqamni olishi uchun), akkaunt faol emas, tokenlar bekor.
             $from->forceFill(['phone' => mb_substr('merged:'.$from->id.':'.$fromPhone, 0, 32), 'active' => false, 'pending_at' => null])->save();

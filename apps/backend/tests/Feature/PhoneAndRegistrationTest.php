@@ -107,8 +107,6 @@ class PhoneAndRegistrationTest extends TestCase
         \App\Models\Course::create(['title' => 'Tarix', 'created_by' => $main->id]); // tarix: muallif
         // Eski formatda yozilgan takror (bot normalizatsiyasidan oldin) va boshqa raqamli bir xil ism.
         $dupe = User::factory()->create(['phone' => '+901112233', 'first_name' => 'Ali', 'last_name' => 'Valiyev']);
-        $parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $dupe->id]);
         DB::table('telegram_links')->insert(['user_id' => $dupe->id, 'telegram_id' => 6001, 'chat_id' => 6001, 'linked_at' => now()]);
 
         Sanctum::actingAs($this->admin);
@@ -122,7 +120,6 @@ class PhoneAndRegistrationTest extends TestCase
         $this->postJson("/v1/users/{$main->id}/merge", ['into_id' => $dupe->id])->assertStatus(409);
         $this->postJson("/v1/users/{$dupe->id}/merge", ['into_id' => $main->id])->assertOk();
         $this->assertSame($main->id, (int) DB::table('telegram_links')->where('telegram_id', 6001)->value('user_id'));
-        $this->assertTrue(DB::table('parent_child')->where(['parent_id' => $parent->id, 'child_id' => $main->id])->exists());
         $dupe->refresh();
         $this->assertFalse($dupe->active);
         $this->assertStringStartsWith('merged:', $dupe->phone);
@@ -143,29 +140,25 @@ class PhoneAndRegistrationTest extends TestCase
 
     // ── #5 Ariza ─────────────────────────────────────────────
 
-    public function test_bot_self_registration_creates_pending_applicant_with_role_choice(): void
+    public function test_bot_self_registration_creates_pending_applicant(): void
     {
-        $this->contact(700, '90 555 00 11', 'Ona');
-        $this->assertSame('rg:P', $this->lastTo(700)['reply_markup']['inline_keyboard'][0][1]['callback_data']);
-        $this->assertFalse(User::where('phone', '+998905550011')->exists(), "rol tanlanmaguncha akkaunt yo'q");
-
-        $this->press(700, 'rg:P');
+        $this->contact(700, '90 555 00 11', 'Yangi');
         $user = User::where('phone', '+998905550011')->firstOrFail();
-        $this->assertSame(Role::Parent, $user->role);
+        $this->assertSame(Role::Student, $user->role);
         $this->assertFalse($user->active);
         $this->assertTrue($user->isPending());
         $this->assertStringContainsString('Arizangiz qabul qilindi', (string) $this->lastTo(700)['text']);
-        // Adminga ariza: rol tugmalari bilan.
+        // Adminga ariza: tasdiqlash / rad etish tugmalari.
         $adminMsg = $this->lastTo(self::ADMIN_CHAT);
         $this->assertStringContainsString('Yangi ariza', (string) $adminMsg['text']);
-        $this->assertSame("adm:ap:{$user->id}:P", $adminMsg['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+        $this->assertSame("adm:ap:{$user->id}", $adminMsg['reply_markup']['inline_keyboard'][0][0]['callback_data']);
 
-        // Tasdiqlanmaguncha kira olmaydi va bot "ko'rib chiqilmoqda" deydi.
-        $this->webhook(['message' => ['message_id' => 2, 'text' => '/start', 'chat' => ['id' => 700, 'type' => 'private'], 'from' => ['id' => 700, 'first_name' => 'Ona']]]);
+        // Tasdiqlanmaguncha bot "ko'rib chiqilmoqda" deydi.
+        $this->webhook(['message' => ['message_id' => 2, 'text' => '/start', 'chat' => ['id' => 700, 'type' => 'private'], 'from' => ['id' => 700, 'first_name' => 'Yangi']]]);
         $this->assertStringContainsString("ko'rib chiqilmoqda", (string) $this->lastTo(700)['text']);
 
         // Admin bot orqali tasdiqlaydi → faol, foydalanuvchiga xabar.
-        $this->press(self::ADMIN_CHAT, "adm:ap:{$user->id}:P");
+        $this->press(self::ADMIN_CHAT, "adm:ap:{$user->id}");
         $user->refresh();
         $this->assertTrue($user->active);
         $this->assertFalse($user->isPending());
@@ -179,7 +172,6 @@ class PhoneAndRegistrationTest extends TestCase
 
     public function test_web_approve_and_reject_applicants(): void
     {
-        app(Settings::class)->set(['telegram.self_registration_ask_role' => false], null);
         $this->contact(701, '+998905550012');
         $this->contact(702, '+998905550013');
         $a = User::where('phone', '+998905550012')->firstOrFail();

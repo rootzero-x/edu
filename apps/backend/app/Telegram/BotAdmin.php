@@ -68,16 +68,11 @@ class BotAdmin
             'role' => $this->roleLabel($user->role->value),
             'username' => $username ? '@'.$username : '',
         ]);
-        // Ariza: tasdiqlash tugmalari (so'ralgan rol birinchi).
-        $markup = null;
-        if ($pending) {
-            $roles = $user->role === Role::Parent ? [Role::Parent, Role::Student] : [Role::Student, Role::Parent];
-            $markup = ['inline_keyboard' => [
-                array_map(fn (Role $r) => ['text' => $this->t->get('telegram.text.admin_btn_approve', ['role' => $this->roleLabel($r->value)]),
-                    'callback_data' => "adm:ap:{$user->id}:".($r === Role::Parent ? 'P' : 'S')], $roles),
-                [['text' => $this->t->get('telegram.text.admin_btn_reject'), 'callback_data' => "adm:rj:{$user->id}"]],
-            ]];
-        }
+        // Ariza: o'quvchi sifatida tasdiqlash yoki rad etish (boshqa rol — saytdagi «Arizalar» dan).
+        $markup = $pending ? ['inline_keyboard' => [[
+            ['text' => $this->t->get('telegram.text.admin_btn_approve', ['role' => $this->roleLabel(Role::Student->value)]), 'callback_data' => "adm:ap:{$user->id}"],
+            ['text' => $this->t->get('telegram.text.admin_btn_reject'), 'callback_data' => "adm:rj:{$user->id}"],
+        ]]] : null;
         foreach ((array) $this->settings->get('telegram.admin_chat_ids') as $chatId) {
             // Ro'yxatda qolib ketgan, lekin endi admin bo'lmagan chatga telefon raqamlari ketmasin.
             if (! $this->isAdmin((int) $chatId)) {
@@ -91,7 +86,7 @@ class BotAdmin
         }
     }
 
-    /** Arizani bot orqali tasdiqlash / rad etish ("adm:ap:{id}:S|P", "adm:rj:{id}"). */
+    /** Arizani bot orqali tasdiqlash (o'quvchi) / rad etish ("adm:ap:{id}", "adm:rj:{id}"). */
     private function decideApplicant(int $chatId, int $messageId, array $parts): void
     {
         $user = User::find((int) ($parts[2] ?? 0));
@@ -104,7 +99,7 @@ class BotAdmin
         }
         $vars = ['name' => trim($user->first_name.' '.$user->last_name), 'phone' => $user->phone];
         if ($parts[1] === 'ap') {
-            $role = ($parts[3] ?? 'S') === 'P' ? Role::Parent : Role::Student;
+            $role = Role::Student;
             $ok = $registration->approve($user, $role, $actorId ? (int) $actorId : null);
             $text = $ok ? $this->t->get('telegram.text.admin_applicant_approved', $vars + ['role' => $this->roleLabel($role->value)]) : null;
         } else {

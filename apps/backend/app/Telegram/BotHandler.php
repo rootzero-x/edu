@@ -65,11 +65,6 @@ class BotHandler
 
                 return;
             }
-            if (str_starts_with($data, 'rg:')) {
-                $this->onRoleCallback($cq);
-
-                return;
-            }
             $this->menu->onCallback($cq);
 
             return;
@@ -175,16 +170,6 @@ class BotHandler
                 'first_name' => $contact['first_name'] ?? $from['first_name'] ?? 'Foydalanuvchi',
                 'last_name' => $contact['last_name'] ?? $from['last_name'] ?? null,
             ];
-            // Ariza rejimida avval "kim sifatida?" so'raymiz (ota-onalar o'quvchi bo'lib qolmasin).
-            if ($this->settings->bool('telegram.self_registration_approval') && $this->settings->bool('telegram.self_registration_ask_role')) {
-                Cache::put($this->applicantKey((int) $from['id']), $applicant, 900);
-                $this->say($chatId, 'telegram.text.ask_role', ['name' => $applicant['first_name']], ['inline_keyboard' => [[
-                    ['text' => $this->settings->get('telegram.text.btn_role_student'), 'callback_data' => 'rg:S'],
-                    ['text' => $this->settings->get('telegram.text.btn_role_parent'), 'callback_data' => 'rg:P'],
-                ]]]);
-
-                return;
-            }
             $this->register($applicant, Role::Student, $from, $chatId);
 
             return;
@@ -197,33 +182,6 @@ class BotHandler
         ]);
         $this->menu->sendMenu($user, $chatId, 'telegram.text.linked', ['name' => $user->first_name]);
         $this->confirmPendingLogin((int) $from['id'], $user, $chatId);
-    }
-
-    /** "Kim sifatida?" tugmasi: rg:S — o'quvchi, rg:P — ota-ona. */
-    private function onRoleCallback(array $cq): void
-    {
-        $from = $cq['from'];
-        $chatId = (int) ($cq['message']['chat']['id'] ?? 0);
-        $applicant = Cache::pull($this->applicantKey((int) $from['id']));
-        $this->tg->answerCallback((string) $cq['id']);
-        if (! $applicant || ! $chatId || $this->linkedUser((int) $from['id'])) {
-            if ($chatId && ! $this->linkedUser((int) $from['id'])) {
-                $this->askPhone($chatId);
-            }
-
-            return;
-        }
-        if (User::where('phone', $applicant['phone'])->exists()) {
-            // Shu orada admin shu raqam bilan akkaunt yaratgan — oddiy bog'lash yo'li.
-            $this->askPhone($chatId);
-
-            return;
-        }
-        if (isset($cq['message']['message_id'])) {
-            $this->tg->editMessageText($chatId, (int) $cq['message']['message_id'], $this->settings->get(
-                ($cq['data'] ?? '') === 'rg:P' ? 'telegram.text.btn_role_parent' : 'telegram.text.btn_role_student'));
-        }
-        $this->register($applicant, ($cq['data'] ?? '') === 'rg:P' ? Role::Parent : Role::Student, $from, $chatId);
     }
 
     /** Yangi akkaunt: ariza rejimida faol emas (pending_at), aks holda darhol faol. */
@@ -260,11 +218,6 @@ class BotHandler
                     'blocked_at' => null, 'blocked_reason' => null],
             );
         });
-    }
-
-    private function applicantKey(int $telegramId): string
-    {
-        return "tg.applicant.$telegramId";
     }
 
     /** Telefon so'ralishidan oldin saytdan kirish havolasi bosilgan bo'lsa — endi tasdiq so'raymiz. */
