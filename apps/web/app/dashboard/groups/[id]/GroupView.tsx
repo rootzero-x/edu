@@ -200,14 +200,14 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
               <Card>
                 <CardHeader title="Davomat hisoboti" description="Bekor qilinmagan, o'tgan darslar bo'yicha" />
                 {report.length === 0 ? <EmptyState compact icon={<PieChart />} title="Hali ma'lumot yo'q" /> : (
-                  <Table caption="Davomat hisoboti">
+                  <Table stack caption="Davomat hisoboti">
                     <thead><tr><Th>O&apos;quvchi</Th>{statuses.map((k) => <Th key={k} numeric>{labels[k]}</Th>)}<Th>Foiz</Th></tr></thead>
                     <tbody>
                       {report.map((r) => (
                         <tr key={r.student_id}>
                           <Td>{r.name}</Td>
-                          {statuses.map((k) => <Td key={k} numeric>{r.counts[k] ?? 0}</Td>)}
-                          <Td><div className={s.rate}><Progress value={Number(r.rate)} label="Davomat" /><b>{r.rate}%</b></div></Td>
+                          {statuses.map((k) => <Td key={k} numeric label={labels[k]}>{r.counts[k] ?? 0}</Td>)}
+                          <Td label="Foiz"><div className={s.rate}><Progress value={Number(r.rate)} label="Davomat" /><b>{r.rate}%</b></div></Td>
                         </tr>
                       ))}
                     </tbody>

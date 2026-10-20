@@ -53,13 +53,14 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
 
   const items = NAV.filter((n) => !n.perm || user.permissions.includes(n.perm));
   const isActive = (href: string, exact?: boolean) => (exact ? path === href : path === href || path.startsWith(`${href}/`));
-  const current = items.filter((n) => isActive(n.href, n.exact)).sort((a, b) => b.href.length - a.href.length)[0];
+  const inSection = (n: (typeof items)[number]) => isActive(n.href, n.exact) || Boolean(n.also?.some((h) => isActive(h)));
+  const current = items.filter(inSection).sort((a, b) => b.href.length - a.href.length)[0];
   const name = [user.first_name, user.last_name].filter(Boolean).join(" ");
 
   const link = (n: (typeof items)[number]) => {
     const Icon = n.icon;
     return (
-      <Link key={n.href} href={n.href} className={s.link} aria-current={isActive(n.href, n.exact) ? "page" : undefined}>
+      <Link key={n.href} href={n.href} className={s.link} aria-current={inSection(n) ? "page" : undefined}>
         <Icon aria-hidden />{labels[n.href] || n.label}
         {n.href === "/dashboard/news" && unread > 0 && <span className={s.count} aria-label={`${unread} ta o'qilmagan`}>{unread > 99 ? "99+" : unread}</span>}
       </Link>

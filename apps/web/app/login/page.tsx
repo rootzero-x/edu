@@ -26,6 +26,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const name = siteName(st);
   const logo = str(st, "site.logo_url");
   const points = list<string>(st, "login.side_points").filter((p) => typeof p === "string" && p);
+  const telegramEnabled = Boolean(str(st, "telegram.bot_username"));
+  const lead = telegramEnabled ? str(st, "login.subtitle") : str(st, "login.subtitle_password");
   const mark = <span className={s.mark} aria-hidden>{logo ? <img src={logo} alt="" /> : name.slice(0, 1)}</span>;
 
   return (
@@ -50,9 +52,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <div className={s.center}>
           <div className={s.box}>
             <h1>{str(st, "login.title", name)}</h1>
-            {str(st, "login.subtitle") && <p className={s.lead}>{str(st, "login.subtitle")}</p>}
+            {lead && <p className={s.lead}>{lead}</p>}
             <Suspense>
-              <LoginForm telegramEnabled={Boolean(str(st, "telegram.bot_username"))} />
+              <LoginForm telegramEnabled={telegramEnabled} />
             </Suspense>
           </div>
         </div>

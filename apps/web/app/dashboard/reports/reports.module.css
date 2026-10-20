@@ -14,3 +14,11 @@
 .legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 16px; }
 .rate { display: flex; align-items: center; gap: 8px; min-width: 140px; }
 .rate > :first-child { flex: 1; }
+@media (max-width: 600px) { .rate { min-width: 0; width: 60%; } }
+.filterToggle { display: none; align-items: center; gap: 6px; margin-left: auto; }
+.filterToggle svg { width: 14px; height: 14px; }
+@media (max-width: 600px) {
+  .filterToggle { display: inline-flex; }
+  .grid { display: none; grid-template-columns: 1fr 1fr; }
+  .grid[data-open] { display: grid; }
+}

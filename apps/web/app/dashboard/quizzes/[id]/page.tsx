@@ -1,4 +1,5 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import NotFoundCard from "@/components/NotFoundCard";
 import type { Metadata } from "next";
 import { ClipboardCheck, Clock, RotateCcw, Target } from "lucide-react";
 import { api, me, publicSettings } from "@/lib/api";
@@ -31,7 +32,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
       </>
     );
   }
-  if (res.status !== 200) notFound();
+  if (res.status !== 200) return <NotFoundCard />;
   const { quiz, attempts, can_take } = res.data as Res;
   const tz = timezone(st);
   const done = attempts.filter((a) => a.submitted_at);
@@ -61,15 +62,15 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         {done.length === 0 ? (
           <EmptyState compact icon={<Target />} title="Hali topshirilmagan" />
         ) : (
-          <Table>
+          <Table stack>
             <thead><tr><Th>Sana</Th><Th>Ball</Th><Th>%</Th><Th>Natija</Th></tr></thead>
             <tbody>
               {done.map((a) => (
                 <tr key={a.id}>
-                  <Td>{fmtDateTime(a.submitted_at!, tz)}</Td>
-                  <Td>{a.score}/{a.max_score}</Td>
-                  <Td>{a.percent}</Td>
-                  <Td>{a.passed ? <Badge tone="success">O&apos;tdi</Badge> : <Badge tone="warning">O&apos;tmadi</Badge>}</Td>
+                  <Td label="Sana">{fmtDateTime(a.submitted_at!, tz)}</Td>
+                  <Td label="Ball">{a.score}/{a.max_score}</Td>
+                  <Td label="%">{a.percent}</Td>
+                  <Td label="Natija">{a.passed ? <Badge tone="success">O&apos;tdi</Badge> : <Badge tone="warning">O&apos;tmadi</Badge>}</Td>
                 </tr>
               ))}
             </tbody>

@@ -11,9 +11,9 @@
   padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border);
 }
 .head h2, .head h3 { margin: 0; font-size: var(--text-md); font-weight: 650; }
-.headText { min-width: 0; }
+.headText { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .headDesc { margin: 2px 0 0; color: var(--fg-subtle); font-size: var(--text-sm); }
-.headActions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.headActions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; align-items: center; flex-shrink: 0; max-width: 60%; }
 .body { padding: var(--space-5); }
 .flush { padding: 0; }
 .foot { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border); background: var(--surface-2); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
@@ -44,6 +44,20 @@
 .table tbody tr { transition: background var(--dur-fast); }
 .table tbody tr:hover { background: color-mix(in oklab, var(--surface-2) 60%, transparent); }
 .table tbody tr:last-child td { border-bottom: 0; }
+@media (max-width: 600px) {
+  .stack thead { display: none; }
+  .stack, .stack tbody, .stack tr, .stack td { display: block; width: 100%; }
+  .stack tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+  .stack tbody tr:last-child { border-bottom: 0; }
+  .stack td, .stack tbody tr:last-child td { border: 0; padding: 3px 0; }
+  .stack tr { position: relative; }
+  .stack td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); text-align: right; white-space: normal !important; overflow-wrap: anywhere; }
+  .stack td[data-label]::before { content: attr(data-label); color: var(--fg-subtle); font-family: var(--font-sans); font-size: var(--text-sm); text-align: left; flex: none; }
+  .stack td:not([data-label]) { padding-bottom: var(--space-1); }
+  .stack td.actions { position: absolute; top: var(--space-2); right: var(--space-3); width: auto; padding: 0; }
+  .stack tr:has(td.actions) td:first-child { padding-right: 44px; }
+  .stack td.actions:empty { display: none; }
+}
 .num { text-align: right !important; font-variant-numeric: tabular-nums; }
 .actions { text-align: right !important; white-space: nowrap; width: 1%; }
 
@@ -111,6 +125,9 @@
 .progress > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width 500ms var(--ease); }
 
 @media (max-width: 560px) {
+  .head { padding: var(--space-3) var(--space-4); }
+  .body { padding: var(--space-4); }
+  .headActions { gap: var(--space-1); }
   .stat { padding: var(--space-4); gap: var(--space-2); }
   .statValue { font-size: 1.5rem; }
   .statIcon { width: 30px; height: 30px; }

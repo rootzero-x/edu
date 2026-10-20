@@ -39,7 +39,7 @@ export default function GroupsTable({ rows, empty }: { rows: GroupRow[]; empty?:
         </div>
       </div>
       <Card>
-        <Table caption="Guruhlar">
+        <Table stack caption="Guruhlar">
           <thead>
             <tr><Th>Guruh</Th><Th>Kurs</Th><Th>O&apos;qituvchi</Th><Th>Jadval</Th><Th numeric>O&apos;quvchilar</Th></tr>
           </thead>
@@ -51,10 +51,10 @@ export default function GroupsTable({ rows, empty }: { rows: GroupRow[]; empty?:
                   {!g.active && <Badge style={{ marginLeft: 8 }}>Yopiq</Badge>}
                   <div className="subtle" style={{ fontSize: "var(--text-xs)" }}>{[g.branch?.name, g.room].filter(Boolean).join(" · ")}</div>
                 </Td>
-                <Td>{g.course?.title}</Td>
-                <Td>{g.teacher ? personName(g.teacher) : "—"}</Td>
-                <Td style={{ whiteSpace: "nowrap" }}>{scheduleText(g.schedules)}</Td>
-                <Td numeric>{g.students_count}</Td>
+                <Td label="Kurs">{g.course?.title}</Td>
+                <Td label="O'qituvchi">{g.teacher ? personName(g.teacher) : "—"}</Td>
+                <Td label="Jadval" style={{ whiteSpace: "nowrap" }}>{scheduleText(g.schedules)}</Td>
+                <Td label="O'quvchilar" numeric>{g.students_count}</Td>
               </tr>
             ))}
           </tbody>

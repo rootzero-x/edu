@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, CalendarCheck, ClipboardCheck, Download, GraduationCap, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, BarChart3, SlidersHorizontal, CalendarCheck, ClipboardCheck, Download, GraduationCap, Users, UsersRound } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, Field, Input, PageHeader, Progress, Select, StatCard, Table, Tabs, Td, Th, buttonClass } from "@/components/ui";
 import LiveStatus from "@/components/LiveStatus";
 import { useSiteSettings } from "@/components/SiteProvider";
@@ -42,6 +42,8 @@ export default function ReportsView({ refs }: { refs: Refs }) {
   const tz = timezone(st);
   const labels = statusLabels(st);
   const [f, setF] = useState({ from: daysAgo(29), to: iso(new Date()), group_id: "", course_id: "", branch_id: "", teacher_id: "" });
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilters = [f.group_id, f.course_id, f.branch_id, f.teacher_id].filter(Boolean).length;
   const [data, setData] = useState<Data | null>(null);
   const [tab, setTab] = useState("groups");
   const qs = useMemo(() => new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]).toString(), [f]);
@@ -54,7 +56,7 @@ export default function ReportsView({ refs }: { refs: Refs }) {
     ]);
     return a.ok && q.ok && o.ok ? { att: a.data, quizzes: q.data.data, overview: o.data } : null;
   }, [qs]);
-  const live = usePolling(fetcher, setData, { seconds: refreshSeconds(st) });
+  const live = usePolling(fetcher, setData, { seconds: refreshSeconds(st), immediate: true });
 
   const groups = refs.groups.filter((g) => (!f.course_id || g.course_id === +f.course_id) && (!f.branch_id || g.branch_id === +f.branch_id) && (!f.teacher_id || g.teacher_id === +f.teacher_id));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value, ...(k !== "group_id" ? { group_id: "" } : {}) }));
@@ -82,8 +84,11 @@ export default function ReportsView({ refs }: { refs: Refs }) {
             <button key={label} type="button" className={s.preset} aria-pressed={f.from === daysAgo(n) && f.to === iso(new Date())}
               onClick={() => setF((x) => ({ ...x, from: daysAgo(n), to: iso(new Date()) }))}>{label}</button>
           ))}
+          <button type="button" className={`${s.preset} ${s.filterToggle}`} aria-expanded={showFilters} aria-controls="report-filters" onClick={() => setShowFilters((v) => !v)}>
+            <SlidersHorizontal aria-hidden /> Filtrlar{activeFilters ? ` · ${activeFilters}` : ""}
+          </button>
         </div>
-        <div className={s.grid}>
+        <div id="report-filters" className={s.grid} data-open={showFilters || undefined}>
           <Field label="Boshlanish"><Input type="date" value={f.from} max={f.to} onChange={set("from")} /></Field>
           <Field label="Tugash"><Input type="date" value={f.to} min={f.from} onChange={set("to")} /></Field>
           {refs.branches.length > 1 && (
@@ -131,16 +136,16 @@ export default function ReportsView({ refs }: { refs: Refs }) {
           {tab === "groups" && (
             <Card>
               {att!.by_group.length === 0 ? <EmptyState compact icon={<UsersRound />} title="Ma'lumot yo'q" /> : (
-                <Table>
+                <Table stack>
                   <thead><tr><Th>Guruh</Th><Th>O&apos;qituvchi</Th><Th>Darslar</Th>{Object.keys(labels).map((k) => <Th key={k}>{labels[k]}</Th>)}<Th>Davomat</Th></tr></thead>
                   <tbody>
                     {att!.by_group.map((g) => (
                       <tr key={g.group_id}>
                         <Td><Link className="a" href={`/dashboard/groups/${g.group_id}`}>{g.group}</Link><div className="subtle">{g.course}</div></Td>
-                        <Td>{g.teacher}</Td>
-                        <Td>{g.sessions}</Td>
-                        {Object.keys(labels).map((k) => <Td key={k}>{g.counts[k] ?? 0}</Td>)}
-                        <Td><div className={s.rate}><Progress value={g.rate ?? 0} label="Davomat" /><b>{g.rate ?? "—"}%</b></div></Td>
+                        <Td label="O'qituvchi">{g.teacher}</Td>
+                        <Td label="Darslar">{g.sessions}</Td>
+                        {Object.keys(labels).map((k) => <Td key={k} label={labels[k]}>{g.counts[k] ?? 0}</Td>)}
+                        <Td label="Davomat"><div className={s.rate}><Progress value={g.rate ?? 0} label="Davomat" /><b>{g.rate ?? "—"}%</b></div></Td>
                       </tr>
                     ))}
                   </tbody>
@@ -153,15 +158,15 @@ export default function ReportsView({ refs }: { refs: Refs }) {
             <Card>
               <CardHeader title={`Davomati ${att!.risk_threshold}% dan past`} description="Eng ko'p dars qoldirganlar birinchi" />
               {att!.risk.length === 0 ? <EmptyState compact icon={<GraduationCap />} title="Xavf ostida o'quvchi yo'q" /> : (
-                <Table>
+                <Table stack>
                   <thead><tr><Th>O&apos;quvchi</Th><Th>Guruh</Th><Th>{labels.ABSENT ?? "ABSENT"}</Th><Th>Davomat</Th></tr></thead>
                   <tbody>
                     {att!.risk.map((r) => (
                       <tr key={r.student_id}>
                         <Td><b>{r.name}</b><div className="subtle">{r.phone}</div></Td>
-                        <Td>{r.groups.join(", ")}</Td>
-                        <Td><Badge tone="danger">{r.counts.ABSENT ?? 0}</Badge></Td>
-                        <Td><div className={s.rate}><Progress value={r.rate ?? 0} label="Davomat" /><b>{r.rate}%</b></div></Td>
+                        <Td label="Guruh">{r.groups.join(", ")}</Td>
+                        <Td label={labels.ABSENT ?? "ABSENT"}><Badge tone="danger">{r.counts.ABSENT ?? 0}</Badge></Td>
+                        <Td label="Davomat"><div className={s.rate}><Progress value={r.rate ?? 0} label="Davomat" /><b>{r.rate}%</b></div></Td>
                       </tr>
                     ))}
                   </tbody>
@@ -173,16 +178,16 @@ export default function ReportsView({ refs }: { refs: Refs }) {
           {tab === "quizzes" && (
             <Card>
               {data.quizzes.length === 0 ? <EmptyState compact icon={<ClipboardCheck />} title="Bu davrda test topshirilmagan" /> : (
-                <Table>
+                <Table stack>
                   <thead><tr><Th>Test</Th><Th>Urinishlar</Th><Th>O&apos;quvchilar</Th><Th>O&apos;rtacha</Th><Th>O&apos;tganlar</Th></tr></thead>
                   <tbody>
                     {data.quizzes.map((q) => (
                       <tr key={q.quiz_id}>
                         <Td><b>{q.title}</b> {q.is_final && <Badge tone="accent">Yakuniy</Badge>}<div className="subtle">{q.course}</div></Td>
-                        <Td>{q.attempts}</Td>
-                        <Td>{q.students}</Td>
-                        <Td>{q.avg_percent}%</Td>
-                        <Td><div className={s.rate}><Progress value={q.pass_rate ?? 0} label="O'tganlar" /><b>{q.pass_rate ?? "—"}%</b></div></Td>
+                        <Td label="Urinishlar">{q.attempts}</Td>
+                        <Td label="O'quvchilar">{q.students}</Td>
+                        <Td label="O'rtacha">{q.avg_percent}%</Td>
+                        <Td label="O'tganlar"><div className={s.rate}><Progress value={q.pass_rate ?? 0} label="O'tganlar" /><b>{q.pass_rate ?? "—"}%</b></div></Td>
                       </tr>
                     ))}
                   </tbody>
