@@ -63,6 +63,10 @@ const FALLBACK: Record<string, string> = {
   nav_balance: "Balans",
   balance_title: "To'lovlar va balans",
   balance_empty: "To'lovlar bo'yicha ma'lumot yo'q.",
+  unmarked_title: "Belgilanmagan darslar ({n})",
+  staff_denied_title: "Bu kurs sizga biriktirilmagan",
+  staff_denied_text: "Kurs boshqa o'qituvchiga tegishli. Kirish kerak bo'lsa, administratorga murojaat qiling.",
+  quiz_start_confirm: "Testni boshlaysizmi? Boshlangan zahoti bitta urinish hisoblanadi va vaqt (bo'lsa) yura boshlaydi.",
 };
 
 export default function TgProvider({ settings, children }: { settings: Record<string, any> | null; children: React.ReactNode }) {

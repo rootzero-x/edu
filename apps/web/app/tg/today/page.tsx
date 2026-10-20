@@ -3,7 +3,7 @@
 import { useTg } from "../_lib/TgProvider";
 import type { Group } from "../_lib/data";
 import { Async, Empty, Page, useApi } from "../_ui/ui";
-import { TodaySessions, UpcomingSessions, teachingGroups } from "../_ui/sessions";
+import { TodaySessions, UnmarkedSessions, UpcomingSessions, teachingGroups } from "../_ui/sessions";
 
 export default function TgToday() {
   const { me, t, can } = useTg();
@@ -17,6 +17,7 @@ export default function TgToday() {
           return (
             <>
               <TodaySessions groups={mine} />
+              <UnmarkedSessions />
               <UpcomingSessions groups={mine} days={7} linkSessions fromTomorrow />
             </>
           );

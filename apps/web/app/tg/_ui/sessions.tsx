@@ -2,8 +2,30 @@
 
 import { useTg } from "../_lib/TgProvider";
 import { useSessions, type Group } from "../_lib/data";
-import { dayKey, isoWeekday, time, todayKey } from "../_lib/format";
-import { Badge, Empty, Loading, Failed, Row, Section } from "./ui";
+import { date, dayKey, isoWeekday, time, todayKey } from "../_lib/format";
+import { Badge, Empty, Loading, Failed, Row, Section, useApi } from "./ui";
+
+type UnmarkedRow = { id: number; starts_at: string; group: { id: number; name: string }; members: number; marked: number };
+
+/**
+ * O'tgan, davomati to'liq belgilanmagan darslar (web bilan bir xil manba: GET /attendance/unmarked).
+ * Bo'sh bo'lsa hech narsa ko'rsatilmaydi — bosh sahifani ortiqcha bo'lim bilan to'ldirmaslik uchun.
+ */
+export function UnmarkedSessions({ limit }: { limit?: number }) {
+  const { t, tz } = useTg();
+  const q = useApi<{ data: UnmarkedRow[]; total: number }>("attendance/unmarked");
+  if (!q.data || q.data.data.length === 0) return null;
+  const list = q.data.data.slice(0, limit ?? 50);
+  return (
+    <Section title={t("unmarked_title", { n: q.data.total })}>
+      {list.map((s) => (
+        <Row key={s.id} href={`/tg/sessions/${s.id}`} icon="⚠️"
+          title={`${date(s.starts_at, tz)} ${time(s.starts_at, tz)} · ${s.group.name}`}
+          right={<Badge tone="warn">{s.marked}/{s.members}</Badge>} />
+      ))}
+    </Section>
+  );
+}
 
 /** O'qituvchi o'zi dars beradigan guruhlar (admin — hammasi). */
 export function teachingGroups(groups: Group[], meId: number, manageAll: boolean) {

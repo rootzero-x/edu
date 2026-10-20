@@ -5,7 +5,7 @@ import { useTg } from "./_lib/TgProvider";
 import type { Group } from "./_lib/data";
 import { haptic } from "./_lib/webapp";
 import { Async, Page, useApi } from "./_ui/ui";
-import { TodaySessions, UpcomingSessions, teachingGroups } from "./_ui/sessions";
+import { TodaySessions, UnmarkedSessions, UpcomingSessions, teachingGroups } from "./_ui/sessions";
 
 /** Bosh sahifa: rolga qarab bo'limlar. */
 export default function TgHome() {
@@ -47,7 +47,7 @@ export default function TgHome() {
       </nav>
       <Async q={groups}>
         {(d) => staff
-          ? <TodaySessions groups={teachingGroups(d.data, me.id, can("group.manage"))} />
+          ? <><TodaySessions groups={teachingGroups(d.data, me.id, can("group.manage"))} /><UnmarkedSessions limit={5} /></>
           : <UpcomingSessions groups={d.data.filter((g) => g.active)} days={7} limit={5} />}
       </Async>
     </Page>

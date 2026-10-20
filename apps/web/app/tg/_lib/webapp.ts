@@ -109,7 +109,9 @@ export function launchedFromTelegram(): boolean {
   if (typeof window === "undefined") return false;
   if (/(^|[#&?])tgWebAppData=/.test(window.location.hash)) return true;
   try {
-    return Boolean(window.sessionStorage.getItem("__telegram__initParams"));
+    // SDK bu kalitni Telegram'dan tashqarida ham ("{}" ko'rinishida) yozadi — faqat initData bo'lsa hisoblanadi.
+    const params = JSON.parse(window.sessionStorage.getItem("__telegram__initParams") ?? "null") as Record<string, unknown> | null;
+    return Boolean(params?.tgWebAppData);
   } catch {
     return false;
   }

@@ -58,8 +58,10 @@ export default function TgQuiz() {
   const [err, setErr] = useState<string | null>(null);
   const starting = useRef(false);
 
-  async function start() {
+  async function start(isNew: boolean) {
     if (starting.current) return;
+    // Yangi urinish darhol hisoblanadi va vaqt yura boshlaydi — web'dagi kabi avval tasdiq so'raymiz.
+    if (isNew && !(await confirmDialog(t("quiz_start_confirm")))) return;
     starting.current = true;
     setBusy(true);
     setErr(null);
@@ -116,7 +118,7 @@ export default function TgQuiz() {
             {err && <p className="tg-hint tg-msg bad" role="alert">{err}</p>}
             <MainButton
               text={open ? t("quiz_continue") : t("quiz_start")}
-              onClick={start}
+              onClick={() => start(!open)}
               progress={busy}
               hidden={!canStart}
             />
