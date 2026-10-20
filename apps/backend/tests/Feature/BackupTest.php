@@ -191,6 +191,27 @@ class BackupTest extends TestCase
         $this->artisan('tisu:backup-restore', ['files' => [$enc], '--dry-run' => true])->expectsOutputToContain("kalit noto'g'ri")->assertFailed();
     }
 
+    public function test_encrypt_command_encrypts_in_place_and_keeps_plaintext_without_key(): void
+    {
+        $plain = $this->dir.'/db-20261021000000.sql.gz';
+        copy($this->dumpFixture(), $plain);
+        $sha = hash_file('sha256', $plain);
+
+        config(['backup.key' => '']);
+        $this->artisan('tisu:backup-encrypt', ['files' => [$plain]])->expectsOutputToContain('BACKUP_ENCRYPTION_KEY')->assertFailed();
+        $this->assertFileExists($plain);
+
+        config(['backup.key' => BackupVault::generateKey()]);
+        $this->artisan('tisu:backup-encrypt', ['files' => [$plain]])->expectsOutputToContain('Shifrlandi')->assertSuccessful();
+        $this->assertFileDoesNotExist($plain);
+        $this->assertTrue(BackupVault::isEncrypted($plain.'.enc'));
+        BackupVault::decrypt($plain.'.enc', $this->dir.'/check');
+        $this->assertSame($sha, hash_file('sha256', $this->dir.'/check'));
+        $this->assertSame([], $this->documents(), "deploy nusxasi Telegram'ga yuborilmaydi");
+        $this->assertNull(SystemStatus::get('backup.last'));
+        $this->artisan('tisu:backup-encrypt', ['files' => [$this->dir.'/yoq.sql.gz']])->assertFailed();
+    }
+
     public function test_backup_list_and_key_commands(): void
     {
         $this->artisan('tisu:backup', ['--force' => true, '--file' => $this->dumpFixture(), '--no-offsite' => true])->assertSuccessful();
