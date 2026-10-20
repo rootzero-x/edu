@@ -24,6 +24,7 @@ export default function NewCourse() {
           const r = await call("POST", "courses", { title: v.title, description: v.description || null });
           if (!r.ok) return errorText(r.data);
           toast.success("Kurs yaratildi", v.title);
+          router.refresh(); // sahifalar keshi yangilansin
           router.push(`/dashboard/courses/${r.data.course.id}`);
         },
       })}

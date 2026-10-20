@@ -31,6 +31,7 @@ export default function NewGroup({ courses, teachers }: { courses: { id: number;
     toast.success("Guruh yaratildi", gen.ok ? `${gen.data.created} ta dars jadvalga qo'shildi` : undefined);
     setOpen(false);
     setBusy(false);
+    router.refresh(); // sahifalar keshi yangilansin
     router.push(`/dashboard/groups/${r.data.group.id}`);
   }
 

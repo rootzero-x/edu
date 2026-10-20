@@ -24,7 +24,7 @@ function PasswordForm({ next }: { next: string }) {
     setBusy(true);
     setError(null);
     const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, password }) }).catch(() => null);
-    if (res?.ok) return router.replace(next);
+    if (res?.ok) { router.refresh(); return router.replace(next); } // eski (kirishdan oldingi) keshni tozalash
     setBusy(false);
     const data = res ? await res.json().catch(() => ({})) : {};
     setError(data.message ?? "Kirib bo'lmadi.");

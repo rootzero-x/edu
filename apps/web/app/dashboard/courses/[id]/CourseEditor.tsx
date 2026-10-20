@@ -140,6 +140,7 @@ export default function CourseEditor({ initial, canManage, access }: { initial: 
       const r = await call("DELETE", `courses/${id}`);
       if (!r.ok) return toast.error("O'chirilmadi", errorText(r.data));
       toast.success("Kurs o'chirildi");
+      router.refresh(); // ro'yxat keshi yangilansin
       return router.push("/dashboard/courses");
     }
     await run("DELETE", `${kind === "module" ? "modules" : "lessons"}/${id}`, undefined, "O'chirildi");

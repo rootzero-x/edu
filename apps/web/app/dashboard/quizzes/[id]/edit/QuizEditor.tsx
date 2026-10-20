@@ -86,6 +86,7 @@ export default function QuizEditor({ quiz, results, readOnly = false }: { quiz: 
     const r = await call("DELETE", `quizzes/${quiz.id}`);
     if (!r.ok) return toast.error("O'chirilmadi", errorText(r.data));
     toast.success("Test o'chirildi");
+    router.refresh(); // sahifalar keshi yangilansin
     router.push(`/dashboard/courses/${quiz.course.id}`);
   }
 
