@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, Send, UserRound } from "lucide-react";
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, Field, Input, PageHeader, buttonClass, useToast } from "@/components/ui";
@@ -13,7 +13,7 @@ export type ProfileUser = {
   telegram: { linked: boolean; username?: string | null }; has_password: boolean;
 };
 
-export default function Profile({ user, botUrl }: { user: ProfileUser; botUrl: string | null }) {
+export default function Profile({ user, botUrl, children }: { user: ProfileUser; botUrl: string | null; children?: ReactNode }) {
   const router = useRouter();
   const toast = useToast();
   const roles = obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels");
@@ -47,6 +47,7 @@ export default function Profile({ user, botUrl }: { user: ProfileUser; botUrl: s
   return (
     <>
       <PageHeader title="Profil" description={`${full} · ${roles[user.role] ?? user.role}`} />
+      {children}
       <div className="grid2">
         <Card>
           <CardHeader title="Shaxsiy ma'lumotlar" />

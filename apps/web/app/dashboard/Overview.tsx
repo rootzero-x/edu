@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { AlertTriangle, BookOpen, CalendarClock, CalendarX2, CheckCircle2, ClipboardCheck, GraduationCap, PieChart, UsersRound } from "lucide-react";
 import { Badge, ButtonLink, Card, CardBody, CardHeader, EmptyState, PageHeader, StatCard, cx } from "@/components/ui";
 import LiveStatus from "@/components/LiveStatus";
@@ -14,7 +14,8 @@ import type { Summary } from "@/lib/types";
 import { usePolling } from "@/lib/usePolling";
 import s from "./overview.module.css";
 
-export default function Overview({ initial, firstName }: { initial: Summary | null; firstName: string }) {
+/** children — sarlavhadan keyingi qo'shimcha bloklar (masalan, o'quvchi/ota-ona uchun "Balans"). */
+export default function Overview({ initial, firstName, children }: { initial: Summary | null; firstName: string; children?: ReactNode }) {
   const st = useSiteSettings();
   const tz = timezone(st);
   const labels = statusLabels(st);
@@ -41,6 +42,7 @@ export default function Overview({ initial, firstName }: { initial: Summary | nu
     return (
       <>
         {header}
+        {children}
         <Card><EmptyState icon={<AlertTriangle />} title="Ma'lumotni yuklab bo'lmadi">{seconds > 0 ? "API bilan aloqa yo'q. Birozdan keyin avtomatik qayta urinadi." : "API bilan aloqa yo'q. Yuqoridagi yangilash tugmasini bosing."}</EmptyState></Card>
       </>
     );
@@ -54,6 +56,7 @@ export default function Overview({ initial, firstName }: { initial: Summary | nu
   return (
     <>
       {header}
+      {children}
       <section className={s.stats} aria-label="Statistika">
         <StatCard
           label="Bugungi darslar"

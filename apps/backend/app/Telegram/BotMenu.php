@@ -3,12 +3,14 @@
 namespace App\Telegram;
 
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\QuizController;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\User;
+use App\Support\Billing;
 use App\Support\Settings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 class BotMenu
 {
     /** Menyu amallari (telegram.menu sozlamasida ishlatiladi). */
-    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'profile', 'today', 'unmarked', 'children', 'news', 'app'];
+    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'balance', 'profile', 'today', 'unmarked', 'children', 'news', 'app'];
 
     private const STATUS_CODES = ['P' => 'PRESENT', 'L' => 'LATE', 'A' => 'ABSENT', 'E' => 'EXCUSED'];
 
@@ -154,6 +156,7 @@ class BotMenu
                 'attendance' => $this->myAttendance($user),
                 'quizzes' => $this->quizzes($user),
                 'certificates' => $this->certificates($user),
+                'balance' => $this->balance($user),
                 'profile' => $this->profile($user),
                 'today' => $this->today($user),
                 'unmarked' => $this->unmarked($user),
@@ -308,6 +311,35 @@ class BotMenu
         ]), $rows);
 
         return [$this->t->get('telegram.text.certificates_title')."\n\n".implode("\n\n", $lines), null];
+    }
+
+    /** O'quvchi — o'z balansi, ota-ona — farzandlariniki (BillingController::me orqali). */
+    private function balance(User $user): array
+    {
+        $res = $this->api->call($user, [BillingController::class, 'me']);
+        if (! ($res['enabled'] ?? false) || ! ($res['students'] ?? [])) {
+            return [$this->t->get('telegram.text.balance_empty'), null];
+        }
+        $money = fn (int $v) => app(Billing::class)->money($v);
+        $methods = (array) $this->settings->get('billing.method_labels');
+        $types = (array) $this->settings->get('billing.type_labels');
+        $blocks = [];
+        foreach ($res['students'] as $s) {
+            $lines = array_map(fn ($e) => $this->t->get('telegram.text.balance_line', [
+                'date' => Carbon::parse($e['entry_date'])->format('d.m.Y'), 'type' => $types[$e['type']] ?? $e['type'],
+                'amount' => $money((int) $e['amount']), 'method' => $e['method'] ? '('.($methods[$e['method']] ?? $e['method']).')' : '',
+            ]), array_values(array_filter($s['recent'], fn ($e) => ! $e['voided'])));
+            $blocks[] = $this->t->get('telegram.text.balance_block', [
+                'name' => trim($s['student']['first_name'].' '.$s['student']['last_name']),
+                'balance' => $money((int) $s['balance']),
+                'status' => $s['debt'] > 0 ? $this->t->get('telegram.text.balance_debt', ['debt' => $money((int) $s['debt'])]) : $this->t->get('telegram.text.balance_ok'),
+                'month' => $money((int) $s['month_charged']),
+                'lines' => $lines ? "\n".$this->t->get('telegram.text.balance_recent')."\n".implode("\n", $lines) : '',
+            ]);
+        }
+
+        return [$this->t->get('telegram.text.balance_title')."\n\n".implode("\n\n", array_map('trim', $blocks)),
+            $this->inline([[$this->webApp('telegram.text.btn_open_app', '/balance')]])];
     }
 
     private function profile(User $user): array
