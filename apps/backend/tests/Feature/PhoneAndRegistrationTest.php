@@ -81,6 +81,9 @@ class PhoneAndRegistrationTest extends TestCase
         $this->postJson('/v1/auth/login', ['phone' => '90 123 45 67', 'password' => 'secret-password'])->assertOk();
         $this->postJson('/v1/auth/login', ['phone' => '90 123 45 67', 'password' => 'wrong-password'])->assertUnprocessable();
         $this->assertSame(['auth.login', 'auth.login_failed'], DB::table('audit_logs')->orderBy('id')->pluck('action')->all());
+        // Eski bot saqlagan yozuv ("+" + 9 raqam) ham har qanday formatda kiradi.
+        User::factory()->create(['phone' => '+931112233', 'password' => 'secret-password']);
+        $this->postJson('/v1/auth/login', ['phone' => '93 111 22 33', 'password' => 'secret-password'])->assertOk();
 
         Sanctum::actingAs($this->admin);
         $this->getJson('/v1/users?q='.urlencode('90 123'))->assertOk()->assertJsonPath('meta.total', 1);

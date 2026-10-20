@@ -23,7 +23,8 @@ class AuthController
 
         // "90 123 45 67", "+998 90 …" — hammasi bitta akkaunt (eski, normalizatsiyadan oldingi yozuvlar ham topiladi).
         $phone = Phone::normalize($data['phone']);
-        $user = User::whereIn('phone', array_unique(array_filter([$phone, $data['phone']])))
+        $legacy = '+'.preg_replace('/\D+/', '', $data['phone']); // normalizatsiyadan oldin saqlangan yozuvlar
+        $user = User::whereIn('phone', array_unique(array_filter([$phone, $data['phone'], $legacy])))
             ->orderByRaw('phone = ? desc', [$phone ?? $data['phone']])->first();
         if (! $user || ! $user->active || ! $user->password || ! Hash::check($data['password'], $user->password)) {
             Audit::as($user?->id, 'auth.login_failed', 'user', $user?->id, ['phone' => $phone ?? mb_substr($data['phone'], 0, 32)], $request->ip());

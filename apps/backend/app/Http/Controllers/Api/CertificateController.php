@@ -27,6 +27,18 @@ class CertificateController
     public function issue(Request $request, Settings $settings, Notifier $notifier, StudyGroup $group): JsonResponse
     {
         $data = $request->validate(['student_ids' => ['nullable', 'array'], 'student_ids.*' => ['integer']]);
+        // Bekor qilinganlar tufayli (student, group) endi unique emas: parallel bosishda ikki marta berilmasin.
+        $lock = \Illuminate\Support\Facades\Cache::lock('certificate.issue.'.$group->id, 30);
+        abort_unless($lock->block(10), 409, 'Sertifikatlar hozir berilmoqda. Birozdan keyin qayta urinib ko\'ring.');
+        try {
+            return $this->issueLocked($data, $settings, $notifier, $group);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function issueLocked(array $data, Settings $settings, Notifier $notifier, StudyGroup $group): JsonResponse
+    {
         $rows = $this->evaluate($group, $settings, $data['student_ids'] ?? null);
         $issued = [];
         $explicit = array_map('intval', $data['student_ids'] ?? []);
@@ -43,7 +55,7 @@ class CertificateController
                 'code' => $code, 'student_id' => $r['student_id'], 'course_id' => $group->course_id,
                 'group_id' => $group->id, 'issued_at' => now(),
             ]);
-            // Parallel berilgan bo'lsa (unique student+group) — saqlanmagan kodni yubormaymiz.
+            // Kod to'qnashsa (unique code) — saqlanmagan kodni yubormaymiz.
             if ($inserted) {
                 $issued[] = ['student_id' => $r['student_id'], 'code' => $code, 'name' => $r['name']];
             }
