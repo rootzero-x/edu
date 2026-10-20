@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { BookOpen, Layers } from "lucide-react";
 import { api, me, publicSettings } from "@/lib/api";
 import { str } from "@/lib/settings";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, SafeImage } from "@/components/ui";
 import Link from "next/link";
 import NewCourse from "./NewCourse";
 import s from "./courses.module.css";
@@ -24,7 +24,7 @@ export default async function CoursesPage() {
         <div className={s.grid}>
           {list.map((c) => (
             <Link href={`/dashboard/courses/${c.id}`} key={c.id} className={s.card}>
-              <div className={s.cover} aria-hidden>{c.cover_url ? <img src={c.cover_url} alt="" /> : <BookOpen />}</div>
+              <div className={s.cover} aria-hidden><SafeImage src={c.cover_url} fallback={<BookOpen />} /></div>
               <div className={s.body}>
                 <div className={s.titleRow}>
                   <h2>{c.title}</h2>

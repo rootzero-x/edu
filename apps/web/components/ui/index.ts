@@ -7,6 +7,7 @@ export { Field, Input, Textarea, Select, Checkbox, Switch } from "./Field";
 export { Card, CardHeader, CardBody, CardFooter } from "./Card";
 export { Badge, type Tone } from "./Badge";
 export { Table, Th, Td, Tr } from "./Table";
+export { SafeImage } from "./SafeImage";
 export { Skeleton, Spinner, EmptyState, StatCard, PageHeader, Avatar, Progress } from "./Feedback";
 export { Dialog, type DialogProps } from "./Dialog";
 export { ToastProvider, useToast } from "./Toast";

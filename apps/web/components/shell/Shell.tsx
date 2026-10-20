@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronsUpDown, LogOut, Menu, UserRound } from "lucide-react";
-import { Avatar, Button, Dropdown, cx } from "@/components/ui";
+import { Avatar, Button, Dropdown, SafeImage, cx } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import { logout } from "@/components/LogoutButton";
 import { NAV, ROLE_LABELS } from "./nav";
@@ -80,7 +80,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
         {...(mobile && open ? { role: "dialog", "aria-modal": true } : {})}
       >
         <Link href="/dashboard" className={s.brand}>
-          <span className={s.brandMark} aria-hidden>{logoUrl ? <img src={logoUrl} alt="" /> : siteName.slice(0, 1)}</span>
+          <span className={s.brandMark} aria-hidden><SafeImage src={logoUrl} fallback={siteName.slice(0, 1)} /></span>
           <span className={s.brandName}>{siteName}</span>
         </Link>
         <nav className={s.nav}>
