@@ -206,14 +206,14 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
   );
 }
 
-/** Arizani o'quvchiga aylantirish: o'quvchi + ixtiyoriy ota-ona + guruh — bitta qadamda. */
+/** Arizani o'quvchiga aylantirish: o'quvchi akkaunti + guruh — bitta qadamda. */
 function ConvertForm({ lead, onCancel, onDone }: { lead: Lead; onCancel: () => void; onDone: () => void }) {
   const st = useSiteSettings();
   const toast = useToast();
   const [first, ...rest] = lead.name.split(/\s+/);
   const [form, setForm] = useState({
     first_name: first ?? "", last_name: rest.join(" "), phone: lead.phone, group_id: lead.group ? String(lead.group.id) : "",
-    start_date: todayIso(timezone(st)), parent_name: "", parent_phone: "",
+    start_date: todayIso(timezone(st)),
   });
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -233,7 +233,6 @@ function ConvertForm({ lead, onCancel, onDone }: { lead: Lead; onCancel: () => v
     setBusy(true); setError(null);
     const r = await call<{ created: boolean; joined: string | null }>("POST", `leads/${lead.id}/convert`, {
       ...form, last_name: form.last_name || null, group_id: form.group_id ? Number(form.group_id) : null, start_date: form.group_id ? form.start_date : null,
-      parent_name: form.parent_name || null, parent_phone: form.parent_phone || null,
     });
     setBusy(false);
     if (!r.ok) return setError(errorText(r.data));
@@ -243,7 +242,7 @@ function ConvertForm({ lead, onCancel, onDone }: { lead: Lead; onCancel: () => v
 
   return (
     <form className={s.convert} onSubmit={submit}>
-      <p className="subtle" style={{ margin: 0 }}>Ariza ota-onadan bo&apos;lsa: o&apos;quvchining o&apos;z raqamini kiriting, arizadagi raqamni esa ota-ona maydoniga yozing.</p>
+      <p className="subtle" style={{ margin: 0 }}>Ariza boshqa odamdan (masalan, ota-onadan) bo&apos;lsa, o&apos;quvchining ismi va raqamini kiriting — raqam bazada bo&apos;lsa, o&apos;sha akkaunt ishlatiladi.</p>
       <div className={s.grid2}>
         <Field label="Ism" required><Input value={form.first_name} onChange={set("first_name")} /></Field>
         <Field label="Familiya"><Input value={form.last_name} onChange={set("last_name")} /></Field>
@@ -256,13 +255,6 @@ function ConvertForm({ lead, onCancel, onDone }: { lead: Lead; onCancel: () => v
         </Field>
         {form.group_id && <Field label="Qaysi kundan" hint="To'lov shu kundan hisoblanadi"><Input type="date" value={form.start_date} onChange={set("start_date")} /></Field>}
       </div>
-      <fieldset className={s.fieldset}>
-        <legend>Ota-ona (ixtiyoriy)</legend>
-        <div className={s.grid2}>
-          <Field label="Ota-ona ismi"><Input value={form.parent_name} onChange={set("parent_name")} /></Field>
-          <Field label="Ota-ona telefoni"><Input type="tel" value={form.parent_phone} onChange={set("parent_phone")} placeholder={lead.phone} /></Field>
-        </div>
-      </fieldset>
       {error && <p role="alert" className={s.error}>{error}</p>}
       <div className={s.composeBtns}>
         <Button variant="ghost" onClick={onCancel}>Orqaga</Button>

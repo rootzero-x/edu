@@ -27,7 +27,7 @@ class ImportController
     public function template(Request $request): Response
     {
         $format = $request->query('format') === 'csv' ? 'csv' : 'xlsx';
-        $rows = [$this->import->headers(), ['Ali', 'Valiyev', '+998901234567', 'Dilnoza Valiyeva', '+998935554433', 'ENG-1', today()->format('d.m.Y')]];
+        $rows = [$this->import->headers(), ['Ali', 'Valiyev', '+998901234567', 'ENG-1', today()->format('d.m.Y')]];
         if ($format === 'xlsx') {
             return response(Spreadsheet::writeXlsx($rows), 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -102,8 +102,8 @@ class ImportController
             'columns' => array_keys($plan['columns']),
             'unknown_columns' => $plan['unknown'],
             'rows' => array_map(fn ($r) => array_intersect_key($r, array_flip([
-                'line', 'first_name', 'last_name', 'phone', 'phone_raw', 'parent_name', 'parent_phone', 'group_name', 'start_date',
-                'status', 'action', 'parent_action', 'membership', 'errors', 'warnings',
+                'line', 'first_name', 'last_name', 'phone', 'phone_raw', 'group_name', 'start_date',
+                'status', 'action', 'membership', 'errors', 'warnings',
             ])), $plan['rows']),
         ];
     }

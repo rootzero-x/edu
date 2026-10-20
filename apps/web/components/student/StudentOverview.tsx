@@ -5,14 +5,14 @@ import { Award, CalendarClock, ClipboardCheck, PauseCircle, PieChart, Wallet } f
 import { Badge, Card, CardHeader, EmptyState, StatCard, Table, Td, Th } from "@/components/ui";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { fmtDay } from "@/lib/enrollment";
-import type { ChildOverview as Data } from "@/lib/family";
+import type { StudentOverview as Data } from "@/lib/student";
 import { WEEKDAYS, fmtDate, fmtDateTime, fmtMoney, fmtTime, fmtWeekday } from "@/lib/format";
 import { statusLabels, timezone } from "@/lib/settings";
 import { STATUS_TONE } from "@/lib/status";
-import s from "./family.module.css";
+import s from "./overview.module.css";
 
-/** Bitta o'quvchi bo'yicha bloklar: guruhlar, davomat, test natijalari, to'lov, sertifikatlar. Ota-ona va xodimlar uchun umumiy. */
-export default function ChildOverview({ data, billingHref }: { data: Data; billingHref?: string }) {
+/** Bitta o'quvchi bo'yicha bloklar: guruhlar, davomat, test natijalari, to'lov, sertifikatlar. */
+export default function StudentOverview({ data, billingHref }: { data: Data; billingHref?: string }) {
   const st = useSiteSettings();
   const tz = timezone(st);
   const labels = statusLabels(st);

@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * O'quvchilarni Excel/CSV dan import qilish: ota-ona telefoni bilan bog'lash va guruhga qo'shish.
+ * O'quvchilarni Excel/CSV dan import qilish va guruhga qo'shish.
  *
  *  - plan(): fayl qatorlarini tekshiradi va har bir qator uchun reja tuzadi (bazaga yozmaydi — "quruq ishga tushirish").
  *  - commit(): rejani bitta tranzaksiyada bajaradi (yoki xatoli qatorlarni tashlab).
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class StudentImport
 {
-    public const FIELDS = ['first_name', 'last_name', 'phone', 'parent_name', 'parent_phone', 'group', 'start_date'];
+    public const FIELDS = ['first_name', 'last_name', 'phone', 'group', 'start_date'];
 
     public function __construct(private Settings $settings, private Enrollments $enrollments) {}
 
@@ -50,12 +50,11 @@ final class StudentImport
         $defaultGroup = $defaultGroupId ? $groups->firstWhere('id', $defaultGroupId) : null;
         $out = [];
         $studentPhones = [];
-        $parentPhones = [];
         foreach ($rows as $i => $cells) {
             $line = $i + 2;
             $get = fn (string $f) => isset($columns[$f]) ? $this->clean($cells[$columns[$f]] ?? '') : '';
             $r = ['line' => $line, 'first_name' => $get('first_name'), 'last_name' => $get('last_name'), 'phone_raw' => $get('phone'),
-                'parent_name' => $get('parent_name'), 'parent_phone_raw' => $get('parent_phone'), 'group_raw' => $get('group'), 'start_date_raw' => $get('start_date'),
+                'group_raw' => $get('group'), 'start_date_raw' => $get('start_date'),
                 'errors' => [], 'warnings' => []];
             if ($r['last_name'] === '' && ! isset($columns['last_name']) && str_contains($r['first_name'], ' ')) {
                 [$r['first_name'], $r['last_name']] = array_pad(preg_split('/\s+/u', $r['first_name'], 2), 2, '');
@@ -70,17 +69,6 @@ final class StudentImport
                 $r['errors'][] = "Bu telefon faylda takrorlangan ({$studentPhones[$r['phone']]}-qator).";
             } else {
                 $studentPhones[$r['phone']] = $line;
-            }
-            $r['parent_phone'] = null;
-            if ($r['parent_phone_raw'] !== '') {
-                $r['parent_phone'] = Phone::normalize($r['parent_phone_raw']);
-                if (! $r['parent_phone']) {
-                    $r['errors'][] = "Ota-ona telefoni noto'g'ri: {$r['parent_phone_raw']}";
-                } elseif ($r['parent_phone'] === $r['phone']) {
-                    $r['errors'][] = "O'quvchi va ota-ona telefoni bir xil.";
-                } else {
-                    $parentPhones[$r['parent_phone']][] = $line;
-                }
             }
             // Guruh: nomi yoki ID bo'yicha; ustun bo'sh bo'lsa — tanlangan standart guruh.
             $r['group_id'] = null;
@@ -118,22 +106,17 @@ final class StudentImport
         }
 
         // Bazadagi mavjud foydalanuvchilar (bitta so'rov bilan).
-        $phones = array_values(array_unique(array_filter(array_merge(array_column($out, 'phone'), array_column($out, 'parent_phone')))));
+        $phones = array_values(array_unique(array_filter(array_column($out, 'phone'))));
         $existing = User::whereIn('phone', $phones)->get(['id', 'phone', 'first_name', 'last_name', 'role'])->keyBy('phone');
         $members = DB::table('group_members')->whereIn('student_id', $existing->pluck('id'))->whereNull('left_at')
             ->get(['group_id', 'student_id'])->map(fn ($m) => $m->group_id.':'.$m->student_id)->flip();
-        $links = DB::table('parent_child')->whereIn('child_id', $existing->pluck('id'))->get()->map(fn ($l) => $l->parent_id.':'.$l->child_id)->flip();
         $roleLabels = (array) $this->settings->get('telegram.role_labels');
         $summary = ['rows' => count($out), 'valid' => 0, 'errors' => 0, 'new_students' => 0, 'existing_students' => 0,
-            'new_parents' => 0, 'links' => 0, 'memberships' => 0, 'already_members' => 0];
-        $newParents = [];
+            'memberships' => 0, 'already_members' => 0];
         foreach ($out as &$r) {
             $student = $r['phone'] ? $existing->get($r['phone']) : null;
             if ($student && $student->role !== Role::Student) {
                 $r['errors'][] = "Bu telefon {$this->who($student, $roleLabels)} ga tegishli.";
-            }
-            if ($r['phone'] && isset($parentPhones[$r['phone']])) {
-                $r['errors'][] = "Bu telefon faylda ota-ona telefoni sifatida ham yozilgan (".implode(', ', $parentPhones[$r['phone']])."-qator).";
             }
             $r['student_id'] = $student?->id;
             $r['action'] = $student ? 'existing' : 'new';
@@ -142,12 +125,6 @@ final class StudentImport
                     ? "Ism yangilanadi: {$student->first_name} {$student->last_name} → {$r['first_name']} {$r['last_name']}"
                     : "Bazada boshqa ism bilan: {$student->first_name} {$student->last_name}";
             }
-            $parent = $r['parent_phone'] ? $existing->get($r['parent_phone']) : null;
-            if ($parent && $parent->role !== Role::Parent) {
-                $r['errors'][] = "Ota-ona telefoni {$this->who($parent, $roleLabels)} ga tegishli.";
-            }
-            $r['parent_id'] = $parent?->id;
-            $r['parent_action'] = $r['parent_phone'] ? ($parent ? (isset($links[$parent->id.':'.$student?->id]) ? 'linked' : 'link') : 'new') : null;
             $r['membership'] = $r['group_id'] ? ($student && isset($members[$r['group_id'].':'.$student->id]) ? 'already' : 'add') : null;
             $r['status'] = $r['errors'] ? 'error' : 'ok';
             if ($r['errors']) {
@@ -157,13 +134,6 @@ final class StudentImport
             }
             $summary['valid']++;
             $summary[$student ? 'existing_students' : 'new_students']++;
-            if ($r['parent_action'] === 'new' && ! isset($newParents[$r['parent_phone']])) {
-                $newParents[$r['parent_phone']] = true;
-                $summary['new_parents']++;
-            }
-            if (in_array($r['parent_action'], ['new', 'link'], true)) {
-                $summary['links']++;
-            }
             if ($r['membership'] === 'add') {
                 $summary['memberships']++;
             } elseif ($r['membership'] === 'already') {
@@ -178,7 +148,7 @@ final class StudentImport
     /**
      * Rejani bajarish. Xato qator bo'lsa va $skipInvalid=false — hech narsa yozilmaydi.
      *
-     * @return array{students_created:int, students_updated:int, parents_created:int, links:int, memberships:int, skipped:int}
+     * @return array{students_created:int, students_updated:int, memberships:int, skipped:int}
      */
     public function commit(array $plan, bool $skipInvalid, int $actorId): array
     {
@@ -187,7 +157,7 @@ final class StudentImport
         if ($skipped > 0 && ! $skipInvalid) {
             throw new \RuntimeException("Faylda $skipped ta xato qator bor. Tuzating yoki «faqat to'g'ri qatorlar» ni tanlang.");
         }
-        $res = ['students_created' => 0, 'students_updated' => 0, 'parents_created' => 0, 'links' => 0, 'memberships' => 0, 'skipped' => $skipped];
+        $res = ['students_created' => 0, 'students_updated' => 0, 'memberships' => 0, 'skipped' => $skipped];
         DB::transaction(function () use ($rows, $actorId, &$res) {
             $groups = StudyGroup::whereIn('id', array_filter(array_column($rows, 'group_id')))->get()->keyBy('id');
             $update = $this->settings->bool('import.update_names');
@@ -202,17 +172,6 @@ final class StudentImport
                 } elseif ($update && ($student->first_name !== $r['first_name'] || (string) $student->last_name !== $r['last_name'])) {
                     $student->update(['first_name' => mb_substr($r['first_name'], 0, 64), 'last_name' => $r['last_name'] !== '' ? mb_substr($r['last_name'], 0, 64) : null]);
                     $res['students_updated']++;
-                }
-                if ($r['parent_phone']) {
-                    $parent = User::where('phone', $r['parent_phone'])->first();
-                    if (! $parent) {
-                        $parent = User::create(['phone' => $r['parent_phone'], 'first_name' => mb_substr($r['parent_name'] !== '' ? $r['parent_name'] : $r['first_name'].' (ota-ona)', 0, 64),
-                            'role' => Role::Parent, 'active' => true]);
-                        $res['parents_created']++;
-                    } elseif ($parent->role !== Role::Parent) {
-                        throw new \RuntimeException("{$r['line']}-qator: ota-ona telefoni boshqa rolga tegishli.");
-                    }
-                    $res['links'] += DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $student->id]);
                 }
                 if ($r['group_id']) {
                     $result = $this->enrollments->join($groups[$r['group_id']], $student, $r['start_date'], $actorId);
@@ -233,8 +192,6 @@ final class StudentImport
             'first_name' => ['ism', 'name', 'firstname', 'имя', 'fio', 'fish', 'ismifamiliyasi', 'ф.и.о', 'фио'],
             'last_name' => ['familiya', 'lastname', 'surname', 'фамилия'],
             'phone' => ['telefon', 'tel', 'phone', 'телефон', 'raqam', 'telefonraqami'],
-            'parent_name' => ['otaonaismi', 'parentname', 'otaona', 'родитель', 'имяродителя'],
-            'parent_phone' => ['otaonatelefoni', 'parentphone', 'otaonaraqami', 'телефонродителя'],
             'group' => ['guruh', 'group', 'группа'],
             'start_date' => ['qoshilgansana', 'sana', 'startdate', 'boshlanishsanasi', 'дата'],
         ];

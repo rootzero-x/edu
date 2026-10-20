@@ -26,7 +26,7 @@ O'quv markazi (TISU) uchun edu platforma: kurslar/darslar, testlar/baholash/sert
 
 - Monorepo (npm workspaces): `apps/api` (Fastify 5 + TypeScript), `apps/web` (Next.js 15, App Router — admin, o'qituvchi, o'quvchi kabineti + Telegram Mini App sahifalari `/tg/*`), `apps/bot` (grammY, API bilan bitta jarayonda webhook rejimida), `packages/core` (biznes qoidalar), `packages/contract` (OpenAPI + zod sxemalar).
 - ORM: Prisma (MySQL va Postgres ikkalasini qo'llaydi — server tekshiruvidan keyin tanlanadi).
-- Auth: telefon + parol / OTP, Telegram `initData` tekshiruvi, JWT access + refresh (httpOnly cookie), RBAC: super-admin, admin, o'qituvchi, o'quvchi, ota-ona.
+- Auth: telefon + parol / OTP, Telegram `initData` tekshiruvi, JWT access + refresh (httpOnly cookie), RBAC: super-admin, admin, o'qituvchi, o'quvchi.
 - Fayllar: video — YouTube/Vimeo unlisted havola yoki S3-mos saqlash; kichik fayllar serverda `shared/uploads`.
 - Sertifikat PDF: pdfkit + QR tekshirish sahifasi.
 
@@ -43,7 +43,7 @@ users, branches, courses, modules, lessons, lesson_materials, groups, group_memb
 | M4 | Guruhlar, jadval, davomat | o'qituvchi davomat belgilaydi |
 | M5 | Testlar, baholash, sertifikat | test topshirish → ball → PDF sertifikat |
 | M6 | To'lovlar, qarzdorlik, hisobotlar (Click/Payme keyin) | oylik hisob to'g'ri |
-| M7 | Telegram bot + Mini App | eslatmalar, ota-onaga davomat xabari |
+| M7 | Telegram bot + Mini App | eslatmalar, davomat |
 | M8 | Web sayqal, uz/ru, prod tekshiruv | Vercel prod `tisu.uzstudents.uz` |
 
 ## Deploy oqimi

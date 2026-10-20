@@ -136,14 +136,10 @@ class UserController
             && \App\Models\StudyGroup::where('teacher_id', $user->id)->where('active', true)->exists()) {
             throw ValidationException::withMessages(['role' => 'Bu foydalanuvchi faol guruh o\'qituvchisi. Avval guruhlarga boshqa o\'qituvchi tayinlang.']);
         }
-        // O'quvchi guruh a'zosi yoki ota-onaga bog'langan farzand bo'lsa — boshqa rolga o'tkazilmaydi (davomat, testlar, xabarlar shunga bog'liq).
-        if ($roleChanged && $user->role === Role::Student) {
-            if (\Illuminate\Support\Facades\DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->exists()) {
-                throw ValidationException::withMessages(['role' => 'Bu o\'quvchi guruh a\'zosi. Avval uni guruhlardan chiqaring.']);
-            }
-            if (\Illuminate\Support\Facades\DB::table('parent_child')->where('child_id', $user->id)->exists()) {
-                throw ValidationException::withMessages(['role' => 'Bu o\'quvchi ota-onaga farzand sifatida bog\'langan. Avval bog\'lanishni olib tashlang.']);
-            }
+        // Guruh a'zosi bo'lgan o'quvchi boshqa rolga o'tkazilmaydi (davomat, testlar, xabarlar shunga bog'liq).
+        if ($roleChanged && $user->role === Role::Student
+            && \Illuminate\Support\Facades\DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->exists()) {
+            throw ValidationException::withMessages(['role' => 'Bu o\'quvchi guruh a\'zosi. Avval uni guruhlardan chiqaring.']);
         }
 
         $user->update($data);
@@ -170,70 +166,6 @@ class UserController
         }
 
         return $q;
-    }
-
-    /** O'quvchining ota-onalari. */
-    public function parents(User $student): JsonResponse
-    {
-        $ids = \Illuminate\Support\Facades\DB::table('parent_child')->where('child_id', $student->id)->pluck('parent_id');
-
-        return response()->json(['data' => User::whereIn('id', $ids)->orderBy('first_name')->get()->map->toApi()]);
-    }
-
-    /**
-     * O'quvchiga ota-ona bog'lash: mavjud ota-ona (parent_id) yoki yangisini yaratib (first_name + phone).
-     * Telefon mavjud ota-onaga tegishli bo'lsa — o'sha akkaunt bog'lanadi (dublikat yaratilmaydi).
-     */
-    public function linkParent(Request $request, User $student): JsonResponse
-    {
-        abort_unless($student->role === Role::Student, 422, 'Farzand o\'quvchi bo\'lishi kerak.');
-        $data = $request->validate([
-            'parent_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:phone'],
-            'first_name' => ['nullable', 'string', 'max:64', 'required_with:phone'],
-            'last_name' => ['nullable', 'string', 'max:64'],
-            'phone' => ['nullable', 'string', 'max:32'],
-        ]);
-        $created = false;
-        if (! empty($data['parent_id'])) {
-            $parent = User::findOrFail($data['parent_id']);
-            abort_unless($parent->role === Role::Parent, 422, 'Foydalanuvchi ota-ona roliga ega emas.');
-        } else {
-            $phone = Phone::normalize($data['phone'])
-                ?? throw ValidationException::withMessages(['phone' => "Telefon raqami noto'g'ri. Masalan: 90 123 45 67"]);
-            [$parent, $created] = app(\App\Support\Leads::class)->findOrCreate($phone, Role::Parent, $data['first_name'], $data['last_name'] ?? null, 'phone');
-        }
-        \Illuminate\Support\Facades\DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $student->id]);
-        Audit::log('user.link_child', 'user', $parent->id, ['child_id' => $student->id, 'created' => $created]);
-
-        return response()->json(['parent' => $parent->toApi(), 'created' => $created], 201);
-    }
-
-    /** Ota-onaning bog'langan farzandlari. */
-    public function children(User $parent): JsonResponse
-    {
-        $ids = \Illuminate\Support\Facades\DB::table('parent_child')->where('parent_id', $parent->id)->pluck('child_id');
-
-        return response()->json(['data' => User::whereIn('id', $ids)->orderBy('first_name')->get()->map->toApi()]);
-    }
-
-    /** Ota-onani farzandga bog'lash (davomat xabarlari va ko'rish huquqi uchun). */
-    public function linkChild(Request $request, User $parent): JsonResponse
-    {
-        $data = $request->validate(['child_id' => ['required', 'integer', 'exists:users,id']]);
-        abort_unless($parent->role === Role::Parent, 422, 'Foydalanuvchi ota-ona roliga ega emas.');
-        abort_unless(User::find($data['child_id'])->role === Role::Student, 422, 'Farzand o\'quvchi bo\'lishi kerak.');
-        \Illuminate\Support\Facades\DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $data['child_id']]);
-        Audit::log('user.link_child', 'user', $parent->id, $data);
-
-        return response()->json(['ok' => true], 201);
-    }
-
-    public function unlinkChild(User $parent, User $child): JsonResponse
-    {
-        \Illuminate\Support\Facades\DB::table('parent_child')->where(['parent_id' => $parent->id, 'child_id' => $child->id])->delete();
-        Audit::log('user.unlink_child', 'user', $parent->id, ['child_id' => $child->id]);
-
-        return response()->json(['ok' => true]);
     }
 
     /** Telefon har qanday yozuvda kelishi mumkin — validatsiya va unique tekshiruvi normal shaklda (takrorlar bo'lmasin). */

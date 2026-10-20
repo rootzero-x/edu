@@ -128,4 +128,3 @@ tools/run-dev.sh     run from the source tree
 - QR code on the Telegram sign-in screen (the link opens Telegram Desktop / the browser and can be copied).
 - Admin CRUD screens (users, branches, settings, course/quiz editors, issuing certificates) —
   these open the web dashboard.
-- Linking a parent's children (needs `user.manage` on the API).

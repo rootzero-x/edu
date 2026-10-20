@@ -1,12 +1,12 @@
-/** O'quvchi yig'masi (GET /v1/me/children va /v1/users/{id}/profile → overview). */
-export type ChildGroup = {
+/** O'quvchi yig'masi (GET /v1/users/{id}/profile → overview). */
+export type StudentGroup = {
   id: number; name: string; room: string | null; course_id: number | null; course_title: string | null; teacher: string | null; joined_at: string;
   status: string; frozen_until: string | null; frozen_from: string | null;
   schedule: { weekday: number; start: string; end: string }[]; next_session: string | null;
 };
-export type ChildOverview = {
+export type StudentOverview = {
   id: number; first_name: string; last_name: string | null;
-  groups: ChildGroup[];
+  groups: StudentGroup[];
   attendance: {
     days: number; rate: number | null; counts: Record<string, number>;
     recent: { starts_at: string; group_name: string; topic: string | null; status: string; note: string | null }[];

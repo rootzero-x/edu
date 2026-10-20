@@ -1,4 +1,4 @@
-import { Award, BarChart3, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, HeartHandshake, Inbox, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Award, BarChart3, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, Inbox, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -6,7 +6,7 @@ export type NavItem = {
   icon: LucideIcon;
   /** Ko'rinishi uchun kerakli huquq (permissions ro'yxatidan). */
   perm?: string;
-  /** Faqat shu rollarga (masalan, "Farzandlarim" — ota-onaga). */
+  /** Faqat shu rollarga (ko'rsatilmasa — huquqqa qarab hammaga). */
   roles?: string[];
   exact?: boolean;
   section?: "main" | "admin";
@@ -20,7 +20,6 @@ export type NavItem = {
  */
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/children", label: "Farzandlarim", icon: HeartHandshake, roles: ["PARENT"] },
   { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view", also: ["/dashboard/lessons", "/dashboard/quizzes"] },
   { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound, also: ["/dashboard/sessions"] },
   { href: "/dashboard/leads", label: "Arizalar", icon: Inbox, perm: "lead.manage" },
@@ -37,5 +36,5 @@ export const NAV: NavItem[] = [
 export const NAV_ICONS = { Award, ClipboardCheck };
 
 export const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi", PARENT: "Ota-ona",
+  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi",
 };

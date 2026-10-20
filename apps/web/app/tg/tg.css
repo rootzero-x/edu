@@ -156,7 +156,3 @@ html, body, * { scrollbar-width: none; }
 .tg-balance b.ok { color: var(--c-ok); }
 .tg-balance small { color: var(--c-hint); }
 
-/* Farzand tanlash (ota-ona) */
-.tg-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; margin: 4px 0 2px; scrollbar-width: none; }
-.tg-chips button { flex: none; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--c-sep); background: var(--c-section); color: inherit; font-weight: 500; cursor: pointer; }
-.tg-chips button.on { background: var(--c-btn); color: var(--c-btn-text); border-color: transparent; }

@@ -34,8 +34,6 @@
 .convert { display: grid; gap: var(--space-4); }
 .grid2 { display: grid; gap: var(--space-3); grid-template-columns: 1fr 1fr; }
 @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
-.fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); margin: 0; }
-.fieldset legend { padding: 0 6px; font-weight: 600; font-size: var(--text-sm); }
 .error { color: var(--danger); font-weight: 550; margin: 0; }
 .funnel { display: grid; gap: var(--space-5); margin-top: var(--space-4); min-width: 0; }
 .funnel .filters { margin: 0; }

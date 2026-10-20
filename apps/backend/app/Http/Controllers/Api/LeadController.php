@@ -169,16 +169,13 @@ class LeadController
             'phone' => ['required', 'string', 'max:32'],
             'group_id' => ['nullable', 'integer', 'exists:study_groups,id'],
             'start_date' => ['nullable', 'date'],
-            'parent_name' => ['nullable', 'string', 'max:64'],
-            'parent_phone' => ['nullable', 'string', 'max:32'],
         ]);
         $r = $this->leads->convert($lead, $data, $request->user()->id);
-        Audit::log('lead.convert', 'lead', $lead->id, ['student_id' => $r['student']->id, 'created' => $r['created'], 'group_id' => $data['group_id'] ?? null, 'parent_id' => $r['parent']?->id]);
+        Audit::log('lead.convert', 'lead', $lead->id, ['student_id' => $r['student']->id, 'created' => $r['created'], 'group_id' => $data['group_id'] ?? null]);
 
         return response()->json([
             'lead' => $this->load($lead->fresh()),
             'student' => $r['student']->toApi(),
-            'parent' => $r['parent']?->toApi(),
             'created' => $r['created'],
             'joined' => $r['joined'],
         ]);

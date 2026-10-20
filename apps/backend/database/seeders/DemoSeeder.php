@@ -19,7 +19,6 @@ use RuntimeException;
  *   +998900000001 — Super-admin
  *   +998900000002 — O'qituvchi
  *   +998900000010 — O'quvchi
- *   +998900000020 — Ota-ona
  *
  *   php artisan db:seed --class=Database\\Seeders\\DemoSeeder
  */
@@ -43,8 +42,6 @@ class DemoSeeder extends Seeder
         foreach ($names as $i => [$f, $l]) {
             $students[] = $mk('+9989000000'.(10 + $i), $f, $l, Role::Student);
         }
-        $parent = $mk('+998900000020', 'Gulnora', 'Qodirova', Role::Parent);
-        DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $students[0]->id]);
 
 
         $english = Course::firstOrCreate(['title' => 'Ingliz tili — Elementary'], [
@@ -131,8 +128,8 @@ class DemoSeeder extends Seeder
                 ['title' => "Juma kungi dars ko'chirildi", 'body' => "ENG-E1 guruhining juma kungi darsi shanba 10:00 ga ko'chirildi.", 'audience' => 'GROUP',
                     'audience_role' => null, 'group_id' => $group->id, 'is_public' => false, 'pinned' => false, 'notify_telegram' => false,
                     'published_at' => now()->subHours(3), 'created_by' => $teacher->id, 'created_at' => now(), 'updated_at' => now()],
-                ['title' => "Ota-onalar yig'ilishi", 'body' => "26-oktabr kuni soat 18:00 da markaziy filialda ota-onalar yig'ilishi bo'lib o'tadi.", 'audience' => 'ROLE',
-                    'audience_role' => 'PARENT', 'group_id' => null, 'is_public' => false, 'pinned' => false, 'notify_telegram' => false,
+                ['title' => "Imtihon haftasi", 'body' => "26-oktabrdan boshlab barcha guruhlarda oraliq imtihonlar o'tkaziladi. Jadvalni o'qituvchingizdan bilib oling.", 'audience' => 'ROLE',
+                    'audience_role' => 'STUDENT', 'group_id' => null, 'is_public' => false, 'pinned' => false, 'notify_telegram' => false,
                     'published_at' => now()->subDays(2), 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now()],
             ]);
         }

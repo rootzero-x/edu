@@ -11,13 +11,13 @@ import type { GroupRow } from "@/lib/types";
 import s from "./import.module.css";
 
 type Row = {
-  line: number; first_name: string; last_name: string; phone: string | null; phone_raw: string; parent_name: string; parent_phone: string | null;
-  group_name: string | null; start_date: string | null; status: "ok" | "error"; action: "new" | "existing"; parent_action: "new" | "link" | "linked" | null;
+  line: number; first_name: string; last_name: string; phone: string | null; phone_raw: string;
+  group_name: string | null; start_date: string | null; status: "ok" | "error"; action: "new" | "existing";
   membership: "add" | "already" | null; errors: string[]; warnings: string[];
 };
-type Summary = { rows: number; valid: number; errors: number; new_students: number; existing_students: number; new_parents: number; links: number; memberships: number; already_members: number };
+type Summary = { rows: number; valid: number; errors: number; new_students: number; existing_students: number; memberships: number; already_members: number };
 type Preview = { token: string; summary: Summary; columns: string[]; unknown_columns: string[]; rows: Row[] };
-type Result = { students_created: number; students_updated: number; parents_created: number; links: number; memberships: number; skipped: number };
+type Result = { students_created: number; students_updated: number; memberships: number; skipped: number };
 
 const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv";
 
@@ -92,7 +92,6 @@ export default function ImportDialog({ open, onClose, onDone, defaultGroupId }: 
           <ul>
             <li>Yangi o&apos;quvchilar: <b>{result.students_created}</b></li>
             {result.students_updated > 0 && <li>Ismi yangilanganlar: <b>{result.students_updated}</b></li>}
-            <li>Yangi ota-onalar: <b>{result.parents_created}</b> · bog&apos;lanishlar: <b>{result.links}</b></li>
             <li>Guruhga qo&apos;shildi: <b>{result.memberships}</b></li>
             {result.skipped > 0 && <li>Tashlab ketilgan xato qatorlar: <b>{result.skipped}</b></li>}
           </ul>
@@ -105,7 +104,7 @@ export default function ImportDialog({ open, onClose, onDone, defaultGroupId }: 
               <a className={buttonClass({ variant: "soft", size: "sm" })} href="/api/export/imports/students/template?format=xlsx"><Download aria-hidden size={16} />Excel shablon</a>{" "}
               <a className="a" href="/api/export/imports/students/template?format=csv">CSV</a>
             </li>
-            <li>Ustunlar: {Object.values(columns).join(", ") || "Ism, Familiya, Telefon, Ota-ona ismi, Ota-ona telefoni, Guruh, Qo'shilgan sana"}. Majburiy: ism va telefon.</li>
+            <li>Ustunlar: {Object.values(columns).join(", ") || "Ism, Familiya, Telefon, Guruh, Qo'shilgan sana"}. Majburiy: ism va telefon.</li>
             <li>Telefon istalgan ko&apos;rinishda: 90 123 45 67, +998901234567. Bir xil raqam ikki marta yaratilmaydi — faylni qayta yuklash xavfsiz.</li>
           </ol>
           <div className={s.opts}>
@@ -135,7 +134,6 @@ export default function ImportDialog({ open, onClose, onDone, defaultGroupId }: 
               {sm.errors > 0 && <Badge tone="danger">Xato: {sm.errors}</Badge>}
               <Badge tone="info">Yangi o&apos;quvchi: {sm.new_students}</Badge>
               <Badge>Mavjud: {sm.existing_students}</Badge>
-              <Badge>Yangi ota-ona: {sm.new_parents}</Badge>
               <Badge>Guruhga: {sm.memberships}{sm.already_members ? ` (+${sm.already_members} allaqachon)` : ""}</Badge>
             </div>
           )}
@@ -147,14 +145,13 @@ export default function ImportDialog({ open, onClose, onDone, defaultGroupId }: 
           {error && <p className={s.error} role="alert"><AlertTriangle aria-hidden size={16} />{error}</p>}
           <div className={s.tableBox}>
             <Table stack caption="Import qatorlari">
-              <thead><tr><Th numeric>Qator</Th><Th>O&apos;quvchi</Th><Th>Telefon</Th><Th>Ota-ona</Th><Th>Guruh</Th><Th>Natija</Th></tr></thead>
+              <thead><tr><Th numeric>Qator</Th><Th>O&apos;quvchi</Th><Th>Telefon</Th><Th>Guruh</Th><Th>Natija</Th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.line} className={r.status === "error" ? s.bad : undefined}>
                     <Td numeric label="Qator">{r.line}</Td>
                     <Td label="O'quvchi"><b>{[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}</b></Td>
                     <Td label="Telefon" className="mono">{r.phone ?? r.phone_raw}</Td>
-                    <Td label="Ota-ona">{r.parent_phone ? <>{r.parent_name || "—"}<div className="subtle mono">{r.parent_phone}</div></> : "—"}</Td>
                     <Td label="Guruh">{r.group_name ? <>{r.group_name}{r.start_date && <div className="subtle">{fmtDay(r.start_date)} dan</div>}</> : "—"}</Td>
                     <Td label="Natija">
                       {r.status === "error" ? (
@@ -162,8 +159,6 @@ export default function ImportDialog({ open, onClose, onDone, defaultGroupId }: 
                       ) : (
                         <div className={s.badges}>
                           <Badge tone={r.action === "new" ? "info" : "neutral"}>{r.action === "new" ? "Yangi" : "Mavjud"}</Badge>
-                          {r.parent_action === "new" && <Badge tone="info">+ ota-ona</Badge>}
-                          {r.parent_action === "link" && <Badge>bog&apos;lanadi</Badge>}
                           {r.membership === "add" && <Badge tone="success">guruhga</Badge>}
                           {r.membership === "already" && <Badge>guruhda bor</Badge>}
                         </div>

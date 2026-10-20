@@ -15,7 +15,7 @@ import { usePolling } from "@/lib/usePolling";
 import SetupChecklist from "./SetupChecklist";
 import s from "./overview.module.css";
 
-/** children — sarlavhadan keyingi qo'shimcha bloklar (masalan, o'quvchi/ota-ona uchun "Balans"). */
+/** children — sarlavhadan keyingi qo'shimcha bloklar (masalan, o'quvchi uchun "Balans"). */
 export default function Overview({ initial, firstName, children }: { initial: Summary | null; firstName: string; children?: ReactNode }) {
   const st = useSiteSettings();
   const tz = timezone(st);

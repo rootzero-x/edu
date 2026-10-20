@@ -9,4 +9,3 @@
 .sched { color: var(--fg-muted); }
 .links li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); padding: 10px var(--space-5); border-bottom: 1px solid var(--border); margin: 0; }
 .links svg { width: 18px; height: 18px; color: var(--fg-subtle); }
-.tabs { margin-bottom: var(--space-4); }

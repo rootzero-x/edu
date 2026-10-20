@@ -12,7 +12,7 @@ export type Item = {
   label: string; public: boolean; min: number | null; max: number | null; default: unknown; value: unknown;
 };
 
-const ROLE_NAMES: Record<string, string> = { ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi", PARENT: "Ota-ona" };
+const ROLE_NAMES: Record<string, string> = { ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi" };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Ro'yxat elementlarining maydonlari: yorliqdagi "[{a,b}]" dan yoki mavjud qiymatlardan. */

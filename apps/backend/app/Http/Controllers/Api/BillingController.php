@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * To'lovlar. Ko'rish: boshqaruvchi (billing.manage) — hammasi, o'quvchi — o'zi, ota-ona — farzandlari.
+ * To'lovlar. Ko'rish: boshqaruvchi (billing.manage) — hammasi, o'quvchi — o'zi.
  * Kiritish/bekor qilish va ro'yxatlar — faqat billing.manage (route middleware).
  * Jurnal o'zgarmas: yozuvlar o'chirilmaydi, faqat bekor qilinadi.
  */
@@ -27,7 +27,7 @@ class BillingController
 {
     public function __construct(private Billing $billing, private Settings $settings) {}
 
-    /** O'quvchining o'zi yoki ota-onaning farzandlari: qisqa balans (bosh sahifa, bot, Mini App). */
+    /** O'quvchining o'z qisqa balansi (bosh sahifa, bot, Mini App). */
     public function me(Request $request): JsonResponse
     {
         $ids = Billing::ownStudentIds($request->user());
@@ -384,11 +384,5 @@ class BillingController
         ];
         $kind = 'billing.payment:'.$entry->id;
         $notifier->sendTemplate($student->id, $kind, 'telegram.text.billing_payment', $vars + ['name' => $student->first_name]);
-        if ($this->settings->bool('billing.notify_parents')) {
-            foreach (DB::table('parent_child')->where('child_id', $student->id)->pluck('parent_id') as $parentId) {
-                $notifier->sendTemplate((int) $parentId, $kind, 'telegram.text.billing_payment_parent',
-                    $vars + ['child' => trim($student->first_name.' '.$student->last_name)]);
-            }
-        }
     }
 }

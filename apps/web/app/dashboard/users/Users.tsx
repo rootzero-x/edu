@@ -3,9 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, Copy, FileSpreadsheet, GitMerge, KeyRound, Link2, Unlink, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, UserRound, Users as UsersIcon, X } from "lucide-react";
-import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Field, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
-import PersonPicker from "@/components/PersonPicker";
+import { Check, ChevronLeft, ChevronRight, Copy, FileSpreadsheet, GitMerge, KeyRound, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, UserRound, Users as UsersIcon, X } from "lucide-react";
+import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
 import ImportDialog from "./ImportDialog";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { obj } from "@/lib/settings";
@@ -26,8 +25,8 @@ const VIEWS = [
 ];
 /** Ariza orqali beriladigan rollar (backend Registration::ROLES). */
 const APPLICANT_ROLES = ["STUDENT", "TEACHER"];
-const ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"];
-const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", PARENT: "neutral", ADMIN: "warning", SUPER_ADMIN: "danger" };
+const ROLES = ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"];
+const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
 export default function Users({ rows: initialRows, meta, role, q, view, actorRole, selfId, phoneHint, openImport = false, importGroup }: {
   rows: UserRow[]; meta: { total: number; page: number; pages: number; pending?: number }; role: string; q: string; view: string;
@@ -36,16 +35,13 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
 }) {
   // Rol nomlari sozlamalardan (telegram.role_labels) — bot, Mini App va sayt bir xil ko'rsatadi.
   const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels") };
-  const confirm = useConfirm();
-  const [kids, setKids] = useState<{ parent: UserRow; list: UserRow[] } | null>(null);
   const [importing, setImporting] = useState(openImport);
-  const [linkKid, setLinkKid] = useState<UserRow | null>(null);
-  const [linkParent, setLinkParent] = useState<UserRow | null>(null);
   useEffect(() => setImporting(openImport), [openImport]);
   const router = useRouter();
   const path = usePathname();
   const toast = useToast();
   const prompt = usePrompt();
+  const confirm = useConfirm();
   const [rows, setRows] = useState(initialRows);
   const [search, setSearch] = useState(q);
   const [loading, startTransition] = useTransition();
@@ -119,30 +115,6 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
     },
   });
 
-  const linkChild = (u: UserRow) => setLinkKid(u);
-
-  async function pickChild(parent: UserRow, child: { id: number; first_name: string; last_name: string | null }) {
-    const r = await call("POST", `users/${parent.id}/children`, { child_id: child.id });
-    if (!r.ok) return toast.error("Bog'lanmadi", errorText(r.data));
-    toast.success("Farzand bog'landi", personName(child));
-    setLinkKid(null);
-    if (kids?.parent.id === parent.id) void openKids(parent);
-  }
-
-  async function openKids(u: UserRow) {
-    const r = await call<{ data: UserRow[] }>("GET", `users/${u.id}/children`);
-    if (!r.ok) return toast.error("Yuklanmadi", errorText(r.data));
-    setKids({ parent: u, list: r.data.data ?? [] });
-  }
-
-  async function unlinkKid(parent: UserRow, child: UserRow) {
-    if (!(await confirm({ title: "Bog'lanish uzilsinmi?", description: `${personName(child)} endi ${personName(parent)} ga bog'liq bo'lmaydi.`, confirmText: "Uzish", tone: "danger" }))) return;
-    const r = await call("DELETE", `users/${parent.id}/children/${child.id}`);
-    if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
-    toast.success("Bog'lanish uzildi");
-    void openKids(parent);
-  }
-
   async function approve(u: UserRow, asRole: string) {
     const r = await call("POST", `users/${u.id}/approve`, { role: asRole });
     if (!r.ok) return toast.error("Tasdiqlanmadi", errorText(r.data));
@@ -168,7 +140,7 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
   async function merge(from: DupUser, into: DupUser) {
     if (!(await confirm({
       title: "Akkauntlar birlashtirilsinmi?",
-      description: `#${from.id} ${from.name} (${fmtPhone(from.phone)}) → #${into.id} ${into.name}. Telegram va ota-ona bog'lanishlari ko'chiriladi, takror akkaunt arxivlanadi.`,
+      description: `#${from.id} ${from.name} (${fmtPhone(from.phone)}) → #${into.id} ${into.name}. Telegram bog'lanishi ko'chiriladi, takror akkaunt arxivlanadi.`,
       confirmText: "Birlashtirish",
     }))) return;
     const r = await call("POST", `users/${from.id}/merge`, { into_id: into.id });
@@ -256,8 +228,6 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
                           { label: "Profil", icon: <UserRound />, href: `/dashboard/users/${u.id}` },
                           { label: "Tahrirlash", icon: <Pencil />, onSelect: () => edit(u) },
                           { label: "Parol o'rnatish", icon: <KeyRound />, onSelect: () => password(u) },
-                          ...(u.role === "PARENT" ? [{ label: "Farzandlari", icon: <UsersIcon />, onSelect: () => openKids(u) }, { label: "Farzandni bog'lash", icon: <Link2 />, onSelect: () => linkChild(u) }] : []),
-                          ...(u.role === "STUDENT" ? [{ label: "Ota-onani bog'lash", icon: <Link2 />, onSelect: () => setLinkParent(u) }] : []),
                           { type: "separator" as const },
                           u.active
                             ? { label: "Bloklash", icon: <ShieldOff />, danger: true, onSelect: () => toggleActive(u) }
@@ -319,66 +289,8 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
             </div>
           ))}
       </Dialog>
-      <Dialog open={kids !== null} onClose={() => setKids(null)} title="Farzandlari" description={kids ? personName(kids.parent) : undefined} icon={<UsersIcon />}
-        footer={kids && <Button icon={<Link2 />} onClick={() => linkChild(kids.parent)}>Farzandni bog&apos;lash</Button>}>
-        {kids && (kids.list.length === 0 ? <EmptyState compact icon={<UsersIcon />} title="Bog'langan farzand yo'q" /> : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-            {kids.list.map((c) => (
-              <li key={c.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Avatar name={personName(c)} size={32} />
-                <span style={{ flex: 1 }}><b>{personName(c)}</b><div className="subtle">{c.phone}</div></span>
-                <Button variant="ghost" size="sm" icon={<Unlink />} onClick={() => unlinkKid(kids.parent, c)}>Uzish</Button>
-              </li>
-            ))}
-          </ul>
-        ))}
-      </Dialog>
-      <Dialog open={linkKid !== null} onClose={() => setLinkKid(null)} title="Farzandni bog'lash" icon={<Link2 />} width={520}
-        description={linkKid ? `${personName(linkKid)} farzandining davomati, natijalari va to'lovlarini ko'radi.` : undefined}>
-        {linkKid && <PersonPicker role="STUDENT" label="O'quvchini qidirish" exclude={new Set(kids?.parent.id === linkKid.id ? kids.list.map((k) => k.id) : [])} onPick={(c) => pickChild(linkKid, c)} />}
-      </Dialog>
-      <LinkParentDialog student={linkParent} onClose={() => setLinkParent(null)} />
       <ImportDialog open={importing} onClose={() => setImporting(false)} onDone={() => router.refresh()} defaultGroupId={importGroup} />
     </>
   );
 }
 
-/** O'quvchiga ota-ona: mavjudini qidirib yoki yangisini (ism + telefon) yaratib. Raqam mavjud ota-onaniki bo'lsa — o'sha bog'lanadi. */
-function LinkParentDialog({ student, onClose }: { student: UserRow | null; onClose: () => void }) {
-  const toast = useToast();
-  const [tab, setTab] = useState("find");
-  const [form, setForm] = useState({ first_name: "", last_name: "", phone: "" });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { setTab("find"); setForm({ first_name: "", last_name: "", phone: "" }); setError(null); }, [student]);
-
-  async function link(body: Record<string, unknown>) {
-    if (!student) return;
-    setBusy(true); setError(null);
-    const r = await call<{ parent: UserRow; created: boolean }>("POST", `users/${student.id}/parents`, body);
-    setBusy(false);
-    if (!r.ok) return setError(errorText(r.data));
-    toast.success(r.data.created ? "Ota-ona yaratildi va bog'landi" : "Ota-ona bog'landi", personName(r.data.parent));
-    onClose();
-  }
-
-  return (
-    <Dialog open={student !== null} onClose={onClose} title="Ota-onani bog'lash" icon={<Link2 />} width={520}
-      description={student ? personName(student) : undefined}
-      onSubmit={tab === "new" ? () => link({ ...form, last_name: form.last_name || null }) : undefined}
-      footer={tab === "new" ? <><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button type="submit" loading={busy}>Yaratish va bog&apos;lash</Button></> : undefined}>
-      <Tabs variant="pills" label="Ota-ona" value={tab} onChange={setTab} items={[{ id: "find", label: "Mavjud ota-ona" }, { id: "new", label: "Yangi ota-ona" }]} />
-      {tab === "find" ? (
-        <PersonPicker role="PARENT" label="Ota-onani qidirish" onPick={(p) => link({ parent_id: p.id })}
-          empty={<>Ro&apos;yxatda yo&apos;q bo&apos;lsa, «Yangi ota-ona» bo&apos;limida yarating.</>} />
-      ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          <Field label="Ism" required><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></Field>
-          <Field label="Familiya"><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></Field>
-          <Field label="Telefon" required hint="90 123 45 67 yoki +998901234567"><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
-        </div>
-      )}
-      {error && <p role="alert" style={{ color: "var(--danger)", margin: 0, fontWeight: 550 }}>{error}</p>}
-    </Dialog>
-  );
-}

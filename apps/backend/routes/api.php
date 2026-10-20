@@ -44,7 +44,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/password', [AuthController::class, 'changePassword']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
-        Route::get('/me/children', [ProfileController::class, 'children']);
         Route::get('/search', SearchController::class);
         Route::get('/users/{user}/profile', [ProfileController::class, 'show'])->whereNumber('user');
 
@@ -68,11 +67,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/system/status', SystemStatusController::class);
         });
         Route::middleware('perm:user.manage')->group(function () {
-            Route::get('/users/{parent}/children', [UserController::class, 'children']);
-            Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
-            Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
-            Route::get('/users/{student}/parents', [UserController::class, 'parents']);
-            Route::post('/users/{student}/parents', [UserController::class, 'linkParent']);
             Route::get('/imports/students/template', [ImportController::class, 'template']);
             Route::post('/imports/students/preview', [ImportController::class, 'preview']);
             Route::post('/imports/students/commit', [ImportController::class, 'commit']);
@@ -145,7 +139,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/reports/quizzes', [ReportController::class, 'quizzes']);
         });
 
-        // To'lovlar: o'quvchi — o'zi, ota-ona — farzandlari (tekshiruv controller'da); boshqarish — billing.manage
+        // To'lovlar: o'quvchi — o'zi (tekshiruv controller'da); boshqarish — billing.manage
         Route::get('/billing/me', [BillingController::class, 'me']);
         Route::get('/billing/students/{student}', [BillingController::class, 'show'])->whereNumber('student');
         Route::middleware('perm:billing.manage')->group(function () {

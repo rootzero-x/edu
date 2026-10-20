@@ -81,7 +81,7 @@ class PublicSettings:
     def role_label(self, role):
         labels = self.values.get("telegram.role_labels")
         defaults = {"SUPER_ADMIN": "Super-admin", "ADMIN": "Administrator", "TEACHER": "O'qituvchi",
-                    "STUDENT": "O'quvchi", "PARENT": "Ota-ona"}
+                    "STUDENT": "O'quvchi"}
         return (labels.get(role) if isinstance(labels, dict) else None) or defaults.get(role, role)
 
     @property

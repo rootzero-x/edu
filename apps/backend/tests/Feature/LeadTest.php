@@ -141,32 +141,28 @@ class LeadTest extends TestCase
         $this->getJson('/v1/leads')->assertForbidden();
     }
 
-    public function test_convert_creates_student_parent_and_membership_in_one_step(): void
+    public function test_convert_creates_student_and_membership_in_one_step(): void
     {
-        $this->form(['name' => 'Malika onasi', 'phone' => '90 555 44 33'])->assertCreated();
+        $this->form(['name' => 'Malika Karimova', 'phone' => '90 555 44 33'])->assertCreated();
         $lead = Lead::sole();
         Sanctum::actingAs($this->admin);
-        $this->postJson("/v1/leads/{$lead->id}/convert", ['first_name' => 'Malika', 'phone' => '90 555 44 33', 'parent_phone' => '905554433'])
-            ->assertStatus(422)->assertJsonValidationErrors('parent_phone');
+        $this->postJson("/v1/leads/{$lead->id}/convert", ['first_name' => 'Malika', 'phone' => '12'])->assertStatus(422)->assertJsonValidationErrors('phone');
         $r = $this->postJson("/v1/leads/{$lead->id}/convert", [
-            'first_name' => 'Malika', 'last_name' => 'Karimova', 'phone' => '90 777 66 55',
-            'parent_name' => 'Dilnoza', 'parent_phone' => '90 555 44 33', 'group_id' => $this->group->id,
+            'first_name' => 'Malika', 'last_name' => 'Karimova', 'phone' => '90 555 44 33', 'group_id' => $this->group->id,
         ])->assertOk()->assertJson(['created' => true, 'joined' => 'added'])->assertJsonPath('lead.status', 'ENROLLED');
 
-        $student = User::where('phone', '+998907776655')->sole();
-        $parent = User::where('phone', '+998905554433')->sole();
+        $student = User::where('phone', '+998905554433')->sole();
         $this->assertSame(Role::Student, $student->role);
-        $this->assertSame(Role::Parent, $parent->role);
-        $this->assertTrue(DB::table('parent_child')->where(['parent_id' => $parent->id, 'child_id' => $student->id])->exists());
         $this->assertTrue(DB::table('group_members')->where(['group_id' => $this->group->id, 'student_id' => $student->id])->whereNull('left_at')->exists());
         $this->assertSame(1, DB::table('enrollments')->where('student_id', $student->id)->count());
         $this->assertSame($student->id, $r->json('student.id'));
-        $this->postJson("/v1/leads/{$lead->id}/convert", ['first_name' => 'Malika', 'phone' => '907776655'])->assertStatus(422);
+        $this->assertSame($student->id, $r->json('lead.student_id'));
+        $this->postJson("/v1/leads/{$lead->id}/convert", ['first_name' => 'Malika', 'phone' => '905554433'])->assertStatus(422);
 
         // Mavjud o'quvchi qayta ishlatiladi; boshqa roldagi raqam rad etiladi.
-        $id2 = $this->postJson('/v1/leads', ['name' => 'Malika', 'phone' => '907776655', 'source' => 'referral'])->assertCreated()->json('lead.id');
-        $this->postJson("/v1/leads/$id2/convert", ['first_name' => 'Malika', 'phone' => '+998907776655'])->assertOk()->assertJson(['created' => false]);
-        $teacher = User::factory()->role(Role::Teacher)->create(['phone' => '+998901110000']);
+        $id2 = $this->postJson('/v1/leads', ['name' => 'Malika', 'phone' => '905554433', 'source' => 'referral'])->assertCreated()->json('lead.id');
+        $this->postJson("/v1/leads/$id2/convert", ['first_name' => 'Malika', 'phone' => '+998905554433'])->assertOk()->assertJson(['created' => false]);
+        User::factory()->role(Role::Teacher)->create(['phone' => '+998901110000']);
         $id3 = $this->postJson('/v1/leads', ['name' => 'T', 'phone' => '901110000', 'source' => 'other'])->json('lead.id');
         $this->getJson("/v1/leads/$id3")->assertJsonPath('existing_user.role', 'TEACHER');
         $this->postJson("/v1/leads/$id3/convert", ['first_name' => 'T', 'phone' => '901110000'])->assertStatus(422)->assertJsonValidationErrors('phone');
@@ -232,8 +228,8 @@ class LeadTest extends TestCase
 
     public function test_linked_user_applies_without_sharing_phone_again(): void
     {
-        $parent = User::factory()->role(Role::Parent)->create(['phone' => '+998977001122', 'first_name' => 'Ota']);
-        DB::table('telegram_links')->insert(['user_id' => $parent->id, 'telegram_id' => 7001, 'chat_id' => 7001, 'linked_at' => now()]);
+        $student = User::factory()->create(['phone' => '+998977001122', 'first_name' => 'Ota']);
+        DB::table('telegram_links')->insert(['user_id' => $student->id, 'telegram_id' => 7001, 'chat_id' => 7001, 'linked_at' => now()]);
         $this->webhook(['message' => ['message_id' => 1, 'text' => '/ariza', 'chat' => ['id' => 7001, 'type' => 'private'], 'from' => ['id' => 7001, 'first_name' => 'Ota']]]);
         $this->webhook(['callback_query' => ['id' => 'cb2', 'data' => 'ld:c:0', 'from' => ['id' => 7001, 'first_name' => 'Ota'],
             'message' => ['message_id' => 9, 'chat' => ['id' => 7001, 'type' => 'private']]]]);

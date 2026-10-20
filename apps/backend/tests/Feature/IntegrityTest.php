@@ -31,8 +31,6 @@ class IntegrityTest extends TestCase
 
     private User $student;
 
-    private User $parent;
-
     private Course $course;
 
     private StudyGroup $group;
@@ -46,9 +44,7 @@ class IntegrityTest extends TestCase
         $this->admin = User::factory()->role(Role::Admin)->create();
         $this->teacher = User::factory()->role(Role::Teacher)->create(['first_name' => 'Ustoz']);
         $this->student = User::factory()->create(['first_name' => 'Aziz']);
-        $this->parent = User::factory()->role(Role::Parent)->create(['first_name' => 'Ota']);
-        DB::table('parent_child')->insert(['parent_id' => $this->parent->id, 'child_id' => $this->student->id]);
-        foreach ([[$this->teacher, 101], [$this->student, 102], [$this->parent, 103]] as [$u, $tg]) {
+        foreach ([[$this->teacher, 101], [$this->student, 102]] as [$u, $tg]) {
             DB::table('telegram_links')->insert(['user_id' => $u->id, 'telegram_id' => $tg, 'chat_id' => $tg, 'linked_at' => now()]);
         }
         $this->course = Course::create(['title' => 'Ingliz tili', 'created_by' => $this->admin->id, 'published' => true]);

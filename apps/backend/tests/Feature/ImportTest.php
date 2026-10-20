@@ -41,13 +41,13 @@ class ImportTest extends TestCase
     private function sheet(): array
     {
         return [
-            ['Ism', 'Familiya', 'Telefon', 'Ota-ona ismi', 'Ota-ona telefoni', 'Guruh', "Qo'shilgan sana"],
-            ['Ali', 'Valiyev', '90 123 45 67', 'Dilnoza', '93 555 44 33', 'eng-1', '15.10.2026'],
-            ['Vali', 'Valiyev', '+998 90 123 45 68', '', '935554433', 'ENG-1', ''],   // aka-uka: bitta ota-ona
-            ['Aziz', 'Karimov', '901234567', '', '', 'ENG-1', ''],                  // 1-qatordagi telefon takrori
-            ['Bobur', '', '12345', '', '', '', ''],                                  // noto'g'ri telefon
-            ['Ustoz', '', '900000001', '', '', '', ''],                              // o'qituvchi raqami
-            ['Sardor', '', '901112233', '', '', 'Yo\'q guruh', ''],                  // guruh topilmadi
+            ['Ism', 'Familiya', 'Telefon', 'Guruh', "Qo'shilgan sana"],
+            ['Ali', 'Valiyev', '90 123 45 67', 'eng-1', '15.10.2026'],
+            ['Vali', 'Valiyev', '+998 90 123 45 68', 'ENG-1', ''],
+            ['Aziz', 'Karimov', '901234567', 'ENG-1', ''],          // 1-qatordagi telefon takrori
+            ['Bobur', '', '12345', '', ''],                          // noto'g'ri telefon
+            ['Ustoz', '', '900000001', '', ''],                      // o'qituvchi raqami
+            ['Sardor', '', '901112233', 'Yo\'q guruh', ''],          // guruh topilmadi
         ];
     }
 
@@ -55,7 +55,7 @@ class ImportTest extends TestCase
     {
         $r = $this->preview(Spreadsheet::writeXlsx($this->sheet()), 'oquvchilar.xlsx')->assertOk();
         $this->assertSame(['rows' => 6, 'valid' => 2, 'errors' => 4, 'new_students' => 2, 'existing_students' => 0,
-            'new_parents' => 1, 'links' => 2, 'memberships' => 2, 'already_members' => 0], $r->json('summary'));
+            'memberships' => 2, 'already_members' => 0], $r->json('summary'));
         $rows = collect($r->json('rows'))->keyBy('line');
         $this->assertSame('+998901234567', $rows[2]['phone']);
         $this->assertSame('ENG-1', $rows[2]['group_name']);
@@ -71,10 +71,7 @@ class ImportTest extends TestCase
         $this->assertSame(0, User::where('role', 'STUDENT')->count());
 
         $this->postJson('/v1/imports/students/commit', ['token' => $token, 'skip_invalid' => true])->assertOk()
-            ->assertJsonPath('result', ['students_created' => 2, 'students_updated' => 0, 'parents_created' => 1, 'links' => 2, 'memberships' => 2, 'skipped' => 4]);
-        $parent = User::where('phone', '+998935554433')->sole();
-        $this->assertSame(Role::Parent, $parent->role);
-        $this->assertSame(2, DB::table('parent_child')->where('parent_id', $parent->id)->count());
+            ->assertJsonPath('result', ['students_created' => 2, 'students_updated' => 0, 'memberships' => 2, 'skipped' => 4]);
         $this->assertSame(2, DB::table('group_members')->where('group_id', $this->group->id)->whereNull('left_at')->count());
         $this->assertSame('2026-10-15', substr((string) DB::table('enrollments')->where('student_id', User::where('phone', '+998901234567')->value('id'))->value('starts_on'), 0, 10));
         // Token bir martalik.
@@ -87,19 +84,19 @@ class ImportTest extends TestCase
         $file = Spreadsheet::writeXlsx(array_slice($this->sheet(), 0, 3));
         $token = $this->preview($file, 'a.xlsx')->json('token');
         $this->postJson('/v1/imports/students/commit', ['token' => $token])->assertOk();
-        $before = [User::count(), DB::table('parent_child')->count(), DB::table('enrollments')->count()];
+        $before = [User::count(), DB::table('enrollments')->count()];
 
         $r = $this->preview($file, 'a.xlsx')->assertOk();
-        $this->assertEquals(['existing_students' => 2, 'new_students' => 0, 'new_parents' => 0, 'links' => 0, 'memberships' => 0, 'already_members' => 2],
-            array_intersect_key($r->json('summary'), array_flip(['existing_students', 'new_students', 'new_parents', 'links', 'memberships', 'already_members'])));
+        $this->assertEquals(['existing_students' => 2, 'new_students' => 0, 'memberships' => 0, 'already_members' => 2],
+            array_intersect_key($r->json('summary'), array_flip(['existing_students', 'new_students', 'memberships', 'already_members'])));
         $this->postJson('/v1/imports/students/commit', ['token' => $r->json('token')])->assertOk()
             ->assertJsonPath('result.students_created', 0)->assertJsonPath('result.memberships', 0);
-        $this->assertSame($before, [User::count(), DB::table('parent_child')->count(), DB::table('enrollments')->count()]);
+        $this->assertSame($before, [User::count(), DB::table('enrollments')->count()]);
     }
 
     public function test_csv_with_aliases_cp1251_default_group_and_excel_dates(): void
     {
-        $csv = "\xEF\xBB\xBFFIO,Tel,Ota-ona telefoni,Sana\n\"Ali Valiyev\",=\"+998901234567\",,46300\nNodir,'901234599,,01.10.26\n";
+        $csv = "\xEF\xBB\xBFFIO,Tel,Sana\n\"Ali Valiyev\",=\"+998901234567\",46300\nNodir,'901234599,01.10.26\n";
         $r = $this->preview($csv, 'list.csv', ['group_id' => $this->group->id])->assertOk();
         $rows = $r->json('rows');
         $this->assertSame(['Ali', 'Valiyev', '+998901234567', 'ENG-1', '2026-10-05'], [$rows[0]['first_name'], $rows[0]['last_name'], $rows[0]['phone'], $rows[0]['group_name'], $rows[0]['start_date']]);

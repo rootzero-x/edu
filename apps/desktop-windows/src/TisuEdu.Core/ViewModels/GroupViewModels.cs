@@ -156,7 +156,7 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
         Students.Clear();
         foreach (var s in group.Students)
             Students.Add(new StudentRow(s.Id, s.FullName, s.Phone, rates.GetValueOrDefault(s.Id), Settings));
-        // O'quvchi/ota-ona guruh a'zolari ro'yxatini emas, faqat o'zini/farzandini ko'radi.
+        // O'quvchi guruh a'zolari ro'yxatini emas, faqat o'zini ko'radi.
         if (Students.Count == 0)
             foreach (var r in rates.Values) Students.Add(new StudentRow(r.StudentId, r.Name, null, r, Settings));
         HasStudents = Students.Count > 0;

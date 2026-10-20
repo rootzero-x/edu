@@ -80,10 +80,10 @@ final class Leads
     }
 
     /**
-     * Arizani o'quvchiga aylantirish: o'quvchi (telefon bo'yicha mavjudi yoki yangisi), ixtiyoriy ota-ona va guruh — bitta qadamda.
+     * Arizani o'quvchiga aylantirish: o'quvchi (telefon bo'yicha mavjudi yoki yangisi) va guruh — bitta qadamda.
      *
-     * @param  array{first_name:string, last_name?:?string, phone:string, group_id?:?int, start_date?:?string, parent_name?:?string, parent_phone?:?string}  $data
-     * @return array{student: User, parent: ?User, created: bool, joined: ?string}
+     * @param  array{first_name:string, last_name?:?string, phone:string, group_id?:?int, start_date?:?string}  $data
+     * @return array{student: User, created: bool, joined: ?string}
      */
     public function convert(Lead $lead, array $data, int $actorId): array
     {
@@ -94,21 +94,9 @@ final class Leads
         if (! $phone) {
             throw ValidationException::withMessages(['phone' => "Telefon raqami noto'g'ri. Masalan: 90 123 45 67"]);
         }
-        $parentPhone = isset($data['parent_phone']) && trim((string) $data['parent_phone']) !== '' ? Phone::normalize($data['parent_phone']) : null;
-        if (isset($data['parent_phone']) && trim((string) $data['parent_phone']) !== '' && ! $parentPhone) {
-            throw ValidationException::withMessages(['parent_phone' => "Ota-ona telefoni noto'g'ri."]);
-        }
-        if ($parentPhone && $parentPhone === $phone) {
-            throw ValidationException::withMessages(['parent_phone' => "O'quvchi va ota-onaning telefoni bir xil bo'lmasligi kerak (raqam bitta akkauntga tegishli)."]);
-        }
 
-        return DB::transaction(function () use ($lead, $data, $phone, $parentPhone, $actorId) {
+        return DB::transaction(function () use ($lead, $data, $phone, $actorId) {
             [$student, $created] = $this->findOrCreate($phone, Role::Student, $data['first_name'], $data['last_name'] ?? null, 'phone');
-            $parent = null;
-            if ($parentPhone) {
-                [$parent] = $this->findOrCreate($parentPhone, Role::Parent, trim((string) ($data['parent_name'] ?? '')) ?: $lead->name, null, 'parent_phone');
-                DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $student->id]);
-            }
             $joined = null;
             if (! empty($data['group_id'])) {
                 $joined = $this->enrollments->join(StudyGroup::findOrFail($data['group_id']), $student, $data['start_date'] ?? null, $actorId);
@@ -119,9 +107,9 @@ final class Leads
                 'group_id' => $data['group_id'] ?? $lead->group_id, 'next_contact_on' => null,
             ])->save();
             LeadActivity::create(['lead_id' => $lead->id, 'user_id' => $actorId, 'type' => 'STATUS',
-                'data' => ['from' => $from, 'to' => Lead::ENROLLED, 'student_id' => $student->id, 'group_id' => $data['group_id'] ?? null, 'parent_id' => $parent?->id]]);
+                'data' => ['from' => $from, 'to' => Lead::ENROLLED, 'student_id' => $student->id, 'group_id' => $data['group_id'] ?? null]]);
 
-            return ['student' => $student, 'parent' => $parent, 'created' => $created, 'joined' => $joined];
+            return ['student' => $student, 'created' => $created, 'joined' => $joined];
         });
     }
 

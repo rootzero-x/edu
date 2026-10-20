@@ -324,7 +324,6 @@ public sealed class MarkResult
 {
     public bool Ok { get; set; }
     public int Changed { get; set; }
-    public int Notified { get; set; }
 }
 
 public sealed class StudentAttendance
