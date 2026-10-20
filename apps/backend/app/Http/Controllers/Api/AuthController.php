@@ -39,4 +39,22 @@ class AuthController
 
         return response()->json(['ok' => true]);
     }
+
+    /** O'z parolini almashtirish: boshqa barcha sessiyalar yopiladi. */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:10', 'different:current_password'],
+        ]);
+        $user = $request->user();
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages(['current_password' => __('Joriy parol noto\'g\'ri.')]);
+        }
+        $user->update(['password' => $data['new_password']]);
+        $current = $user->currentAccessToken()->id;
+        $user->tokens()->where('id', '!=', $current)->delete();
+
+        return response()->json(['ok' => true]);
+    }
 }

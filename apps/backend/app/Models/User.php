@@ -28,13 +28,9 @@ class User extends Authenticatable
         ];
     }
 
-    public function can($abilities, $arguments = []): bool
+    public function isAdmin(): bool
     {
-        if (is_string($abilities) && str_contains($abilities, '.')) {
-            return $this->active && $this->role->can($abilities);
-        }
-
-        return parent::can($abilities, $arguments);
+        return in_array($this->role, [Role::SuperAdmin, Role::Admin], true);
     }
 
     public function toApi(): array
@@ -46,6 +42,7 @@ class User extends Authenticatable
             'last_name' => $this->last_name,
             'role' => $this->role->value,
             'branch_id' => $this->branch_id,
+            'active' => $this->active,
             'locale' => $this->locale,
         ];
     }
