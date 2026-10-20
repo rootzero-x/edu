@@ -38,6 +38,16 @@ return [
             'report' => false,
         ],
 
+        // Yuklangan fayllar (dars materiallari, uyga vazifa): ommaga ochiq emas, faqat imzolangan
+        // muddatli havola orqali (App\Support\Uploads). Zaxira nusxaga shu papka ham kiritiladi.
+        'uploads' => [
+            'driver' => 'local',
+            'root' => env('UPLOADS_DIR', storage_path('app/private/uploads')),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

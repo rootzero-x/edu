@@ -2,9 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Braces, List, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Input, PageHeader, Switch, Table, Td, Th, Textarea, cx, useConfirm, useToast } from "@/components/ui";
+import { Braces, History, List, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Badge, Button, Card, EmptyState, Input, PageHeader, Switch, Table, Td, Th, Textarea, cx, useConfirm, usePrompt, useToast } from "@/components/ui";
+import { useSiteSettings } from "@/components/SiteProvider";
+import { ROLE_LABELS } from "@/components/shell/nav";
 import { call, errorText } from "@/lib/client";
+import { obj } from "@/lib/settings";
+import SettingHistory from "./SettingHistory";
+import UploadsUsage from "./UploadsUsage";
 import s from "./settings.module.css";
 
 export type Item = {
@@ -12,7 +17,8 @@ export type Item = {
   label: string; public: boolean; min: number | null; max: number | null; default: unknown; value: unknown;
 };
 
-const ROLE_NAMES: Record<string, string> = { ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi" };
+/** Huquqlar matritsasidagi rollar tartibi (SUPER_ADMIN — har doim hamma huquq, ko'rsatilmaydi). */
+const ROLE_ORDER = ["ADMIN", "TEACHER", "STUDENT"];
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Ro'yxat elementlarining maydonlari: yorliqdagi "[{a,b}]" dan yoki mavjud qiymatlardan. */
@@ -33,7 +39,7 @@ function listShape(i: Item): string[] | "string" | null {
  * Barcha sozlamalar API'dagi ta'riflardan avtomatik quriladi — config/tisu.php ga yangi sozlama
  * qo'shilsa, forma o'zi paydo bo'ladi (tur bo'yicha mos boshqaruv elementi bilan).
  */
-export default function SettingsEditor({ items, permissions, permissionLabels = {}, groupLabels = {}, warnings = [], showKeys = false, initialGroup }: {
+export default function SettingsEditor({ items, permissions, permissionLabels = {}, groupLabels = {}, warnings = [], showKeys = false, initialGroup, adminOnly = [] }: {
   items: Item[]; permissions: string[]; permissionLabels?: Record<string, string>; groupLabels?: Record<string, string>;
   /** Backend ogohlantirishlari (masalan, o'qituvchida course.manage qolgan). */
   warnings?: string[];
@@ -41,11 +47,17 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
   showKeys?: boolean;
   /** ?group=billing — kerakli bo'lim ochiladi. */
   initialGroup?: string;
+  /** Faqat ADMIN roliga beriladigan huquqlar (masalan, audit.view). */
+  adminOnly?: string[];
 }) {
   const GROUPS = groupLabels;
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
+  const prompt = usePrompt();
+  const st = useSiteSettings();
+  const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(st, "telegram.role_labels") };
+  const [history, setHistory] = useState<Item | null>(null);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [rawMode, setRawMode] = useState<Record<string, boolean>>({});
@@ -147,37 +159,88 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
   function objectField(i: Item, v: Record<string, unknown>) {
     if (i.key === "roles.permissions") return rolesMatrix(i, v as Record<string, string[]>);
     const entries = Object.entries(v ?? {});
-    if (rawMode[i.key] || !entries.every(([, x]) => typeof x === "string")) return jsonField(i, v);
+    if (rawMode[i.key]) return jsonField(i, v);
+    if (entries.length && entries.every(([, x]) => Array.isArray(x))) return nestedField(i, v as Record<string, unknown[]>);
+    if (!entries.every(([, x]) => typeof x === "string")) return jsonField(i, v);
+    // Standart qiymatda bo'lmagan kalitlarni qo'shish/o'chirish mumkin (masalan, tarjimalar).
+    const fixed = new Set(Object.keys((i.default as Record<string, unknown>) ?? {}));
+    async function addKey() {
+      const r = await prompt({ title: "Yangi kalit", fields: [{ name: "k", label: "Kalit", required: true }, { name: "v", label: "Qiymat" }] });
+      if (r?.k.trim()) set(i.key, { ...v, [r.k.trim()]: r.v });
+    }
     return (
       <div>
         <div className={s.kv}>
           {entries.map(([k, x]) => (
-            <label key={k} style={{ display: "contents" }}>
-              <code>{k}</code>
-              <Input size="sm" aria-label={`${i.label}: ${k}`} value={String(x)} onChange={(e) => set(i.key, { ...v, [k]: e.target.value })} />
-            </label>
+            <div key={k} style={{ display: "contents" }}>
+              <code id={`${i.key}-${k}`}>{k}</code>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Input size="sm" aria-labelledby={`${i.key}-${k}`} value={String(x)} onChange={(e) => set(i.key, { ...v, [k]: e.target.value })} />
+                {!fixed.has(k) && <Button size="sm" variant="dangerGhost" iconOnly aria-label={`${k} — o'chirish`} icon={<Trash2 />} onClick={() => { const n = { ...v }; delete n[k]; set(i.key, n); }} />}
+              </div>
+            </div>
           ))}
         </div>
-        <Button size="sm" variant="ghost" icon={<Braces />} style={{ marginTop: 8 }} onClick={() => setRawMode((m) => ({ ...m, [i.key]: true }))}>JSON</Button>
+        <div className={s.listActions} style={{ marginTop: 8 }}>
+          {(fixed.size === 0 || entries.some(([k]) => !fixed.has(k))) && <Button size="sm" variant="soft" icon={<Plus />} onClick={addKey}>Kalit qo&apos;shish</Button>}
+          <Button size="sm" variant="ghost" icon={<Braces />} onClick={() => setRawMode((m) => ({ ...m, [i.key]: true }))}>JSON</Button>
+        </div>
+      </div>
+    );
+  }
+
+  /** Kalit → ro'yxat (masalan, rol → menyu qatorlari, til → bot buyruqlari): har bir kalit uchun qatorlar. */
+  function nestedField(i: Item, v: Record<string, unknown[]>) {
+    const update = (k: string, next: unknown[]) => set(i.key, { ...v, [k]: next });
+    return (
+      <div className={s.nested}>
+        {Object.entries(v).map(([k, arr]) => {
+          const objects = arr.length > 0 && arr.every((x) => x && typeof x === "object" && !Array.isArray(x));
+          const keys = objects ? [...new Set(arr.flatMap((x) => Object.keys(x as object)))] : [];
+          const blank = objects ? Object.fromEntries(keys.map((c) => [c, ""])) : arr.every((x) => Array.isArray(x)) ? [] : "";
+          return (
+            <fieldset key={k} className={s.nestedGroup}>
+              <legend>{roleNames[k] ?? k}</legend>
+              {arr.map((row, idx) => (
+                <div key={idx} className={s.listRow} style={{ "--cols": objects ? keys.length : 1 } as React.CSSProperties}>
+                  {objects ? keys.map((c) => (
+                    <Input key={c} size="sm" placeholder={c} aria-label={`${k}: ${c} — ${idx + 1}`} value={String((row as Record<string, unknown>)[c] ?? "")}
+                      onChange={(e) => update(k, arr.map((x, j) => (j === idx ? { ...(x as object), [c]: e.target.value } : x)))} />
+                  )) : Array.isArray(row) ? (
+                    <Input size="sm" aria-label={`${k} — ${idx + 1}-qator (vergul bilan)`} value={(row as unknown[]).join(", ")}
+                      onChange={(e) => update(k, arr.map((x, j) => (j === idx ? e.target.value.split(",").map((t) => t.trim()).filter(Boolean) : x)))} />
+                  ) : (
+                    <Input size="sm" aria-label={`${k} — ${idx + 1}`} value={String(row ?? "")} onChange={(e) => update(k, arr.map((x, j) => (j === idx ? e.target.value : x)))} />
+                  )}
+                  <Button size="sm" variant="dangerGhost" iconOnly aria-label="O'chirish" icon={<Trash2 />} onClick={() => update(k, arr.filter((_, j) => j !== idx))} />
+                </div>
+              ))}
+              <div><Button size="sm" variant="soft" icon={<Plus />} onClick={() => update(k, [...arr, blank])}>Qator qo&apos;shish</Button></div>
+            </fieldset>
+          );
+        })}
+        <div><Button size="sm" variant="ghost" icon={<Braces />} onClick={() => setRawMode((m) => ({ ...m, [i.key]: true }))}>JSON</Button></div>
       </div>
     );
   }
 
   function rolesMatrix(i: Item, v: Record<string, string[]>) {
+    // Rollar — saqlangan matritsadan (yangi rol qo'shilsa yoki olib tashlansa forma o'zi moslashadi).
+    const roles = [...ROLE_ORDER.filter((r) => r in v), ...Object.keys(v).filter((r) => !ROLE_ORDER.includes(r))];
+    const name = (p: string) => permissionLabels[p] ?? p;
     return (
       <div className={s.matrixWrap}>
-        <Table caption="Rollar huquqlari" className="matrix">
-          <thead><tr><Th>Huquq</Th>{Object.keys(ROLE_NAMES).map((r) => <Th key={r}>{ROLE_NAMES[r]}</Th>)}</tr></thead>
+        <p className={s.hint} style={{ margin: 0, padding: "8px 12px" }}>Super-admin har doim barcha huquqlarga ega. O&apos;z rolingizdan sozlamalar yoki foydalanuvchilarni boshqarish huquqini olib tashlab bo&apos;lmaydi.</p>
+        <Table caption="Rollar huquqlari" className="matrix" stack>
+          <thead><tr><Th>Huquq</Th>{roles.map((r) => <Th key={r}>{roleNames[r] ?? r}</Th>)}</tr></thead>
           <tbody>
             {permissions.map((p) => (
               <tr key={p}>
-                <Td title={p}>
-                  {permissionLabels[p] ?? p}
-                  {showKeys && <div className="mono subtle" style={{ fontSize: 12 }}>{p}</div>}
-                </Td>
-                {Object.keys(ROLE_NAMES).map((r) => (
-                  <Td key={r}>
-                    <input type="checkbox" aria-label={`${ROLE_NAMES[r]}: ${permissionLabels[p] ?? p}`} checked={(v[r] ?? []).includes(p)} onChange={(e) => {
+                <Td title={p}>{name(p)}{showKeys && <div className={s.key}>{p}</div>}</Td>
+                {roles.map((r) => (
+                  <Td key={r} label={roleNames[r] ?? r}>
+                    <input type="checkbox" aria-label={`${roleNames[r] ?? r}: ${name(p)}`} checked={(v[r] ?? []).includes(p)}
+                      disabled={adminOnly.includes(p) && r !== "ADMIN"} title={adminOnly.includes(p) && r !== "ADMIN" ? "Faqat administratorga beriladi" : undefined} onChange={(e) => {
                       const cur = new Set(v[r] ?? []);
                       if (e.target.checked) cur.add(p); else cur.delete(p);
                       set(i.key, { ...v, [r]: [...cur] });
@@ -197,11 +260,28 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
     switch (i.type) {
       case "bool":
         return <Switch checked={Boolean(v)} onChange={(e) => set(i.key, e.target.checked)} label={v ? "Yoqilgan" : "O'chirilgan"} />;
-      case "int":
+      case "int": {
+        // Bo'sh maydon 0 emas: qiymat to'g'ri butun son va min..max oralig'ida bo'lmaguncha saqlanmaydi.
+        const text = raw[i.key] ?? String(v ?? "");
+        const err = invalid[i.key]
+          ? (text.trim() === "" ? "Qiymat kiriting." : `Butun son${i.min != null && i.max != null ? `, ${i.min}..${i.max} oralig'ida` : ""} bo'lishi kerak.`)
+          : null;
         return (
-          <Input type="number" aria-label={i.label} min={i.min ?? undefined} max={i.max ?? undefined} value={String(v ?? "")}
-            onChange={(e) => set(i.key, Number.parseInt(e.target.value || "0", 10))} style={{ maxWidth: 200 }} />
+          <div>
+            <Input type="number" inputMode="numeric" aria-label={i.label} aria-invalid={err ? true : undefined} min={i.min ?? undefined} max={i.max ?? undefined}
+              value={text} style={{ maxWidth: 200 }}
+              onChange={(e) => {
+                const t = e.target.value;
+                setRaw((r) => ({ ...r, [i.key]: t }));
+                const n = /^-?\d+$/.test(t.trim()) ? Number(t) : NaN;
+                const ok = Number.isInteger(n) && (i.min == null || n >= i.min) && (i.max == null || n <= i.max);
+                setInvalid((x) => ({ ...x, [i.key]: !ok }));
+                if (ok) set(i.key, n);
+              }} />
+            {err ? <div className={s.jsonErr} role="alert">{err}</div> : i.min != null && i.max != null && <div className={s.hint}>{i.min} – {i.max}</div>}
+          </div>
         );
+      }
       case "string":
         if (/(_color|\.color)$/.test(i.key)) {
           const hex = /^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : "#2563eb";
@@ -251,6 +331,7 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
           ))}
         </nav>
         <div>
+          {!needle && active === "uploads" && <UploadsUsage showPaths={showKeys} />}
           <Card>
             {shown.length === 0 ? <EmptyState compact icon={<Search />} title="Topilmadi" /> : shown.map((i) => {
               const v = value(i);
@@ -272,7 +353,10 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
                     </span>
                   </div>
                   <div className={s.control}>{field(i)}</div>
-                  <Button className={s.reset} variant="ghost" size="sm" iconOnly icon={<RotateCcw />} aria-label={`${i.label}: boshlang'ich qiymat`} title="Boshlang'ich qiymat" disabled={!custom && !changed} onClick={() => reset(i)} />
+                  <div className={s.itemActions}>
+                    <Button variant="ghost" size="sm" iconOnly icon={<History />} aria-label={`${i.label}: o'zgarishlar tarixi`} title="Tarix" onClick={() => setHistory(i)} />
+                    <Button className={s.reset} variant="ghost" size="sm" iconOnly icon={<RotateCcw />} aria-label={`${i.label}: boshlang'ich qiymat`} title="Boshlang'ich qiymat" disabled={!custom && !changed} onClick={() => reset(i)} />
+                  </div>
                 </div>
               );
             })}
@@ -286,6 +370,7 @@ export default function SettingsEditor({ items, permissions, permissionLabels = 
           )}
         </div>
       </div>
+      <SettingHistory item={history} onClose={() => setHistory(null)} />
     </>
   );
 }

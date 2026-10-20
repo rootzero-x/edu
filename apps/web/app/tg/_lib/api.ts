@@ -65,3 +65,20 @@ export function errorText(data: any, fallback: string): string {
   if (data?.errors) return Object.values(data.errors).flat().join(" ");
   return data?.message || fallback;
 }
+
+/** Fayl yuklash (multipart) — /api/tg-upload orqali (token Mini App cookie'sida). */
+export async function tgUpload<T = any>(path: string, file: File): Promise<ApiResult<T>> {
+  const form = new FormData();
+  form.append("file", file);
+  let res: Response;
+  try {
+    res = await fetch(`/api/tg-upload/${path.replace(/^\//, "")}`, {
+      method: "POST", credentials: "same-origin", headers: { "x-tisu-tg": "1" }, body: form, signal: AbortSignal.timeout(120000),
+    });
+  } catch {
+    return { ok: false, status: 0, data: { message: "Internet bilan aloqa yo'q." } as T };
+  }
+  const data = await res.json().catch(() => ({ message: res.status === 413 ? "Fayl juda katta." : "" }));
+  return { ok: res.ok, status: res.status, data };
+}
+

@@ -9,9 +9,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { logout } from "@/components/LogoutButton";
 import { NAV, ROLE_LABELS } from "./nav";
 import { useSiteSettings } from "@/components/SiteProvider";
-import { obj } from "@/lib/settings";
-import { call } from "@/lib/client";
+import { bool, obj } from "@/lib/settings";
 import CommandPalette from "./CommandPalette";
+import NotificationBell from "./NotificationBell";
 import s from "./Shell.module.css";
 
 type User = { first_name: string; last_name: string | null; role: string; phone: string; permissions: string[] };
@@ -25,15 +25,8 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
   const labels = obj<Record<string, string>>(st, "ui.nav_labels");
   const roles = { ...ROLE_LABELS, ...obj<Record<string, string>>(st, "telegram.role_labels") };
   useEffect(() => setOpen(false), [path]);
-  // O'qilmagan yangiliklar soni (menyuda belgi): sahifa almashganda va har daqiqada.
+  // O'qilmagan yangiliklar soni (menyuda belgi) — qo'ng'iroqcha bilan bitta so'rovdan.
   const [unread, setUnread] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    const load = () => call<{ unread: number }>("GET", "announcements/unread").then((r) => alive && r.ok && setUnread(r.data.unread)).catch(() => {});
-    load();
-    const id = setInterval(() => document.visibilityState === "visible" && load(), 60000);
-    return () => { alive = false; clearInterval(id); };
-  }, [path]);
   // Mobil: yopiq tortma klaviatura/ekran o'quvchi uchun ham yopiq (inert); ochilganda fokus ichkariga.
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
@@ -52,7 +45,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const items = NAV.filter((n) => (!n.perm || user.permissions.includes(n.perm)) && (!n.roles || n.roles.includes(user.role)));
+  const items = NAV.filter((n) => (!n.perm || user.permissions.includes(n.perm)) && (!n.roles || n.roles.includes(user.role)) && (!n.setting || bool(st, n.setting, true)));
   const isActive = (href: string, exact?: boolean) => (exact ? path === href : path === href || path.startsWith(`${href}/`));
   const inSection = (n: (typeof items)[number]) => isActive(n.href, n.exact) || Boolean(n.also?.some((h) => isActive(h)));
   const current = items.filter(inSection).sort((a, b) => b.href.length - a.href.length)[0];
@@ -120,6 +113,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
           <Button variant="ghost" iconOnly icon={<Menu />} aria-label="Menyuni ochish" aria-expanded={open} className={s.menuBtn} onClick={() => setOpen(true)} />
           <div className={s.crumb}>{current ? labels[current.href] || current.label : siteName}</div>
           <CommandPalette nav={items.map((n) => ({ href: n.href, label: labels[n.href] || n.label }))} />
+          <NotificationBell onNews={setUnread} />
           <ThemeToggle />
           <Dropdown
             trigger={(p) => <Button variant="ghost" iconOnly aria-label="Profil" icon={<UserRound />} {...p} />}

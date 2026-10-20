@@ -21,6 +21,8 @@ import type { GroupDetail, ReportRow, SessionRow } from "@/lib/types";
 import { usePolling } from "@/lib/usePolling";
 import s from "./group.module.css";
 import EditGroup from "./EditGroup";
+import GroupHomework from "./GroupHomework";
+import { bool } from "@/lib/settings";
 import Members from "./Members";
 
 type Data = { group: GroupDetail; sessions: SessionRow[]; report: ReportRow[] };
@@ -143,7 +145,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
       {canMark && past[0] && !past[0].cancelled && isUnmarked(past[0]) && (
         <div className={s.alert} role="status">
           <ClipboardCheck aria-hidden />
-          <span>Oxirgi mashg&apos;ulot ({fmtDate(past[0].starts_at, tz)} {fmtTime(past[0].starts_at, tz)}) davomati hali to'liq belgilanmagan ({past[0].marked_count}/{members}).</span>
+          <span>Oxirgi mashg&apos;ulot ({fmtDate(past[0].starts_at, tz)} {fmtTime(past[0].starts_at, tz)}) davomati hali to&apos;liq belgilanmagan ({past[0].marked_count}/{members}).</span>
           <ButtonLink href={`/dashboard/sessions/${past[0].id}`} size="sm">Belgilash</ButtonLink>
         </div>
       )}
@@ -208,6 +210,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
               </div>
             ),
           },
+          ...(bool(st, "homework.enabled", true) ? [{ id: "homework", label: "Uyga vazifa", content: <GroupHomework groupId={id} /> }] : []),
         ]}
       />
 

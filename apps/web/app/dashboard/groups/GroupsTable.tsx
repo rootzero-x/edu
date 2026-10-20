@@ -17,7 +17,7 @@ export default function GroupsTable({ rows, empty }: { rows: GroupRow[]; empty?:
   }, [rows, q, tab]);
 
   if (rows.length === 0) {
-    return <Card><EmptyState icon={<UsersRound />} title="Guruhlar yo'q" action={empty}>Guruh yaratilganda jadval bo&apos;yicha darslar avtomatik tuziladi.</EmptyState></Card>;
+    return <Card><EmptyState icon={<UsersRound />} title="Guruhlar yo'q" action={empty}>Guruh yaratilganda jadval bo&apos;yicha mashg&apos;ulotlar avtomatik tuziladi.</EmptyState></Card>;
   }
 
   return (

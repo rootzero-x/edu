@@ -7,6 +7,7 @@ import { Button, Dialog, Field, Input, Select, useToast } from "@/components/ui"
 import { call, errorText } from "@/lib/client";
 import { WEEKDAYS, personName } from "@/lib/format";
 import type { Person, Schedule } from "@/lib/types";
+import RoomSelect from "@/components/rooms/RoomSelect";
 
 const DEFAULT_SLOT: Schedule = { weekday: 1, start_time: "14:00", end_time: "15:30" };
 
@@ -15,7 +16,7 @@ export default function NewGroup({ courses, teachers }: { courses: { id: number;
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [f, setF] = useState({ name: "", course_id: "", teacher_id: "", start_date: new Date().toISOString().slice(0, 10), room: "" });
+  const [f, setF] = useState({ name: "", course_id: "", teacher_id: "", start_date: new Date().toISOString().slice(0, 10), room_id: "" });
   const [slots, setSlots] = useState<Schedule[]>([DEFAULT_SLOT]);
   const [err, setErr] = useState<string | null>(null);
   const setSlot = (i: number, patch: Partial<Schedule>) => setSlots((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -28,7 +29,7 @@ export default function NewGroup({ courses, teachers }: { courses: { id: number;
     if (bad >= 0) return setErr(`${bad + 1}-qator: tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak.`);
     setBusy(true);
     const r = await call("POST", "groups", {
-      ...f, course_id: Number(f.course_id), teacher_id: Number(f.teacher_id), room: f.room || null, schedules: slots,
+      ...f, course_id: Number(f.course_id), teacher_id: Number(f.teacher_id), room_id: f.room_id ? Number(f.room_id) : null, schedules: slots,
     });
     if (!r.ok) { setBusy(false); return setErr(errorText(r.data)); }
     const gen = await call("POST", `groups/${r.data.group.id}/sessions/generate`, {});
@@ -46,7 +47,7 @@ export default function NewGroup({ courses, teachers }: { courses: { id: number;
         open={open}
         onClose={() => setOpen(false)}
         title="Yangi guruh"
-        description="Haftalik jadval bo'yicha mashg'ulotlar avtomatik yaratiladi."
+        description="Haftalik jadval bo'yicha mashg'ulotlar avtomatik yaratiladi. O'qituvchi yoki xona band bo'lsa, ogohlantiriladi."
         width={640}
         onSubmit={submit}
         footer={
@@ -71,7 +72,7 @@ export default function NewGroup({ courses, teachers }: { courses: { id: number;
                 </Select>
               </Field>
               <Field label="Boshlanish sanasi" required><Input type="date" value={f.start_date} onChange={(e) => setF({ ...f, start_date: e.target.value })} /></Field>
-              <Field label="Xona"><Input value={f.room} onChange={(e) => setF({ ...f, room: e.target.value })} /></Field>
+              <Field label="Xona"><RoomSelect value={f.room_id} onChange={(room_id) => setF({ ...f, room_id })} /></Field>
             </div>
             <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               <legend style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 8 }}>Haftalik jadval</legend>

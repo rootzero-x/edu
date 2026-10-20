@@ -11,13 +11,20 @@ class StudyGroup extends Model
 {
     protected $table = 'study_groups';
 
-    protected $fillable = ['name', 'course_id', 'branch_id', 'teacher_id', 'start_date', 'end_date', 'room', 'active'];
+    protected $fillable = ['name', 'course_id', 'branch_id', 'teacher_id', 'start_date', 'end_date', 'room', 'room_id', 'active'];
 
     protected static function booted(): void
     {
         // Filial tanlanmaydi: har bir guruh yagona filialga yoziladi.
         static::creating(function (StudyGroup $g) {
             $g->branch_id ??= Branch::primaryId();
+        });
+        // Xona faqat matn bilan berilgan bo'lsa (eski mijozlar, seeder) — xonalar ro'yxatiga bog'lanadi (to'qnashuv tekshiruvi uchun).
+        static::saving(function (StudyGroup $g) {
+            $name = trim((string) $g->room);
+            if ($g->room_id === null && $name !== '' && $g->isDirty('room')) {
+                $g->room_id = (Room::whereRaw('lower(name) = ?', [mb_strtolower($name)])->first() ?? Room::create(['name' => mb_substr($name, 0, 60)]))->id;
+            }
         });
     }
 
@@ -34,6 +41,11 @@ class StudyGroup extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function roomRef(): BelongsTo
+    {
+        return $this->belongsTo(Room::class, 'room_id');
     }
 
     public function teacher(): BelongsTo

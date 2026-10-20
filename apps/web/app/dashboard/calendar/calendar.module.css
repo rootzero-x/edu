@@ -1,0 +1,112 @@
+.toolbar { padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.nav { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
+.title { margin: 0 0 0 var(--space-2); font-size: var(--text-lg); font-weight: 650; white-space: nowrap; }
+.right { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+.filters { flex-basis: 100%; display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+.filters:empty { display: none; }
+.right > .filterToggle { display: none; }
+
+/* Hodisa (mashg'ulot) kartasi — guruh rangi --h (ton) */
+.event {
+  --h: 220;
+  display: flex; flex-direction: column; gap: 1px; height: 100%; min-height: 0; overflow: hidden; padding: 4px 6px;
+  border-radius: var(--radius-sm); border-left: 3px solid hsl(var(--h) 65% 48%);
+  background: hsl(var(--h) 80% 50% / .12); color: var(--fg); font-size: var(--text-xs); line-height: 1.25;
+}
+.event:hover, .event:focus-visible { background: hsl(var(--h) 80% 50% / .22); outline: none; }
+.event:focus-visible { box-shadow: 0 0 0 2px var(--ring, var(--accent)); }
+.compact { flex-direction: row; align-items: center; gap: 4px; padding: 2px 6px; }
+.evTime { font-weight: 600; font-variant-numeric: tabular-nums; color: hsl(var(--h) 55% 38%); }
+:global([data-theme="dark"]) .evTime { color: hsl(var(--h) 70% 72%); }
+@media (prefers-color-scheme: dark) { :global(:root:not([data-theme="light"])) .evTime { color: hsl(var(--h) 70% 72%); } }
+.evName { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 3px; }
+.evIcon { width: 12px; height: 12px; flex: none; }
+.evMeta { color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cancelled { opacity: .6; text-decoration: line-through; background: var(--neutral-soft) !important; border-left-color: var(--fg-subtle) !important; }
+
+/* Haftalik jadval */
+.week { overflow: hidden; }
+.weekHead, .weekBody { display: grid; grid-template-columns: 56px repeat(7, minmax(0, 1fr)); }
+.weekHead { border-bottom: 1px solid var(--border); }
+.dayHead { display: flex; flex-direction: column; align-items: center; padding: var(--space-2) 0; font-size: var(--text-xs); color: var(--fg-muted); }
+.dayHead b { font-size: var(--text-lg); color: var(--fg); }
+.today b { color: var(--accent-text); }
+.weekBody { position: relative; height: calc(var(--rows) * 56px); }
+.hours { display: grid; grid-template-rows: repeat(var(--rows), 1fr); font-size: var(--text-xs); color: var(--fg-subtle); }
+.hours span { padding: 2px 8px 0 0; text-align: right; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.dayCol { position: relative; border-left: 1px solid var(--border); background-image: repeating-linear-gradient(to bottom, var(--border) 0 1px, transparent 1px 56px); }
+.todayCol { background-color: var(--accent-soft); }
+.slot { position: absolute; padding: 1px 2px; }
+
+/* Telefon: kunlar tasmasi + ro'yxat */
+.strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: var(--space-3); }
+.stripDay { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: inherit; font: inherit; font-size: var(--text-xs); cursor: pointer; min-height: 56px; }
+.stripDay b { font-size: var(--text-md); }
+.stripDay i { font-style: normal; color: var(--accent); letter-spacing: 1px; line-height: 1; min-height: 8px; }
+.stripDay[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }
+.stripDay[aria-pressed="true"] i { color: inherit; }
+.stripDay.today:not([aria-pressed="true"]) { border-color: var(--accent); }
+
+.agenda { padding: var(--space-4); }
+.agendaTitle { margin: 0 0 var(--space-3); font-size: var(--text-md); text-transform: capitalize; }
+.agendaList { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.agendaItem { --h: 220; display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius); border: 1px solid var(--border); border-left: 4px solid hsl(var(--h) 65% 48%); background: var(--surface); }
+.agendaItem:hover { background: var(--surface-2); }
+.agendaTime { display: flex; flex-direction: column; font-weight: 650; font-variant-numeric: tabular-nums; min-width: 48px; }
+.agendaTime small { font-weight: 400; color: var(--fg-subtle); }
+.agendaMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.agendaMeta { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
+.agendaMeta span { display: inline-flex; align-items: center; gap: 4px; }
+.agendaMeta svg { width: 13px; height: 13px; }
+
+/* Oylik jadval */
+.month { overflow: hidden; margin-bottom: var(--space-4); }
+.monthHead { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); font-size: var(--text-xs); color: var(--fg-subtle); text-align: center; padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.monthRow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.monthRow + .monthRow { border-top: 1px solid var(--border); }
+.cell { min-height: 112px; padding: 4px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cell:first-child { border-left: 0; }
+.outside { background: var(--surface-2); }
+.outside .cellBtn b { color: var(--fg-subtle); }
+.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+.cellBtn { display: flex; align-items: center; justify-content: space-between; gap: 4px; background: none; border: 0; padding: 2px 4px; border-radius: var(--radius-sm); color: inherit; font: inherit; cursor: pointer; }
+.cellBtn:hover, .cellBtn:focus-visible { background: var(--surface-2); outline: none; }
+.cellBtn b { font-size: var(--text-sm); }
+.today .cellBtn b { background: var(--accent); color: var(--accent-fg, #fff); border-radius: 999px; min-width: 24px; text-align: center; padding: 0 6px; }
+.cellCount { display: none; font-size: var(--text-xs); color: var(--accent-text); font-weight: 600; }
+.cellEvents { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cellEvents .event { height: auto; }
+.more { background: none; border: 0; padding: 0 6px; text-align: left; font: inherit; font-size: var(--text-xs); color: var(--accent-text); cursor: pointer; }
+
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend svg { width: 13px; height: 13px; }
+.legendCancelled { display: inline-block; width: 18px; height: 10px; border-radius: 3px; background: var(--neutral-soft); border-left: 3px solid var(--fg-subtle); }
+
+/* Xonalar oynasi */
+.roomForm { display: grid; grid-template-columns: 2fr 1fr auto; gap: var(--space-2); align-items: flex-end; }
+.roomList { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.roomList li { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); }
+.roomName { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.roomName .subtle { font-size: var(--text-xs); }
+.inactive { opacity: .65; }
+
+.mobileOnly { display: none; }
+@media (max-width: 760px) {
+  .desktopOnly { display: none; }
+  .mobileOnly { display: block; }
+  .strip.mobileOnly { display: grid; }
+  .title { flex-basis: 100%; margin: var(--space-1) 0 0; font-size: var(--text-md); }
+  .right { margin-left: 0; width: 100%; justify-content: space-between; }
+  .right > .filterToggle { display: inline-flex; }
+  .filters { display: none; grid-template-columns: 1fr; }
+  .filters[data-open] { display: grid; }
+  .cell { min-height: 52px; padding: 2px; align-items: center; }
+  .cellBtn { flex-direction: column; justify-content: center; width: 100%; min-height: 44px; padding: 2px 0; }
+  .cellCount { display: block; }
+  .cellEvents { display: none; }
+  .roomForm { grid-template-columns: 1fr 1fr; }
+  .roomForm > :last-child { grid-column: 1 / -1; }
+}
+.stripDay[aria-pressed="true"] b { color: inherit; }
+.selected .cellBtn b { color: var(--accent-text); }

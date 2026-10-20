@@ -19,6 +19,7 @@ export default function TgHome() {
   if (staff) tiles.push({ href: "/tg/today", icon: "📋", label: t("nav_today") });
   if (can("course.view")) tiles.push({ href: "/tg/courses", icon: "📚", label: t("nav_courses") });
   tiles.push({ href: "/tg/schedule", icon: "🗓", label: t("nav_schedule") });
+  if (settings["homework.enabled"] !== false && (staff || can("quiz.take"))) tiles.push({ href: "/tg/homework", icon: "📒", label: t("nav_homework") });
   // Davomat statistikasi: o'quvchi — o'zi, xodim — o'z guruhlari (ko'rinish doirasini API belgilaydi).
   if (can("quiz.take") || staff) tiles.push({ href: "/tg/attendance", icon: "✅", label: t("nav_attendance") });
   if (can("quiz.take")) tiles.push({ href: "/tg/quizzes", icon: "📝", label: t("nav_quizzes") });
