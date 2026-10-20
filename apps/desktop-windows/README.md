@@ -93,9 +93,18 @@ push/PR'da ishlaydi va x64 + ARM64 uchun artefakt yuklaydi:
 |---|---|
 | `TisuEdu-<ver>-win-x64-portable.zip` | Paketsiz, self-contained (.NET + Windows App SDK ichida). Ochib, `TisuEdu.exe` ni ishga tushiring — o'rnatish shart emas |
 | `TisuEdu-<ver>-win-x64.msix` | MSIX paket (Start menyu, toza o'chirish, bildirishnomalar) |
-| `TisuEdu-CI.cer` | CI'ning o'z-o'zidan imzolangan sertifikati (faqat sinov uchun) |
+| `TisuEdu-CI-win-<arch>.cer` | CI'ning o'z-o'zidan imzolangan sertifikati (faqat sinov uchun) |
 
-Versiya: `1.0.<run_number>`.
+Versiya: oddiy push'da `1.0.<run_number>`.
+
+### GitHub Release
+
+`desktop-windows-vX.Y.Z` tag'i push qilinganda CI build qiladi va **Releases** sahifasida
+"TISU Edu Windows desktop-windows-vX.Y.Z" relizini yaratib, zip/msix/cer fayllarni biriktiradi (versiya tag'dan olinadi):
+
+```bash
+git tag desktop-windows-v1.0.0 && git push origin desktop-windows-v1.0.0
+```
 
 ### Paketsiz build (qo'lda)
 
@@ -116,8 +125,8 @@ msbuild src/TisuEdu.App/TisuEdu.App.csproj /restore /p:Configuration=Release /p:
 
 `Package.appxmanifest` dagi `Publisher="CN=TISU Edu"` sertifikat subject'iga teng bo'lishi shart.
 
-**CI sinov paketini o'rnatish:** `TisuEdu-CI.cer` ni administrator sifatida "Local Machine → Trusted People"
-ga import qiling (`Import-Certificate -FilePath TisuEdu-CI.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople`),
+**CI sinov paketini o'rnatish:** `TisuEdu-CI-win-x64.cer` ni administrator sifatida "Local Machine → Trusted People"
+ga import qiling (`Import-Certificate -FilePath TisuEdu-CI-win-x64.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople`),
 so'ng `.msix` ni ikki marta bosing. Har CI ishga tushishida yangi sertifikat yaratiladi.
 
 **Haqiqiy reliz:** kod imzolash sertifikati (subject `CN=TISU Edu`, yoki manifestdagi Publisher'ni o'zgartiring)
