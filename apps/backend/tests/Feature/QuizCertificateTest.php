@@ -134,11 +134,9 @@ class QuizCertificateTest extends TestCase
     public function test_certificate_conditions_follow_settings(): void
     {
         $this->buildQuiz();
-        app(Settings::class)->set(['certificate.require_final_quiz' => false, 'certificate.min_attendance_percent' => 0, 'certificate.min_marked_sessions' => 0], null);
-        DB::table('ledger_entries')->insert(['student_id' => $this->student->id, 'group_id' => $this->group->id, 'type' => 'INVOICE', 'amount' => 100, 'created_at' => now(), 'updated_at' => now()]);
         Sanctum::actingAs(User::factory()->role(Role::Admin)->create());
-        $this->getJson("/v1/groups/{$this->group->id}/certificates")->assertJsonPath('data.0.blockers', ['HAS_DEBT']);
-        app(Settings::class)->set(['certificate.require_no_debt' => false], null);
+        $this->getJson("/v1/groups/{$this->group->id}/certificates")->assertJsonPath('data.0.blockers', ['NO_ATTENDANCE_DATA', 'QUIZ_NOT_PASSED']);
+        app(Settings::class)->set(['certificate.require_final_quiz' => false, 'certificate.min_marked_sessions' => 0], null);
         $this->getJson("/v1/groups/{$this->group->id}/certificates")->assertJsonPath('data.0.blockers', []);
     }
 }

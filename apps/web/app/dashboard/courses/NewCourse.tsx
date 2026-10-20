@@ -17,12 +17,11 @@ export default function NewCourse() {
         fields: [
           { name: "title", label: "Kurs nomi", required: true },
           { name: "description", label: "Qisqa tavsif", type: "textarea" },
-          { name: "monthly_fee", label: "Oylik to'lov", type: "number", placeholder: "0" },
         ],
         submitText: "Yaratish",
         onSubmit: async (v) => {
           if (!v.title) return "Kurs nomini kiriting.";
-          const r = await call("POST", "courses", { title: v.title, description: v.description || null, monthly_fee: v.monthly_fee ? Number(v.monthly_fee.replace(/\D/g, "")) : 0 });
+          const r = await call("POST", "courses", { title: v.title, description: v.description || null });
           if (!r.ok) return errorText(r.data);
           toast.success("Kurs yaratildi", v.title);
           router.push(`/dashboard/courses/${r.data.course.id}`);

@@ -34,7 +34,7 @@ class SettingsController
             ];
         }
 
-        return response()->json(['data' => $items, 'permissions' => config('tisu.permissions')]);
+        return response()->json(['data' => $items, 'permissions' => config('tisu.permissions'), 'groups' => config('tisu.groups')]);
     }
 
     public function update(Request $request, Settings $settings): JsonResponse

@@ -3,7 +3,6 @@
 namespace Tests\Unit\Domain;
 
 use App\Domain\Attendance;
-use App\Domain\Billing;
 use App\Domain\CertificatePolicy;
 use App\Domain\QuizGrader;
 use App\Domain\ScheduleExpander;
@@ -56,22 +55,12 @@ class DomainRulesTest extends TestCase
         $this->assertNull(QuizGrader::submitBlocker(2, 600, 1, $this->t(0), $this->t(9), 15));
     }
 
-    public function test_billing(): void
-    {
-        $this->assertSame(450_000, Billing::applyDiscount(500_000, 'PERCENT', 10));
-        $this->assertSame(0, Billing::applyDiscount(100_000, 'FIXED', 150_000));
-        $this->assertSame(300_000, Billing::proratedMonthlyFee(600_000, 12, 6));
-        $this->assertSame(200_000, Billing::balance([
-            ['type' => 'INVOICE', 'amount' => 500_000],
-            ['type' => 'PAYMENT', 'amount' => 300_000],
-        ]));
-    }
 
     public function test_certificate_policy(): void
     {
-        $this->assertSame([], CertificatePolicy::blockers(80, true, 0, 75, true, true, 5, 1));
-        $this->assertSame(['NO_ATTENDANCE_DATA', 'LOW_ATTENDANCE', 'QUIZ_NOT_PASSED', 'HAS_DEBT'], CertificatePolicy::blockers(50, false, 1, 75, true, true, 0, 1));
-        $this->assertSame([], CertificatePolicy::blockers(50, false, 1, 40, false, false, 0, 0));
+        $this->assertSame([], CertificatePolicy::blockers(80, true, 75, true, 5, 1));
+        $this->assertSame(['NO_ATTENDANCE_DATA', 'LOW_ATTENDANCE', 'QUIZ_NOT_PASSED'], CertificatePolicy::blockers(50, false, 75, true, 0, 1));
+        $this->assertSame([], CertificatePolicy::blockers(50, false, 40, false, 0, 0));
     }
 
     public function test_schedule_expander(): void

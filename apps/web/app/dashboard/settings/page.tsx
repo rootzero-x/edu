@@ -8,6 +8,6 @@ export const metadata: Metadata = { title: "Sozlamalar" };
 export default async function SettingsPage() {
   const user = await me();
   if (!user?.permissions.includes("settings.manage")) redirect("/dashboard");
-  const { data } = await api<{ data: Item[]; permissions: string[] }>("/v1/settings");
-  return <SettingsEditor items={data.data ?? []} permissions={data.permissions ?? []} />;
+  const { data } = await api<{ data: Item[]; permissions: string[]; groups?: Record<string, string> }>("/v1/settings");
+  return <SettingsEditor items={data.data ?? []} permissions={data.permissions ?? []} groupLabels={data.groups ?? {}} />;
 }

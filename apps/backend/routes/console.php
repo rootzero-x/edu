@@ -22,3 +22,13 @@ Artisan::command('tisu:create-admin {phone} {first_name}', function (string $pho
 
 // Bot sozlash: php artisan tisu:telegram-setup → app/Console/Commands/TelegramSetupCommand.php
 // Sozlamani CLI'dan o'rnatish: php artisan tisu:setting <key> '<json>' → app/Console/Commands/SettingCommand.php
+
+// ── Avtomatik vazifalar ─────────────────────────────────────
+// Server cron: * * * * * /opt/alt/php83/usr/bin/php ~/www/api.tisu.uzstudents.uz/artisan schedule:run
+// Har bir vazifa sozlamadagi automation.* kaliti bilan yoqiladi/o'chiriladi.
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('tisu:generate-sessions')->dailyAt('03:10')->withoutOverlapping();
+Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping();

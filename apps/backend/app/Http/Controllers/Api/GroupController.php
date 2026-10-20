@@ -3,14 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Role;
-use App\Domain\ScheduleExpander;
 use App\Models\ClassSession;
 use App\Models\StudyGroup;
 use App\Models\User;
 use App\Support\Audit;
-use App\Support\Settings;
-use DateTimeImmutable;
-use DateTimeZone;
+use App\Support\SessionGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -117,27 +114,11 @@ class GroupController
     }
 
     /** Jadvaldan darslar yaratish (takroran chaqirilsa dublikat bo'lmaydi). */
-    public function generateSessions(Request $request, Settings $settings, StudyGroup $group): JsonResponse
+    public function generateSessions(Request $request, SessionGenerator $generator, StudyGroup $group): JsonResponse
     {
         $data = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
-        $tz = new DateTimeZone(config('app.timezone'));
-        $today = new DateTimeImmutable('today', $tz);
-        $from = max(new DateTimeImmutable($data['from'] ?? $today->format('Y-m-d'), $tz), new DateTimeImmutable($group->start_date->format('Y-m-d'), $tz));
-        $to = new DateTimeImmutable($data['to'] ?? $today->modify('+'.$settings->int('attendance.sessions_ahead_days').' days')->format('Y-m-d'), $tz);
-        if ($group->end_date) {
-            $to = min($to, new DateTimeImmutable($group->end_date->format('Y-m-d'), $tz));
-        }
-        abort_if($from->diff($to)->days > 400, 422, 'Oraliq juda katta (400 kungacha).');
 
-        $rows = array_map(fn ($s) => [
-            'group_id' => $group->id,
-            'starts_at' => $s['starts_at']->format('Y-m-d H:i:s'),
-            'ends_at' => $s['ends_at']->format('Y-m-d H:i:s'),
-            'cancelled' => false, 'created_at' => now(), 'updated_at' => now(),
-        ], $from > $to ? [] : ScheduleExpander::expand($group->schedules->toArray(), $from, $to, $tz));
-        $created = $rows ? DB::table('class_sessions')->insertOrIgnore($rows) : 0;
-
-        return response()->json(['created' => $created, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]);
+        return response()->json($generator->generate($group, $data['from'] ?? null, $data['to'] ?? null));
     }
 
     public function sessions(Request $request, int $group): JsonResponse
