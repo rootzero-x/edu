@@ -24,7 +24,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/auth/telegram/start', [TelegramAuthController::class, 'start'])->middleware('throttle:login');
     Route::post('/auth/telegram/poll', [TelegramAuthController::class, 'poll'])->middleware('throttle:api');
-    Route::post('/auth/telegram/miniapp', [TelegramAuthController::class, 'miniApp'])->middleware('throttle:login');
+    Route::post('/auth/telegram/miniapp', [TelegramAuthController::class, 'miniApp'])->middleware('throttle:miniapp');
     Route::post('/telegram/webhook', [TelegramAuthController::class, 'webhook']);
     Route::get('/public/certificates/{code}', [CertificateController::class, 'verify'])->middleware('throttle:api');
     Route::get('/public/announcements', [AnnouncementController::class, 'public'])->middleware('throttle:api');
@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/groups/{group}', [GroupController::class, 'show'])->whereNumber('group');
         Route::get('/groups/{group}/sessions', [GroupController::class, 'sessions'])->whereNumber('group');
         Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
+        Route::get('/sessions', [GroupController::class, 'allSessions']);
         Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
         Route::middleware('perm:attendance.mark')->group(function () {
             Route::get('/sessions/{session}/attendance/history', [AttendanceController::class, 'history']);

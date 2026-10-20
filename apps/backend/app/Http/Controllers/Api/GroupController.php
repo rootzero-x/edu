@@ -160,6 +160,30 @@ class GroupController
         return response()->json(['data' => $sessions]);
     }
 
+    /**
+     * Bir nechta guruh darslari bitta so'rovda (Mini App: bugungi/yaqin darslar). Har guruhga alohida
+     * so'rov yuborilsa, ko'p guruhli admin api limitiga tushib qoladi.
+     */
+    public function allSessions(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'group_ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'],
+        ]);
+        abort_if(strtotime($data['to']) - strtotime($data['from']) > 62 * 86400, 422, 'Davr 62 kundan oshmasin.');
+        $ids = isset($data['group_ids']) ? array_map('intval', explode(',', $data['group_ids'])) : null;
+        $groups = self::visible($request->user())->when($ids !== null, fn ($q) => $q->whereIn('id', $ids))->select('id');
+        $sessions = ClassSession::whereIn('group_id', $groups)
+            ->where('starts_at', '>=', $data['from'])
+            ->where('starts_at', '<', date('Y-m-d', strtotime($data['to'].' +1 day')))
+            ->withCount('attendances as marked_count')
+            ->orderBy('starts_at')
+            ->get();
+
+        return response()->json(['data' => $sessions]);
+    }
+
     public function updateSession(Request $request, Settings $settings, ClassSession $session): JsonResponse
     {
         $user = $request->user();

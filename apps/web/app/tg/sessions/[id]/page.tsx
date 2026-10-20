@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { errorText, tg } from "../../_lib/api";
 import { useTg } from "../../_lib/TgProvider";
@@ -36,6 +36,8 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
   const [topic, setTopic] = useState(sheet.session.topic ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const reasonRef = useRef<HTMLInputElement>(null);
+  const saving = useRef(false); // state'dan farqli — ketma-ket ikki bosishda darhol ko'rinadi.
   useEffect(() => setStatus(initial()), [sheet]);
 
   const changed = sheet.rows.filter((r) => status[r.student_id] && status[r.student_id] !== r.status);
@@ -49,7 +51,15 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
   };
 
   async function save() {
-    if (!changed.length && !topicChanged) return;
+    if (saving.current || (!changed.length && !topicChanged)) return;
+    // Sabab majburiy bo'lsa — tugmani o'chirib qo'yish o'rniga nima yetishmayotganini aytamiz.
+    if (reasonRequired && changed.length > 0 && !reason.trim()) {
+      haptic.error();
+      setMsg({ ok: false, text: t("sheet_reason_required") });
+      reasonRef.current?.focus();
+      return;
+    }
+    saving.current = true;
     setBusy(true);
     setMsg(null);
     let notified = 0;
@@ -59,6 +69,7 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
         ...(reason.trim() ? { reason: reason.trim() } : {}),
       });
       if (!r.ok) {
+        saving.current = false;
         setBusy(false);
         haptic.error();
         return setMsg({ ok: false, text: errorText(r.data, t("error")) });
@@ -68,13 +79,16 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
     if (topicChanged) {
       const r = await tg("PATCH", `sessions/${sheet.session.id}`, { topic: topic || null });
       if (!r.ok) {
+        saving.current = false;
         setBusy(false);
         haptic.error();
         return setMsg({ ok: false, text: errorText(r.data, t("error")) });
       }
     }
+    saving.current = false;
     setBusy(false);
     haptic.success();
+    setReason("");
     setMsg({ ok: true, text: notified ? t("sheet_saved_notified", { n: notified }) : t("sheet_saved") });
     reload();
   }
@@ -85,12 +99,12 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
       {lockedMsg && <p className="tg-hint" style={{ textAlign: "center", margin: "10px 0" }}>🔒 {lockedMsg}</p>}
       {reasonRequired && (
         <Section title={t("sheet_reason")}>
-          <div className="tg-pad"><input className="tg-input" value={reason} maxLength={255} placeholder={t("sheet_reason_hint")} onChange={(e) => setReason(e.target.value)} /></div>
+          <div className="tg-pad"><input ref={reasonRef} className="tg-input" value={reason} maxLength={255} placeholder={t("sheet_reason_hint")} aria-label={t("sheet_reason")} onChange={(e) => setReason(e.target.value)} /></div>
         </Section>
       )}
       {canMark && (
         <Section title={t("sheet_topic")}>
-          <div className="tg-pad"><input className="tg-input" value={topic} onChange={(e) => setTopic(e.target.value)} /></div>
+          <div className="tg-pad"><input className="tg-input" value={topic} maxLength={255} aria-label={t("sheet_topic")} onChange={(e) => setTopic(e.target.value)} /></div>
         </Section>
       )}
       <Section
@@ -110,7 +124,7 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
               {canMark && (
                 <div className="tg-seg">
                   {statuses.map((s) => (
-                    <button key={s} className={cur === s ? `on ${s}` : ""} onClick={() => pick(r.student_id, s)}>{labels[s] ?? s}</button>
+                    <button key={s} type="button" className={cur === s ? `on ${s}` : ""} aria-pressed={cur === s} onClick={() => pick(r.student_id, s)}>{labels[s] ?? s}</button>
                   ))}
                 </div>
               )}
@@ -118,9 +132,9 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
           );
         })}
       </Section>
-      {msg && <p className="tg-hint" style={{ textAlign: "center", marginTop: 14, color: msg.ok ? "var(--c-ok)" : "var(--c-danger)" }}>{msg.text}</p>}
+      {msg && <p className={`tg-hint tg-msg ${msg.ok ? "ok" : "bad"}`} role="status">{msg.text}</p>}
       {canMark && (
-        <MainButton text={t("sheet_save")} onClick={save} progress={busy} disabled={(!changed.length && !topicChanged) || (reasonRequired && changed.length > 0 && !reason.trim())} hidden={sheet.rows.length === 0} />
+        <MainButton text={t("sheet_save")} onClick={save} progress={busy} disabled={!changed.length && !topicChanged} hidden={sheet.rows.length === 0} />
       )}
     </Page>
   );

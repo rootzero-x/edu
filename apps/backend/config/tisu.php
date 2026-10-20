@@ -448,6 +448,13 @@ return [
             'balance_recent' => "So'nggi yozuvlar",
             'balance_empty' => "To'lovlar bo'yicha ma'lumot yo'q.",
             'balance_voided' => 'bekor qilingan',
+            'sheet_reason_required' => "O'zgartirish sababini yozing.",
+            'session_expired' => 'Sessiya eskirgan. Ilovani yopib, qayta oching.',
+            'reopen' => 'Yopish',
+            'offline' => "Internet bilan aloqa yo'q.",
+            'go_home' => 'Bosh sahifa',
+            'draft' => 'Yopiq',
+            'quiz_leave_confirm' => "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
         ]],
 
         // ── Kurs maxfiyligi ──────────────────────────────────
@@ -456,6 +463,12 @@ return [
         'course.access_denied_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => 'Ruxsat yo\'q: sarlavha', 'default' => "Bu kurs faqat yozilgan o'quvchilar uchun"],
         'course.access_denied_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => "Ruxsat yo'q: matn ({course}, {contact})", 'default' => "«{course}» kursi materiallari va testlari faqat shu kursga biriktirilgan guruh o'quvchilari uchun ochiq. Kursga yozilish uchun {contact} ga yozing."],
         'course.access_denied_button' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => "Ruxsat yo'q: tugma matni", 'default' => "{contact} ga yozish"],
+        'course.unpublished_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => "E'lon qilinmagan kurs: sarlavha", 'default' => "Kurs hali e'lon qilinmagan"],
+        'course.unpublished_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => "E'lon qilinmagan kurs: matn ({course}, {contact})", 'default' => "«{course}» kursi hozircha yopiq. Kursga yozilish yoki savollar uchun {contact} ga yozing."],
+        'course.lesson_unavailable_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => 'Yopiq dars: sarlavha', 'default' => 'Dars hozircha yopiq'],
+        'course.lesson_unavailable_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => 'Yopiq dars: matn ({course})', 'default' => "Bu dars hali e'lon qilinmagan yoki olib tashlangan. «{course}» kursi sahifasidagi boshqa darslarni oching."],
+        'quiz.unavailable_title' => ['group' => 'quiz', 'type' => 'string', 'public' => true, 'label' => 'Yopiq test: sarlavha', 'default' => 'Test hozircha yopiq'],
+        'quiz.unavailable_text' => ['group' => 'quiz', 'type' => 'text', 'public' => true, 'label' => 'Yopiq test: matn ({course})', 'default' => "Bu test hali e'lon qilinmagan yoki o'qituvchi uni yopgan. «{course}» kursidagi boshqa testlarni ko'ring."],
         'course.show_outline_to_guests' => ['group' => 'course', 'type' => 'bool', 'label' => "Yozilmaganlarga kurs tuzilmasi (modul/dars nomlari) ko'rinsin", 'default' => true],
         'course.embed_hosts' => ['group' => 'course', 'type' => 'list', 'public' => true, 'label' => 'Video joylash mumkin bo\'lgan saytlar', 'default' => ['youtube.com', 'youtu.be', 'vimeo.com', 'player.vimeo.com']],
 
