@@ -31,7 +31,7 @@
         <ListView Grid.Row="2" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Group_ItemClick"
                   ItemContainerStyle="{StaticResource CardListViewItemStyle}">
             <ListView.ItemTemplate>
-                <DataTemplate x:DataType="vm:GroupItem">
+                <DataTemplate x:DataType="vm:GroupCard">
                     <Border Style="{StaticResource ListCardStyle}">
                         <Grid ColumnSpacing="16">
                             <Grid.ColumnDefinitions>

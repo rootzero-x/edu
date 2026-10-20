@@ -7,7 +7,7 @@ using TisuEdu.Core.Services;
 
 namespace TisuEdu.Core.ViewModels;
 
-public sealed class GroupItem(Group g, SiteSettings st)
+public sealed class GroupCard(Group g, SiteSettings st)
 {
     public Group Group { get; } = g;
     public string Name => g.Name;
@@ -29,9 +29,9 @@ internal static class GroupText
 
 public sealed partial class GroupsViewModel(AppServices services) : PageViewModel(services)
 {
-    private List<GroupItem> _all = [];
+    private List<GroupCard> _all = [];
 
-    public ObservableCollection<GroupItem> Items { get; } = [];
+    public ObservableCollection<GroupCard> Items { get; } = [];
 
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private bool _onlyActive = true;
@@ -47,7 +47,7 @@ public sealed partial class GroupsViewModel(AppServices services) : PageViewMode
         ResetStale();
         var r = await S.Api.GroupsAsync(ct);
         Track(r);
-        _all = r.Value.Data.Select(g => new GroupItem(g, Settings)).ToList();
+        _all = r.Value.Data.Select(g => new GroupCard(g, Settings)).ToList();
         ApplyFilter();
     }
 
@@ -64,7 +64,7 @@ public sealed partial class GroupsViewModel(AppServices services) : PageViewMode
     }
 
     [RelayCommand]
-    private void Open(GroupItem? item)
+    private void Open(GroupCard? item)
     {
         if (item is not null) S.Navigator.Navigate(Page.Group, item.Group.Id);
     }

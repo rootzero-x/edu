@@ -11,5 +11,5 @@ public sealed partial class GroupsPage : ViewPage
 
     protected override PageViewModel CreateModel(object? parameter) => ViewModel = new GroupsViewModel(App.Services);
 
-    private void Group_ItemClick(object sender, ItemClickEventArgs e) => ViewModel.OpenCommand.Execute(e.ClickedItem as GroupItem);
+    private void Group_ItemClick(object sender, ItemClickEventArgs e) => ViewModel.OpenCommand.Execute(e.ClickedItem as GroupCard);
 }

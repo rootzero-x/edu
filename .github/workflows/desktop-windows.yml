@@ -130,7 +130,7 @@ jobs:
         run: |
           foreach ($log in @("unpackaged.log", "msix.log")) {
             if (Test-Path $log) {
-              $errors = Select-String -Path $log -Pattern ": error " | ForEach-Object { ($_.Line -replace '^\s*\d+>', '') -replace '^.*\\src\\', 'src\' -replace ' \[[^\]]*\]$', '' } | Select-Object -Unique | Select-Object -First 40
+              $errors = Select-String -Path $log -Pattern ": error " | ForEach-Object { (($_.Line -replace '^\s*\d+>', '') -replace '^.*?\\apps\\desktop-windows\\', '') -replace ' \[[^\]]*\]$', '' } | Select-Object -Unique | Select-Object -First 40
               if ($errors) {
                 $msg = ($errors | ForEach-Object { $_.Trim() }) -join "%0A"
                 echo "::error title=$log::$msg"
