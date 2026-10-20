@@ -10,7 +10,10 @@
 .lessonActions { display: flex; align-items: center; gap: var(--space-1); flex: none; }
 .desc { white-space: pre-wrap; }
 .facts { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-5); }
-@media (max-width: 600px) { .lesson { flex-wrap: wrap; padding: var(--space-3) var(--space-4); } .lessonActions { width: 100%; justify-content: flex-end; } }
+@media (max-width: 600px) {
+  .lesson { gap: var(--space-2); padding: var(--space-3) var(--space-4); min-height: 52px; }
+  .lessonTitle { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
+}
 
 .denied { margin: 4px 0 20px; }
 a.lessonTitle { color: inherit; text-decoration: none; }

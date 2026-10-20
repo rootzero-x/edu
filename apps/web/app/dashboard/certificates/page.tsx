@@ -20,16 +20,16 @@ export default async function CertificatesPage() {
         {rows.length === 0 ? (
           <EmptyState icon={<Award />} title="Sertifikatlar yo'q">Kursni tamomlab, shartlarni bajargan o&apos;quvchilarga sertifikat guruh sahifasidan beriladi.</EmptyState>
         ) : (
-          <Table>
+          <Table stack>
             <thead><tr><Th>Raqam</Th><Th>O&apos;quvchi</Th><Th>Kurs</Th><Th>Guruh</Th><Th>Sana</Th>{manage && <Th />}</tr></thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.code}>
-                  <Td><a className="a" href={`/c/${c.code}`} target="_blank" rel="noreferrer">{c.code} <ExternalLink size={14} aria-hidden /></a></Td>
-                  <Td>{[c.first_name, c.last_name].filter(Boolean).join(" ")}</Td>
-                  <Td>{c.course}</Td>
-                  <Td>{c.group}</Td>
-                  <Td>{String(c.issued_at).slice(0, 10).split("-").reverse().join(".")}</Td>
+                  <Td label="Raqam"><a className="a" href={`/c/${c.code}`} target="_blank" rel="noreferrer">{c.code} <ExternalLink size={14} aria-hidden /></a></Td>
+                  <Td label="O'quvchi">{[c.first_name, c.last_name].filter(Boolean).join(" ")}</Td>
+                  <Td label="Kurs">{c.course}</Td>
+                  <Td label="Guruh">{c.group}</Td>
+                  <Td label="Sana">{String(c.issued_at).slice(0, 10).split("-").reverse().join(".")}</Td>
                   {manage && <Td><RevokeCertificate code={c.code} /></Td>}
                 </tr>
               ))}

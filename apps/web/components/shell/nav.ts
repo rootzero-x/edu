@@ -8,6 +8,8 @@ export type NavItem = {
   perm?: string;
   exact?: boolean;
   section?: "main" | "admin";
+  /** Shu bo'limga tegishli boshqa yo'llar (masalan, dars sahifasi "Kurslar" ostida). */
+  also?: string[];
 };
 
 /**
@@ -16,8 +18,8 @@ export type NavItem = {
  */
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view" },
-  { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound },
+  { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view", also: ["/dashboard/lessons", "/dashboard/quizzes"] },
+  { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound, also: ["/dashboard/sessions"] },
   { href: "/dashboard/news", label: "Yangiliklar", icon: Megaphone },
   { href: "/dashboard/certificates", label: "Sertifikatlar", icon: Award },
   { href: "/dashboard/reports", label: "Hisobotlar", icon: BarChart3, perm: "report.view" },

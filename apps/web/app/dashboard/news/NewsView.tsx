@@ -70,7 +70,7 @@ export default function NewsView({ feed, unread: initialUnread, managed, groups,
     return (
       <Card key={a.id} className={cx(s.card, isNew && s.unread)}>
         <CardBody>
-          <div className={s.head}>
+          <div className={cx(s.head, admin && s.headAdmin)}>
             <button type="button" className={s.title} onClick={() => !admin && expand(a)} aria-expanded={admin ? undefined : expanded}>
               {a.pinned && <Pin aria-label="Muhim" className={s.pin} />}{a.title}
             </button>
@@ -79,20 +79,20 @@ export default function NewsView({ feed, unread: initialUnread, managed, groups,
               {admin && (a.published_at ? <Badge tone="success">Chop etilgan</Badge> : <Badge tone="warning">Qoralama</Badge>)}
               {admin && <Badge>{audienceText(a)}</Badge>}
               {admin && a.is_public && <Badge tone="info">Bosh sahifada</Badge>}
-              {admin && (
-                <Dropdown
-                  trigger={(p) => <Button variant="ghost" size="sm" iconOnly aria-label="E'lon amallari" icon={<MoreHorizontal />} {...p} />}
-                  items={[
-                    a.published_at
-                      ? { label: "Yashirish", icon: <EyeOff />, onSelect: () => publish(a, false) }
-                      : { label: "Chop etish", icon: <Send />, onSelect: () => publish(a, true) },
-                    { label: "Tahrirlash", icon: <Pencil />, onSelect: () => setEditing(a) },
-                    { type: "separator" },
-                    { label: "O'chirish", icon: <Trash2 />, danger: true, onSelect: () => remove(a) },
-                  ]}
-                />
-              )}
             </span>
+            {admin && (
+              <span className={s.menu}><Dropdown
+                trigger={(p) => <Button variant="ghost" size="sm" iconOnly aria-label="E'lon amallari" icon={<MoreHorizontal />} {...p} />}
+                items={[
+                  a.published_at
+                    ? { label: "Yashirish", icon: <EyeOff />, onSelect: () => publish(a, false) }
+                    : { label: "Chop etish", icon: <Send />, onSelect: () => publish(a, true) },
+                  { label: "Tahrirlash", icon: <Pencil />, onSelect: () => setEditing(a) },
+                  { type: "separator" },
+                  { label: "O'chirish", icon: <Trash2 />, danger: true, onSelect: () => remove(a) },
+                ]}
+              /></span>
+            )}
           </div>
           <div className="subtle">{a.published_at ? fmtDate(a.published_at, tz) : "Chop etilmagan"}{a.author ? ` · ${a.author}` : ""}</div>
           {expanded && a.image_url && <img src={a.image_url} alt="" className={s.img} />}

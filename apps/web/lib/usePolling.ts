@@ -6,6 +6,8 @@ type Options = {
   /** Oraliq (soniya). 0 yoki manfiy — avtomatik yangilanish o'chiq. */
   seconds: number;
   enabled?: boolean;
+  /** Darhol (va fetcher o'zgarganda — masalan filtr) yuklash. Boshlang'ich ma'lumot serverdan kelmaganda kerak. */
+  immediate?: boolean;
 };
 
 /**
@@ -15,7 +17,7 @@ type Options = {
  * - xatoda oraliq ikki barobar oshadi (4x gacha), muvaffaqiyatda tiklanadi;
  * - so'rovlar ustma-ust tushmaydi.
  */
-export function usePolling<T>(fetcher: (signal: AbortSignal) => Promise<T | null>, onData: (data: T) => void, { seconds, enabled = true }: Options) {
+export function usePolling<T>(fetcher: (signal: AbortSignal) => Promise<T | null>, onData: (data: T) => void, { seconds, enabled = true, immediate = false }: Options) {
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -35,7 +37,8 @@ export function usePolling<T>(fetcher: (signal: AbortSignal) => Promise<T | null
     setRefreshing(true);
     try {
       const data = await fetchRef.current(ctrl.signal);
-      if (data !== null && !ctrl.signal.aborted) {
+      if (ctrl.signal.aborted) return;
+      if (data !== null) {
         dataRef.current(data);
         setLastUpdated(Date.now());
         setFailed(false);
@@ -50,10 +53,20 @@ export function usePolling<T>(fetcher: (signal: AbortSignal) => Promise<T | null
         backoff.current = Math.min(backoff.current * 2, 4);
       }
     } finally {
-      inflight.current = null;
-      setRefreshing(false);
+      if (inflight.current === ctrl) {
+        inflight.current = null;
+        setRefreshing(false);
+      }
     }
   }, []);
+
+  // Filtr o'zgarsa eski so'rov bekor qilinib, yangisi darhol yuboriladi.
+  useEffect(() => {
+    if (!immediate || !enabled) return;
+    inflight.current?.abort();
+    inflight.current = null;
+    void refresh();
+  }, [immediate, enabled, fetcher, refresh]);
 
   useEffect(() => {
     if (!enabled || seconds <= 0) return;

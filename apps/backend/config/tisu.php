@@ -78,6 +78,7 @@ return [
         // ── Kirish sahifasi matnlari ─────────────────────────
         'login.title' => ['group' => 'login', 'type' => 'string', 'public' => true, 'label' => 'Kirish: sarlavha', 'default' => 'Xush kelibsiz'],
         'login.subtitle' => ['group' => 'login', 'type' => 'text', 'public' => true, 'label' => 'Kirish: matn', 'default' => 'Telegram orqali bir zumda kiring — parol shart emas.'],
+        'login.subtitle_password' => ['group' => 'login', 'type' => 'text', 'public' => true, 'label' => 'Kirish: matn (Telegram bot ulanmagan bo\'lsa)', 'default' => 'Telefon raqamingiz va parolingiz bilan kiring.'],
         'login.telegram_button' => ['group' => 'login', 'type' => 'string', 'public' => true, 'label' => 'Kirish: Telegram tugmasi', 'default' => 'Telegram orqali kirish'],
         'login.qr_hint' => ['group' => 'login', 'type' => 'string', 'public' => true, 'label' => 'Kirish: QR-kod izohi', 'default' => 'Telefon kamerasi bilan skanerlang'],
         'login.waiting_text' => ['group' => 'login', 'type' => 'text', 'public' => true, 'label' => 'Kirish: kutish holati', 'default' => "Telegram'da botni oching, «Start» ni bosing va kirishni tasdiqlang."],

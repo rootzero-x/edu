@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import NotFoundCard from "@/components/NotFoundCard";
 import { Lock } from "lucide-react";
 import { api, me } from "@/lib/api";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
@@ -18,6 +18,6 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
       </>
     );
   }
-  if (res.status !== 200) notFound();
+  if (res.status !== 200) return <NotFoundCard />;
   return <Sheet initial={res.data} canMark={Boolean(user?.permissions.includes("attendance.mark"))} />;
 }

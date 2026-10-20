@@ -46,15 +46,15 @@ export default function Certificates({ groupId }: { groupId: number }) {
           : <Button icon={<Award />} loading={busy} disabled={!ready} onClick={issue}>Sertifikat berish</Button>}
       />
       {rows && (rows.length === 0 ? <EmptyState compact icon={<Award />} title="Guruhda o'quvchi yo'q" /> : (
-        <Table>
+        <Table stack>
           <thead><tr><Th>O&apos;quvchi</Th><Th>Davomat</Th><Th>Yakuniy test</Th><Th>Holat</Th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.student_id}>
                 <Td>{r.name}</Td>
-                <Td>{r.attendance_rate}% <span className="subtle">({r.marked_sessions} dars)</span></Td>
-                <Td>{r.final_quiz_passed ? <Badge tone="success">O&apos;tgan</Badge> : <Badge>—</Badge>}</Td>
-                <Td>
+                <Td label="Davomat">{r.attendance_rate}% <span className="subtle">({r.marked_sessions} dars)</span></Td>
+                <Td label="Yakuniy test">{r.final_quiz_passed ? <Badge tone="success">O&apos;tgan</Badge> : <Badge>—</Badge>}</Td>
+                <Td label="Holat">
                   {r.certificate
                     ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate} <ExternalLink size={14} aria-hidden /></a><RevokeCertificate code={r.certificate} onDone={load} /></span>
                     : r.blockers.length

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import NotFoundCard from "@/components/NotFoundCard";
 import { ArrowLeft, ArrowRight, ExternalLink, FileText, Link2, PlayCircle } from "lucide-react";
 import { api, me, publicSettings } from "@/lib/api";
 import { LessonActions, MaterialActions } from "./LessonManage";
@@ -36,7 +36,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       </>
     );
   }
-  if (r.status !== 200) notFound();
+  if (r.status !== 200) return <NotFoundCard />;
   const { lesson, nav } = r.data as Res;
   const hosts = list<string>(st, "course.embed_hosts");
   const course = lesson.module.course;

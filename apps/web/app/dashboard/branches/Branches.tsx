@@ -62,15 +62,15 @@ export default function Branches({ rows: initial }: { rows: Branch[] }) {
         {rows.length === 0 ? (
           <EmptyState icon={<Building2 />} title="Filial yo'q" action={<Button icon={<Plus />} onClick={add}>Birinchi filial</Button>}>Guruh yaratish uchun kamida bitta filial kerak.</EmptyState>
         ) : (
-          <Table caption="Filiallar">
+          <Table stack caption="Filiallar">
             <thead><tr><Th>Nomi</Th><Th>Manzil</Th><Th>Telefon</Th><Th>Holat</Th><Th actions><span className="sr-only">Amallar</span></Th></tr></thead>
             <tbody>
               {rows.map((b) => (
                 <tr key={b.id}>
                   <Td><strong style={{ fontWeight: 600 }}>{b.name}</strong></Td>
-                  <Td>{b.address ? <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><MapPin size={14} aria-hidden className="subtle" />{b.address}</span> : <span className="subtle">—</span>}</Td>
-                  <Td>{b.phone ? <a className="a" href={`tel:${b.phone}`}><Phone size={14} aria-hidden /> {b.phone}</a> : <span className="subtle">—</span>}</Td>
-                  <Td>{b.active ? <Badge tone="success" dot>Ochiq</Badge> : <Badge dot>Yopiq</Badge>}</Td>
+                  <Td label="Manzil">{b.address ? <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><MapPin size={14} aria-hidden className="subtle" />{b.address}</span> : <span className="subtle">—</span>}</Td>
+                  <Td label="Telefon">{b.phone ? <a className="a" href={`tel:${b.phone}`}><Phone size={14} aria-hidden /> {b.phone}</a> : <span className="subtle">—</span>}</Td>
+                  <Td label="Holat">{b.active ? <Badge tone="success" dot>Ochiq</Badge> : <Badge dot>Yopiq</Badge>}</Td>
                   <Td actions>
                     <Dropdown
                       trigger={(p) => <Button size="sm" variant="ghost" iconOnly aria-label={`${b.name} — amallar`} icon={<MoreHorizontal />} {...p} />}

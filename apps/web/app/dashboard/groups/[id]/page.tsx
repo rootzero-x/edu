@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import NotFoundCard from "@/components/NotFoundCard";
 import { api, me } from "@/lib/api";
 import type { GroupDetail, ReportRow, SessionRow } from "@/lib/types";
 import { sessionsPath } from "@/lib/groups";
@@ -28,7 +28,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
     canMark ? api<{ data: UnmarkedRow[] }>(`/v1/attendance/unmarked?group_id=${id}`) : Promise.resolve(null),
     publicSettings(),
   ]);
-  if (g.status !== 200) notFound();
+  if (g.status !== 200) return <NotFoundCard />;
   const manage = Boolean(user?.permissions.includes("group.manage"));
   return (
     <>

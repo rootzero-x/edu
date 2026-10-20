@@ -163,7 +163,7 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
         {rows.length === 0 ? (
           <EmptyState icon={<UsersIcon />} title="Hech kim topilmadi">{q ? "Qidiruv so'zini o'zgartirib ko'ring." : "Bu rolda foydalanuvchi yo'q."}</EmptyState>
         ) : (
-          <Table caption="Foydalanuvchilar">
+          <Table stack caption="Foydalanuvchilar">
             <thead><tr><Th>Foydalanuvchi</Th><Th>Telefon</Th><Th>Rol</Th><Th>Holat</Th><Th actions><span className="sr-only">Amallar</span></Th></tr></thead>
             <tbody>
               {rows.map((u) => (
@@ -175,9 +175,9 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
                       {u.id === selfId && <Badge tone="accent">Siz</Badge>}
                     </span>
                   </Td>
-                  <Td className="mono">{u.phone}</Td>
-                  <Td><Badge tone={ROLE_TONE[u.role] ?? "neutral"}>{roleNames[u.role] ?? u.role}</Badge></Td>
-                  <Td>{u.active ? <Badge tone="success" dot>Faol</Badge> : <Badge tone="danger" dot>Bloklangan</Badge>}</Td>
+                  <Td label="Telefon" className="mono">{u.phone}</Td>
+                  <Td label="Rol"><Badge tone={ROLE_TONE[u.role] ?? "neutral"}>{roleNames[u.role] ?? u.role}</Badge></Td>
+                  <Td label="Holat">{u.active ? <Badge tone="success" dot>Faol</Badge> : <Badge tone="danger" dot>Bloklangan</Badge>}</Td>
                   <Td actions>
                     {canEdit(u) && (
                       <Dropdown
