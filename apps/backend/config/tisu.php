@@ -353,6 +353,14 @@ return [
             'profile_role' => 'Rol',
             'logout' => 'Chiqish',
             'students' => "o'quvchi",
+            'weekdays' => 'Du,Se,Cho,Pa,Ju,Sha,Ya',
+            'today' => 'Bugun',
+            'tomorrow' => 'Ertaga',
+            'my_children' => 'Farzandlarim',
+            'no_access' => "Bu bo'lim sizning rolingiz uchun mavjud emas.",
+            'teacher' => "O'qituvchi",
+            'room' => 'Xona',
+            'quiz_back' => 'Test sahifasiga qaytish',
         ]],
 
         // ── Interfeys ────────────────────────────────────────
