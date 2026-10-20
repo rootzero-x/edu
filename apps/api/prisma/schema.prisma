@@ -1,0 +1,401 @@
+// TISU Edu — ma'lumotlar modeli.
+// Provider: MySQL (cPanel uslubidagi "user_db" nomli baza). Server tekshiruvida
+// Postgres chiqsa, provider = "postgresql" qilib o'zgartiriladi.
+// Summalar so'mda, Int (tiyin yo'q).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+enum QuestionType {
+  SINGLE
+  MULTIPLE
+  TEXT
+}
+
+enum LessonMaterialType {
+  VIDEO
+  FILE
+  LINK
+  TEXT
+}
+
+enum LedgerType {
+  INVOICE
+  PAYMENT
+  REFUND
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  CLICK
+  PAYME
+}
+
+enum DiscountKind {
+  PERCENT
+  FIXED
+}
+
+// ── Tashkilot ───────────────────────────────────────────────
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  users     User[]
+  groups    Group[]
+}
+
+// ── Foydalanuvchilar ────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  phone        String    @unique
+  passwordHash String?
+  firstName    String
+  lastName     String?
+  role         Role
+  branchId     String?
+  branch       Branch?   @relation(fields: [branchId], references: [id])
+  active       Boolean   @default(true)
+  locale       String    @default("uz")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  telegram       TelegramLink?
+  refreshTokens  RefreshToken[]
+  teaching       Group[]          @relation("GroupTeacher")
+  memberships    GroupMember[]
+  attendance     Attendance[]     @relation("AttendanceStudent")
+  markedAttendance Attendance[]   @relation("AttendanceMarkedBy")
+  attempts       QuizAttempt[]
+  certificates   Certificate[]
+  ledger         LedgerEntry[]
+  children       ParentChild[]    @relation("Parent")
+  parents        ParentChild[]    @relation("Child")
+  notifications  Notification[]
+  createdCourses Course[]
+
+  @@index([role])
+  @@index([branchId])
+}
+
+model ParentChild {
+  parentId String
+  childId  String
+  parent   User   @relation("Parent", fields: [parentId], references: [id], onDelete: Cascade)
+  child    User   @relation("Child", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@id([parentId, childId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model TelegramLink {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramId BigInt   @unique
+  chatId     BigInt
+  username   String?
+  linkedAt   DateTime @default(now())
+}
+
+// ── Kurslar va darslar ──────────────────────────────────────
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  coverUrl    String?
+  monthlyFee  Int      @default(0)
+  durationMonths Int   @default(1)
+  published   Boolean  @default(false)
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  modules     Module[]
+  groups      Group[]
+  quizzes     Quiz[]
+}
+
+model Module {
+  id       String   @id @default(cuid())
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  position Int
+  lessons  Lesson[]
+
+  @@index([courseId, position])
+}
+
+model Lesson {
+  id        String           @id @default(cuid())
+  moduleId  String
+  module    Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?          @db.Text
+  position  Int
+  published Boolean          @default(false)
+  materials LessonMaterial[]
+  quizzes   Quiz[]
+
+  @@index([moduleId, position])
+}
+
+model LessonMaterial {
+  id       String             @id @default(cuid())
+  lessonId String
+  lesson   Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type     LessonMaterialType
+  title    String
+  url      String?            @db.Text
+  content  String?            @db.Text
+  position Int
+}
+
+// ── Guruhlar, jadval, davomat ───────────────────────────────
+
+model Group {
+  id         String        @id @default(cuid())
+  name       String
+  courseId   String
+  course     Course        @relation(fields: [courseId], references: [id])
+  branchId   String
+  branch     Branch        @relation(fields: [branchId], references: [id])
+  teacherId  String
+  teacher    User          @relation("GroupTeacher", fields: [teacherId], references: [id])
+  startDate  DateTime      @db.Date
+  endDate    DateTime?     @db.Date
+  room       String?
+  active     Boolean       @default(true)
+  members    GroupMember[]
+  schedules  Schedule[]
+  sessions   Session[]
+
+  @@index([teacherId])
+  @@index([branchId])
+}
+
+model GroupMember {
+  groupId    String
+  studentId  String
+  group      Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student    User      @relation(fields: [studentId], references: [id])
+  joinedAt   DateTime  @default(now())
+  leftAt     DateTime?
+  discountId String?
+  discount   Discount? @relation(fields: [discountId], references: [id])
+
+  @@id([groupId, studentId])
+  @@index([studentId])
+}
+
+/// Haftalik takrorlanadigan jadval: weekday 1=Dushanba … 7=Yakshanba, vaqt "HH:MM" (Asia/Tashkent).
+model Schedule {
+  id        String @id @default(cuid())
+  groupId   String
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  weekday   Int
+  startTime String
+  endTime   String
+}
+
+/// Aniq bir dars kuni (jadvaldan generatsiya qilinadi yoki qo'lda qo'shiladi).
+model Session {
+  id         String       @id @default(cuid())
+  groupId    String
+  group      Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  startsAt   DateTime
+  endsAt     DateTime
+  topic      String?
+  cancelled  Boolean      @default(false)
+  attendance Attendance[]
+
+  @@unique([groupId, startsAt])
+}
+
+model Attendance {
+  sessionId  String
+  studentId  String
+  session    Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student    User             @relation("AttendanceStudent", fields: [studentId], references: [id])
+  status     AttendanceStatus
+  arrivedAt  DateTime?
+  note       String?
+  markedById String
+  markedBy   User             @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+  markedAt   DateTime         @default(now())
+
+  @@id([sessionId, studentId])
+  @@index([studentId])
+}
+
+// ── Testlar va baholash ─────────────────────────────────────
+
+model Quiz {
+  id           String         @id @default(cuid())
+  courseId     String
+  course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId     String?
+  lesson       Lesson?        @relation(fields: [lessonId], references: [id])
+  title        String
+  isFinal      Boolean        @default(false)
+  passPercent  Int            @default(60)
+  maxAttempts  Int            @default(3)
+  timeLimitSec Int?
+  shuffle      Boolean        @default(true)
+  published    Boolean        @default(false)
+  questions    Question[]
+  attempts     QuizAttempt[]
+}
+
+model Question {
+  id       String       @id @default(cuid())
+  quizId   String
+  quiz     Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type     QuestionType
+  text     String       @db.Text
+  points   Int          @default(1)
+  position Int
+  /// TEXT savollar uchun qabul qilinadigan javoblar (JSON massiv).
+  acceptedAnswers Json?
+  options  QuestionOption[]
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String   @db.Text
+  isCorrect  Boolean  @default(false)
+  position   Int
+}
+
+model QuizAttempt {
+  id          String    @id @default(cuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id])
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  /// { [questionId]: string[] }
+  answers     Json?
+  score       Int?
+  maxScore    Int?
+  percent     Float?
+  passed      Boolean?
+
+  @@index([quizId, studentId])
+}
+
+model Certificate {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  courseId  String
+  groupId   String
+  issuedAt  DateTime @default(now())
+  pdfPath   String?
+
+  @@unique([studentId, groupId])
+}
+
+// ── Moliya ──────────────────────────────────────────────────
+
+model Discount {
+  id      String        @id @default(cuid())
+  name    String
+  kind    DiscountKind
+  value   Int
+  active  Boolean       @default(true)
+  members GroupMember[]
+}
+
+/// Yagona buxgalteriya jurnali: INVOICE qarzni oshiradi, PAYMENT kamaytiradi.
+model LedgerEntry {
+  id          String         @id @default(cuid())
+  studentId   String
+  student     User           @relation(fields: [studentId], references: [id])
+  groupId     String?
+  type        LedgerType
+  amount      Int
+  period      String?        /// "2026-10"
+  method      PaymentMethod?
+  externalId  String?        @unique
+  note        String?
+  createdById String?
+  createdAt   DateTime       @default(now())
+
+  @@index([studentId])
+  @@index([groupId, period])
+}
+
+// ── Bildirishnoma va audit ──────────────────────────────────
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   String    /// "telegram" | "web"
+  kind      String
+  payload   Json
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  data      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
