@@ -11,10 +11,15 @@ use Illuminate\Support\Facades\DB;
 /** Bot xabarlarini qayta ishlash. Barcha matnlar settings (telegram.text.*) dan. */
 class BotHandler
 {
-    public function __construct(private TelegramClient $tg, private Settings $settings) {}
+    public function __construct(private TelegramClient $tg, private Settings $settings, private BotMenu $menu, private BotAdmin $admin) {}
 
     public function handle(array $update): void
     {
+        if (isset($update['callback_query'])) {
+            $this->menu->onCallback($update['callback_query']);
+
+            return;
+        }
         $msg = $update['message'] ?? null;
         if (! $msg || ($msg['chat']['type'] ?? '') !== 'private') {
             return;
@@ -28,8 +33,13 @@ class BotHandler
             return;
         }
         $text = trim($msg['text'] ?? '');
-        if (str_starts_with($text, '/start')) {
-            $this->onStart($from, $chatId, trim(substr($text, 6)));
+        if (preg_match('/^\/start(?:@\S+)?(?:\s+(.*))?$/s', $text, $m)) {
+            $this->onStart($from, $chatId, trim($m[1] ?? ''));
+
+            return;
+        }
+        if ($text !== '' && ! $this->menu->onText($chatId, $from, $text)) {
+            $this->askPhone($chatId);
         }
     }
 
@@ -52,8 +62,13 @@ class BotHandler
             Cache::put($this->pendingKey((int) $from['id']), $code, $this->settings->int('telegram.login_code_ttl_seconds'));
         }
 
+        if ($user && $user->active) {
+            $this->menu->sendMenu($user, $chatId, 'telegram.text.linked', ['name' => $user->first_name]);
+
+            return;
+        }
         if ($user) {
-            $this->say($chatId, 'telegram.text.linked', ['name' => $user->first_name]);
+            $this->say($chatId, 'telegram.text.account_blocked', [], ['remove_keyboard' => true]);
 
             return;
         }
@@ -105,7 +120,10 @@ class BotHandler
             'entity_id' => $user->id, 'data' => json_encode(['telegram_id' => $from['id']]), 'created_at' => now(),
         ]);
 
-        $this->say($chatId, $isNew ? 'telegram.text.registered' : 'telegram.text.linked', ['name' => $user->first_name], $remove);
+        $this->menu->sendMenu($user, $chatId, $isNew ? 'telegram.text.registered' : 'telegram.text.linked', ['name' => $user->first_name]);
+        if ($isNew) {
+            $this->admin->notifyNewUser($user, $from['username'] ?? null);
+        }
 
         $code = Cache::pull($this->pendingKey((int) $from['id']));
         if ($code && $this->pendingRequest($code)) {

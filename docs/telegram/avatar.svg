@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- TISU Edu bot avatari. Telegram aylana qilib kesadi — muhim qism markaziy doira ichida. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset=".55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".3" cy=".22" r=".8">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".28"/>
+      <stop offset=".6" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbe6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <!-- Bitiruvchi qalpoq -->
+  <g transform="translate(256 196)">
+    <path d="M-150 0 L0 -64 L150 0 L0 64 Z" fill="url(#cap)"/>
+    <path d="M-92 26 V82 C-92 112 -48 132 0 132 C48 132 92 112 92 82 V26 L0 64 Z" fill="#ffffff" opacity=".92"/>
+    <path d="M120 13 V92" stroke="#fbbf24" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="120" cy="100" r="15" fill="#fbbf24"/>
+  </g>
+  <text x="256" y="414" text-anchor="middle" font-family="Inter, 'Segoe UI', Roboto, 'DejaVu Sans', sans-serif" font-size="92" font-weight="800" letter-spacing="6" fill="#ffffff">TISU</text>
+</svg>
