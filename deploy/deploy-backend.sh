@@ -52,7 +52,7 @@ echo "→ upload $REL"
 set -euo pipefail
 cd $REMOTE_DIR
 PHP=$PHP_BIN
-mkdir -p ~/tisu-backups
+umask 077; mkdir -p ~/tisu-backups && chmod 700 ~/tisu-backups
 # 1) Zaxira: kod va baza
 tar --exclude=./storage/logs -czf ~/tisu-backups/code-$REL.tgz . 2>/dev/null || true
 DB_HOST=\$(grep -E '^DB_HOST=' .env | cut -d= -f2-); DB_DATABASE=\$(grep -E '^DB_DATABASE=' .env | cut -d= -f2-)
