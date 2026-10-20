@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Domain\Role;
-use App\Models\Branch;
 use App\Models\Course;
 use App\Models\StudyGroup;
 use App\Models\User;
@@ -47,8 +46,6 @@ class DemoSeeder extends Seeder
         $parent = $mk('+998900000020', 'Gulnora', 'Qodirova', Role::Parent);
         DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $students[0]->id]);
 
-        $branch = Branch::firstOrCreate(['name' => 'Markaziy filial'], ['address' => 'Toshkent, Chilonzor 7', 'phone' => '+998712000000']);
-        Branch::firstOrCreate(['name' => 'Yunusobod filiali'], ['address' => 'Toshkent, Yunusobod 4']);
 
         $english = Course::firstOrCreate(['title' => 'Ingliz tili — Elementary'], [
             'description' => "Grammatika, so'z boyligi va og'zaki nutq. Haftasiga 3 dars.", 'duration_months' => 4, 'published' => true, 'created_by' => $teacher->id,
@@ -76,7 +73,7 @@ class DemoSeeder extends Seeder
         }
 
         $group = StudyGroup::firstOrCreate(['name' => 'ENG-E1 (ertalabki)'], [
-            'course_id' => $english->id, 'branch_id' => $branch->id, 'teacher_id' => $teacher->id,
+            'course_id' => $english->id, 'teacher_id' => $teacher->id,
             'start_date' => now()->subWeeks(5)->toDateString(), 'room' => '204',
         ]);
         if (! $group->schedules()->exists()) {
@@ -85,7 +82,7 @@ class DemoSeeder extends Seeder
             }
         }
         $group2 = StudyGroup::firstOrCreate(['name' => 'PY-1 (kechki)'], [
-            'course_id' => $python->id, 'branch_id' => $branch->id, 'teacher_id' => $teacher2->id,
+            'course_id' => $python->id, 'teacher_id' => $teacher2->id,
             'start_date' => now()->subWeeks(3)->toDateString(), 'room' => 'Lab-1',
         ]);
         if (! $group2->schedules()->exists()) {

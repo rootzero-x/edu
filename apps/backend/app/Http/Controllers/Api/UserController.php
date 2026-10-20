@@ -18,13 +18,11 @@ class UserController
         $data = $request->validate([
             'role' => ['nullable', new Enum(Role::class)],
             'q' => ['nullable', 'string', 'max:64'],
-            'branch_id' => ['nullable', 'integer'],
             'active' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'between:1,500'],
         ]);
         $users = User::query()
             ->when($data['role'] ?? null, fn ($q, $r) => $q->where('role', $r))
-            ->when($data['branch_id'] ?? null, fn ($q, $b) => $q->where('branch_id', $b))
             ->when(array_key_exists('active', $data) && $data['active'] !== null, fn ($q) => $q->where('active', (bool) $data['active']))
             ->when($data['q'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
                 ->where('phone', 'like', "%$s%")->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%")))
@@ -44,7 +42,6 @@ class UserController
             'first_name' => ['required', 'string', 'max:64'],
             'last_name' => ['nullable', 'string', 'max:64'],
             'role' => ['required', new Enum(Role::class)],
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'password' => ['nullable', 'string', 'min:'.app(Settings::class)->int('auth.min_password_length')],
         ]);
         $this->guardRole($request->user(), Role::from($data['role']));
@@ -62,7 +59,6 @@ class UserController
             'first_name' => ['sometimes', 'string', 'max:64'],
             'last_name' => ['sometimes', 'nullable', 'string', 'max:64'],
             'role' => ['sometimes', new Enum(Role::class)],
-            'branch_id' => ['sometimes', 'nullable', 'integer', 'exists:branches,id'],
             'active' => ['sometimes', 'boolean'],
             'password' => ['sometimes', 'string', 'min:'.app(Settings::class)->int('auth.min_password_length')],
         ]);

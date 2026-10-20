@@ -14,7 +14,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory;
 
     protected $fillable = [
-        'phone', 'password', 'first_name', 'last_name', 'role', 'branch_id', 'active', 'locale',
+        'phone', 'password', 'first_name', 'last_name', 'role', 'active', 'locale',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -46,7 +46,6 @@ class User extends Authenticatable
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
             'role' => $this->role->value,
-            'branch_id' => $this->branch_id,
             'active' => $this->active,
             'locale' => $this->locale,
             'permissions' => app(\App\Support\Permissions::class)->forRole($this->role),

@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\CurriculumController;
@@ -50,10 +49,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/users', [UserController::class, 'index']);
             Route::post('/users', [UserController::class, 'store']);
             Route::patch('/users/{user}', [UserController::class, 'update']);
-            Route::post('/branches', [BranchController::class, 'store']);
-            Route::patch('/branches/{branch}', [BranchController::class, 'update']);
         });
-        Route::get('/branches', [BranchController::class, 'index']);
         Route::middleware('perm:user.manage')->group(function () {
             Route::get('/users/{parent}/children', [UserController::class, 'children']);
             Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);

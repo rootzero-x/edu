@@ -135,4 +135,14 @@ class AuditRound3Test extends TestCase
         $this->assertTrue($ids->contains($this->teacher->id));
         $this->assertFalse($ids->contains(User::factory()->create()->id));
     }
+
+    public function test_single_branch_groups_and_no_branch_api(): void
+    {
+        Sanctum::actingAs(User::factory()->role(Role::Admin)->create());
+        $id = $this->postJson('/v1/groups', ['name' => 'Yangi', 'course_id' => $this->course->id, 'teacher_id' => $this->teacher->id, 'start_date' => '2026-10-01'])
+            ->assertCreated()->json('group.id');
+        $this->assertSame(\App\Models\Branch::primaryId(), (int) StudyGroup::find($id)->branch_id);
+        $this->assertSame('TISU', \App\Models\Branch::find(\App\Models\Branch::primaryId())->name);
+        $this->getJson('/v1/branches')->assertNotFound();
+    }
 }

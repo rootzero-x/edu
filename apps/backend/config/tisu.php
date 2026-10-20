@@ -486,7 +486,7 @@ return [
         'ui.nav_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => 'Panel menyusi nomlari (manzil → nom)', 'default' => [
             '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
             '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/profile' => 'Profil',
-            '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/branches' => 'Filiallar', '/dashboard/settings' => 'Sozlamalar',
+            '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/settings' => 'Sozlamalar',
         ]],
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
         'ui.refresh_seconds' => ['group' => 'ui', 'type' => 'int', 'min' => 0, 'max' => 3600, 'public' => true, 'label' => "Avtomatik yangilanish oralig'i, soniya (0 — o'chiq)", 'default' => 20],

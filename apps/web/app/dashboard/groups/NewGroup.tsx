@@ -10,12 +10,12 @@ import type { Person, Schedule } from "@/lib/types";
 
 const DEFAULT_SLOT: Schedule = { weekday: 1, start_time: "14:00", end_time: "15:30" };
 
-export default function NewGroup({ courses, branches, teachers }: { courses: { id: number; title: string }[]; branches: { id: number; name: string }[]; teachers: Person[] }) {
+export default function NewGroup({ courses, teachers }: { courses: { id: number; title: string }[]; teachers: Person[] }) {
   const router = useRouter();
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [f, setF] = useState({ name: "", course_id: "", branch_id: "", teacher_id: "", start_date: new Date().toISOString().slice(0, 10), room: "" });
+  const [f, setF] = useState({ name: "", course_id: "", teacher_id: "", start_date: new Date().toISOString().slice(0, 10), room: "" });
   const [slots, setSlots] = useState<Schedule[]>([DEFAULT_SLOT]);
   const [err, setErr] = useState<string | null>(null);
   const setSlot = (i: number, patch: Partial<Schedule>) => setSlots((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -24,7 +24,7 @@ export default function NewGroup({ courses, branches, teachers }: { courses: { i
     setBusy(true);
     setErr(null);
     const r = await call("POST", "groups", {
-      ...f, course_id: Number(f.course_id), branch_id: Number(f.branch_id), teacher_id: Number(f.teacher_id), room: f.room || null, schedules: slots,
+      ...f, course_id: Number(f.course_id), teacher_id: Number(f.teacher_id), room: f.room || null, schedules: slots,
     });
     if (!r.ok) { setBusy(false); return setErr(errorText(r.data)); }
     const gen = await call("POST", `groups/${r.data.group.id}/sessions/generate`, {});
@@ -41,30 +41,23 @@ export default function NewGroup({ courses, branches, teachers }: { courses: { i
         open={open}
         onClose={() => setOpen(false)}
         title="Yangi guruh"
-        description={branches.length ? "Haftalik jadval bo'yicha darslar avtomatik yaratiladi." : undefined}
+        description="Haftalik jadval bo'yicha darslar avtomatik yaratiladi."
         width={640}
         onSubmit={submit}
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Bekor qilish</Button>
-            <Button type="submit" loading={busy} disabled={!branches.length}>Yaratish</Button>
+            <Button type="submit" loading={busy}>Yaratish</Button>
           </>
         }
       >
-        {!branches.length ? (
-          <p className="error" style={{ margin: 0 }}>Avval filial qo&apos;shing (Filiallar bo&apos;limi).</p>
-        ) : (
+        {(
           <>
             <div className="cols" style={{ gap: 16 }}>
               <Field label="Nomi" required><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
               <Field label="Kurs" required>
                 <Select value={f.course_id} onChange={(e) => setF({ ...f, course_id: e.target.value })}>
                   <option value="">Tanlang…</option>{courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </Select>
-              </Field>
-              <Field label="Filial" required>
-                <Select value={f.branch_id} onChange={(e) => setF({ ...f, branch_id: e.target.value })}>
-                  <option value="">Tanlang…</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </Select>
               </Field>
               <Field label="O'qituvchi" required>

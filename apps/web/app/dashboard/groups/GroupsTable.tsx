@@ -13,7 +13,7 @@ export default function GroupsTable({ rows, empty }: { rows: GroupRow[]; empty?:
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return rows.filter((g) => (tab === "all" || (tab === "active" ? g.active : !g.active))
-      && (!needle || [g.name, g.course?.title, g.teacher && personName(g.teacher), g.branch?.name, g.room].some((v) => v?.toLowerCase().includes(needle))));
+      && (!needle || [g.name, g.course?.title, g.teacher && personName(g.teacher), g.room].some((v) => v?.toLowerCase().includes(needle))));
   }, [rows, q, tab]);
 
   if (rows.length === 0) {
@@ -49,7 +49,7 @@ export default function GroupsTable({ rows, empty }: { rows: GroupRow[]; empty?:
                 <Td>
                   <Link className="a" href={`/dashboard/groups/${g.id}`}>{g.name}</Link>
                   {!g.active && <Badge style={{ marginLeft: 8 }}>Yopiq</Badge>}
-                  <div className="subtle" style={{ fontSize: "var(--text-xs)" }}>{[g.branch?.name, g.room].filter(Boolean).join(" · ")}</div>
+                  <div className="subtle" style={{ fontSize: "var(--text-xs)" }}>{g.room}</div>
                 </Td>
                 <Td label="Kurs">{g.course?.title}</Td>
                 <Td label="O'qituvchi">{g.teacher ? personName(g.teacher) : "—"}</Td>

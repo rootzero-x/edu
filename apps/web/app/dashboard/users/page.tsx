@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { api, me } from "@/lib/api";
-import Users, { type BranchOpt, type UserRow } from "./Users";
+import Users, { type UserRow } from "./Users";
 
 export const metadata: Metadata = { title: "Foydalanuvchilar" };
 
@@ -10,10 +10,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   if (!user?.permissions.includes("user.manage")) redirect("/dashboard");
   const sp = await searchParams;
   const qs = new URLSearchParams(Object.entries(sp).filter(([, v]) => v) as [string, string][]).toString();
-  const [{ data }, br] = await Promise.all([
-    api<{ data: UserRow[]; meta: { total: number; page: number; pages: number } }>(`/v1/users${qs ? `?${qs}` : ""}`),
-    api<{ data: BranchOpt[] }>("/v1/branches"),
-  ]);
+  const { data } = await api<{ data: UserRow[]; meta: { total: number; page: number; pages: number } }>(`/v1/users${qs ? `?${qs}` : ""}`);
   return (
     <Users
       rows={data.data ?? []}
@@ -22,7 +19,6 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       q={sp.q ?? ""}
       actorRole={user.role}
       selfId={user.id}
-      branches={(br.data.data ?? []).filter((b: BranchOpt & { active?: boolean }) => b.active !== false)}
     />
   );
 }
