@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\BillingRemindDebtsCommand;
 use App\Domain\Role;
 use App\Models\BillingEntry;
 use App\Models\Course;
@@ -403,18 +404,47 @@ class BillingTest extends TestCase
         $this->assertStringContainsString('Aziz K', $sent['text']);
         $this->assertStringContainsString("-158 060 so'm", $sent['text']); // 100000 - 12903*20
         $this->assertStringContainsString('Karta', $sent['text']);
+    }
 
-        // Qarz eslatmasi: o'chiq — hech narsa; yoqilgan — o'quvchi va ota-onaga, bir davrda bir marta.
+    public function test_due_reminder_goes_3_days_and_1_day_before_monthly_join_anniversary(): void
+    {
+        config(['services.telegram.bot_token' => '']);
+        $paid = User::factory()->create(['first_name' => 'Oldindan']);
+        $endOfMonth = User::factory()->create(['first_name' => 'Oxir']);
+        $g = $this->group(['name' => 'Python', 'start_date' => '2026-10-21']);
+        $this->join($g, $this->student, '2026-10-15 09:00:00'); // guruh keyin boshlangan — to'lov kuni 21-sana
+        $this->join($g, $paid, '2026-10-21 09:00:00');
+        $this->join($this->group(['name' => 'Late', 'start_date' => '2026-01-01']), $endOfMonth, '2026-01-31 12:00:00');
+        BillingEntry::create(['student_id' => $paid->id, 'type' => 'PAYMENT', 'amount' => 800000, 'method' => 'CASH', 'entry_date' => '2026-10-21']);
+        $sent = fn (User $u) => DB::table('notifications_log')->where('user_id', $u->id)->where('kind', 'like', 'billing.due:%')->orderBy('id')->get();
+
+        // O'chiq — hech narsa.
+        Carbon::setTestNow('2026-11-18 10:00:00');
         $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
-        $this->assertSame(0, DB::table('notifications_log')->where('kind', 'like', 'billing.debt:%')->count());
+        $this->assertCount(0, $sent($this->student));
+
         app(Settings::class)->set(['billing.debt_reminder' => true], null);
-        $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
-        $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
-        $this->assertSame(1, DB::table('notifications_log')->where('user_id', $this->student->id)->where('kind', 'like', 'billing.debt:%')->count());
-        $this->assertSame(1, DB::table('notifications_log')->where('user_id', $parent->id)->where('kind', 'like', 'billing.debt:%')->count());
-        app(Settings::class)->set(['billing.debt_reminder_min' => 200000], null);
-        Carbon::setTestNow('2026-11-20 10:00:00');
-        $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
-        $this->assertSame(1, DB::table('notifications_log')->where('user_id', $this->student->id)->where('kind', 'like', 'billing.debt:%')->count());
+        foreach (['2026-11-17', '2026-11-18', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21'] as $day) {
+            Carbon::setTestNow("$day 10:00:00");
+            $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
+        }
+        $rows = $sent($this->student);
+        $this->assertSame(['billing.due:'.$g.':2026-11-21:3', 'billing.due:'.$g.':2026-11-21:1'], $rows->pluck('kind')->all(), 'Faqat 3 va 1 kun oldin, bir martadan');
+        $this->assertStringContainsString('3 kun qoldi (21.11.2026)', json_decode($rows[0]->payload, true)['text']);
+        $this->assertStringContainsString("ertaga (21.11.2026) «Python»", json_decode($rows[1]->payload, true)['text']);
+        $this->assertStringContainsString("400 000 so'm", json_decode($rows[1]->payload, true)['text']);
+        $this->assertCount(0, $sent($paid), "Keyingi oyga oldindan to'lagan — eslatma yo'q");
+
+        // 31-yanvarda qo'shilgan: noyabrda to'lov kuni 30-noyabr, fevralda 28-fevral (oy oxiriga suriladi).
+        foreach (['2026-11-27', '2026-11-29'] as $day) {
+            Carbon::setTestNow("$day 10:00:00");
+            $this->artisan('tisu:billing-remind-debts')->assertSuccessful();
+        }
+        $this->assertSame([':2026-11-30:3', ':2026-11-30:1'], $sent($endOfMonth)->map(fn ($r) => substr($r->kind, strpos($r->kind, ':', 12)))->all());
+        $jan31 = Carbon::parse('2027-01-31');
+        $this->assertTrue(BillingRemindDebtsCommand::isDueDate($jan31, Carbon::parse('2027-02-28')));
+        $this->assertTrue(BillingRemindDebtsCommand::isDueDate($jan31, Carbon::parse('2027-03-31')));
+        $this->assertFalse(BillingRemindDebtsCommand::isDueDate($jan31, Carbon::parse('2027-01-31')));
+        $this->assertFalse(BillingRemindDebtsCommand::isDueDate($jan31, Carbon::parse('2027-03-28')));
     }
 }

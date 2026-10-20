@@ -2,51 +2,82 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Role;
 use App\Support\Billing;
 use App\Support\Settings;
 use App\Telegram\Notifier;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-/** Qarzdor o'quvchilarga (va ota-onasiga) Telegram eslatma — billing.debt_reminder_every_days kunda bir marta. */
+/**
+ * Oylik to'lov muddati eslatmasi. To'lov kuni — guruhga qo'shilgan sana (guruh keyin boshlangan bo'lsa,
+ * guruh boshlanish sanasi) dan har oy shu sanada. billing.due_reminder_days (masalan [3, 1]) kun oldin
+ * o'quvchiga Telegram xabar boradi: 1 kun qolganda — "ertaga", aks holda — "N kun qoldi".
+ * Balansi keyingi oyni allaqachon qoplagan (oldindan to'lagan) o'quvchiga yuborilmaydi.
+ */
 class BillingRemindDebtsCommand extends Command
 {
     protected $signature = 'tisu:billing-remind-debts
         {--dry-run : Hech narsa yubormasdan kimga nima ketishini ko\'rsatish}
         {--skip : Hozirgi navbatni yubormasdan "o\'tkazildi" deb belgilash}';
 
-    protected $description = "Qarzdorlarga to'lov eslatmasi";
+    protected $description = "Oylik to'lov muddati yaqinlashganda o'quvchiga eslatma";
 
     public function handle(Settings $settings, Billing $billing, Notifier $notifier): int
     {
         if (! $settings->bool('billing.enabled') || ! $settings->bool('billing.debt_reminder')) {
             return self::SUCCESS;
         }
-        $min = $settings->int('billing.debt_reminder_min');
-        // Davr raqami: shu davr ichida har kim bir martadan ko'p eslatma olmaydi (notifications_log orqali).
-        $bucket = intdiv((int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse('2000-01-01')->startOfDay(), true), $settings->int('billing.debt_reminder_every_days'));
-        $kind = "billing.debt:$bucket";
-        $fee = $billing->money($billing->feeOn(now()->toDateString()));
-        $notifyParents = $settings->bool('billing.notify_parents');
+        $days = array_values(array_unique(array_filter((array) $settings->get('billing.due_reminder_days'), fn ($d) => is_int($d) && $d > 0)));
+        if (! $days) {
+            return self::SUCCESS;
+        }
+        $today = now()->startOfDay();
 
-        $debtors = $billing->balancesQuery()->where('users.active', true)->whereRaw('coalesce(b.balance, 0) <= ?', [-$min])
-            ->get(['users.id', 'users.first_name', 'users.last_name', 'b.balance']);
-        $parents = DB::table('parent_child')->join('users', 'users.id', '=', 'parent_child.parent_id')->where('users.active', true)
-            ->whereIn('parent_child.child_id', $debtors->pluck('id'))->get(['parent_child.child_id', 'parent_child.parent_id'])->groupBy('child_id');
+        $members = DB::table('group_members')
+            ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
+            ->join('users', 'users.id', '=', 'group_members.student_id')
+            ->where('users.role', Role::Student->value)->where('users.active', true)
+            ->where('study_groups.active', true)->whereNull('group_members.left_at')
+            ->get(['group_members.student_id', 'group_members.joined_at', 'study_groups.id as group_id', 'study_groups.name',
+                'study_groups.start_date', 'study_groups.end_date', 'users.first_name']);
+        $perStudent = $members->countBy('student_id');
 
         $items = [];
-        foreach ($debtors as $d) {
-            $vars = ['debt' => $billing->money(-(int) $d->balance), 'balance' => $billing->money((int) $d->balance), 'fee' => $fee];
-            $items[] = ['user_id' => (int) $d->id, 'kind' => $kind, 'key' => 'telegram.text.billing_debt_reminder', 'vars' => $vars + ['name' => $d->first_name]];
-            if ($notifyParents) {
-                foreach ($parents[$d->id] ?? [] as $p) {
-                    $items[] = ['user_id' => (int) $p->parent_id, 'kind' => $kind.':'.$d->id, 'key' => 'telegram.text.billing_debt_reminder_parent',
-                        'vars' => $vars + ['child' => trim($d->first_name.' '.$d->last_name)]];
+        $balances = [];
+        foreach ($members as $m) {
+            $anchor = Carbon::parse(max(substr((string) $m->joined_at, 0, 10), substr((string) $m->start_date, 0, 10)))->startOfDay();
+            foreach ($days as $d) {
+                $due = $today->copy()->addDays($d);
+                if (! self::isDueDate($anchor, $due) || ($m->end_date && substr((string) $m->end_date, 0, 10) < $due->toDateString())) {
+                    continue;
                 }
+                $fee = $billing->feeOn($due->toDateString());
+                $balance = $balances[$m->student_id] ??= $billing->balance((int) $m->student_id);
+                // Keyingi oy(lar) uchun oldindan to'lagan — eslatma kerak emas.
+                if ($fee > 0 && $balance >= $fee * $perStudent[$m->student_id]) {
+                    continue;
+                }
+                $items[] = [
+                    'user_id' => (int) $m->student_id,
+                    'kind' => "billing.due:{$m->group_id}:{$due->toDateString()}:$d",
+                    'key' => $d === 1 ? 'telegram.text.billing_due_tomorrow' : 'telegram.text.billing_due_soon',
+                    'vars' => ['name' => $m->first_name, 'group' => $m->name, 'days' => $d, 'date' => $due->format('d.m.Y'),
+                        'fee' => $billing->money($fee), 'balance' => $billing->money($balance)],
+                ];
             }
         }
         AutomationCommands::deliver($this, $notifier, $items);
 
         return self::SUCCESS;
+    }
+
+    /** $due — $anchor dan butun oylar o'tgan sana (31-yanvar → 28/29-fevral, 31-mart …). */
+    public static function isDueDate(Carbon $anchor, Carbon $due): bool
+    {
+        $months = ($due->year - $anchor->year) * 12 + ($due->month - $anchor->month);
+
+        return $months >= 1 && $anchor->copy()->addMonthsNoOverflow($months)->isSameDay($due);
     }
 }
