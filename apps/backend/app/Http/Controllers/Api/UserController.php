@@ -19,14 +19,17 @@ class UserController
             'role' => ['nullable', new Enum(Role::class)],
             'q' => ['nullable', 'string', 'max:64'],
             'branch_id' => ['nullable', 'integer'],
+            'active' => ['nullable', 'boolean'],
+            'per_page' => ['nullable', 'integer', 'between:1,500'],
         ]);
         $users = User::query()
             ->when($data['role'] ?? null, fn ($q, $r) => $q->where('role', $r))
             ->when($data['branch_id'] ?? null, fn ($q, $b) => $q->where('branch_id', $b))
+            ->when(array_key_exists('active', $data) && $data['active'] !== null, fn ($q) => $q->where('active', (bool) $data['active']))
             ->when($data['q'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
                 ->where('phone', 'like', "%$s%")->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%")))
             ->orderByDesc('id')
-            ->paginate(app(Settings::class)->int('ui.page_size'));
+            ->paginate($data['per_page'] ?? app(Settings::class)->int('ui.page_size'));
 
         return response()->json([
             'data' => $users->getCollection()->map->toApi(),
@@ -79,6 +82,14 @@ class UserController
         Audit::log('user.update', 'user', $user->id, array_diff_key($data, ['password' => 1]) + (isset($data['password']) ? ['password' => 'reset'] : []));
 
         return response()->json(['user' => $user->fresh()->toApi()]);
+    }
+
+    /** Ota-onaning bog'langan farzandlari. */
+    public function children(User $parent): JsonResponse
+    {
+        $ids = \Illuminate\Support\Facades\DB::table('parent_child')->where('parent_id', $parent->id)->pluck('child_id');
+
+        return response()->json(['data' => User::whereIn('id', $ids)->orderBy('first_name')->get()->map->toApi()]);
     }
 
     /** Ota-onani farzandga bog'lash (davomat xabarlari va ko'rish huquqi uchun). */

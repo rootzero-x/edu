@@ -116,7 +116,8 @@ return [
         // ── Sertifikat ───────────────────────────────────────
         'certificate.code_prefix' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat raqami prefiksi', 'default' => 'TISU'],
         'certificate.title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat sarlavhasi', 'default' => 'SERTIFIKAT'],
-        'certificate.body' => ['group' => 'certificate', 'type' => 'text', 'public' => true, 'label' => 'Sertifikat matni ({name}, {course}, {date}, {hours})', 'default' => "{name}\n«{course}» kursini muvaffaqiyatli tamomlagani uchun berildi."],
+        'certificate.body' => ['group' => 'certificate', 'type' => 'text', 'public' => true, 'label' => 'Sertifikat matni ({name}, {course}, {date}, {months})', 'default' => "{name}\n«{course}» kursini muvaffaqiyatli tamomlagani uchun berildi."],
+        'certificate.verified_text' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Tekshiruv sahifasidagi tasdiq matni', 'default' => '✅ Sertifikat haqiqiy'],
         'certificate.signer_name' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi F.I.Sh.', 'default' => ''],
         'certificate.signer_title' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Imzolovchi lavozimi', 'default' => 'Direktor'],
         'certificate.background_url' => ['group' => 'certificate', 'type' => 'string', 'public' => true, 'label' => 'Sertifikat fon rasmi URL (A4 landshaft)', 'default' => ''],
@@ -453,6 +454,11 @@ return [
         'i18n.overrides' => ['group' => 'i18n', 'type' => 'object', 'label' => "Xabarlarni qayta yozish {\"validation.required\": \":attribute majburiy.\"}", 'default' => (object) []],
 
         // ── Interfeys ────────────────────────────────────────
+        'ui.nav_labels' => ['group' => 'ui', 'type' => 'object', 'public' => true, 'label' => 'Panel menyusi nomlari (manzil → nom)', 'default' => [
+            '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
+            '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/profile' => 'Profil',
+            '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/branches' => 'Filiallar', '/dashboard/settings' => 'Sozlamalar',
+        ]],
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
         'ui.refresh_seconds' => ['group' => 'ui', 'type' => 'int', 'min' => 0, 'max' => 3600, 'public' => true, 'label' => "Avtomatik yangilanish oralig'i, soniya (0 — o'chiq)", 'default' => 20],
         'ui.summary_attendance_days' => ['group' => 'ui', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Bosh paneldagi davomat foizi davri (kun)', 'default' => 30],

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Award, ExternalLink } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, me } from "@/lib/api";
+import RevokeCertificate from "@/components/RevokeCertificate";
 import { Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Sertifikatlar" };
@@ -9,7 +10,8 @@ type Row = { code: string; issued_at: string; first_name: string; last_name: str
 
 export default async function CertificatesPage() {
   // issued_at API vaqt zonasida (app.timezone) mahalliy vaqt sifatida keladi.
-  const { data } = await api<{ data: Row[] }>("/v1/certificates");
+  const [{ data }, user] = await Promise.all([api<{ data: Row[] }>("/v1/certificates"), me()]);
+  const manage = Boolean(user?.permissions.includes("group.manage"));
   const rows = data.data ?? [];
   return (
     <>
@@ -19,7 +21,7 @@ export default async function CertificatesPage() {
           <EmptyState icon={<Award />} title="Sertifikatlar yo'q">Kursni tamomlab, shartlarni bajargan o&apos;quvchilarga sertifikat guruh sahifasidan beriladi.</EmptyState>
         ) : (
           <Table>
-            <thead><tr><Th>Raqam</Th><Th>O&apos;quvchi</Th><Th>Kurs</Th><Th>Guruh</Th><Th>Sana</Th></tr></thead>
+            <thead><tr><Th>Raqam</Th><Th>O&apos;quvchi</Th><Th>Kurs</Th><Th>Guruh</Th><Th>Sana</Th>{manage && <Th />}</tr></thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.code}>
@@ -28,6 +30,7 @@ export default async function CertificatesPage() {
                   <Td>{c.course}</Td>
                   <Td>{c.group}</Td>
                   <Td>{String(c.issued_at).slice(0, 10).split("-").reverse().join(".")}</Td>
+                  {manage && <Td><RevokeCertificate code={c.code} /></Td>}
                 </tr>
               ))}
             </tbody>

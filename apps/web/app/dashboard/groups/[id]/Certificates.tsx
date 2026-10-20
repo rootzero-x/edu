@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Award, ExternalLink, ShieldCheck } from "lucide-react";
 import { Badge, Button, Card, CardHeader, EmptyState, Table, Td, Th, useConfirm, useToast } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
+import RevokeCertificate from "@/components/RevokeCertificate";
 
 type Row = { student_id: number; name: string; attendance_rate: number; marked_sessions: number; final_quiz_passed: boolean; certificate: string | null; blockers: string[] };
 
@@ -55,7 +56,7 @@ export default function Certificates({ groupId }: { groupId: number }) {
                 <Td>{r.final_quiz_passed ? <Badge tone="success">O&apos;tgan</Badge> : <Badge>—</Badge>}</Td>
                 <Td>
                   {r.certificate
-                    ? <a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate} <ExternalLink size={14} aria-hidden /></a>
+                    ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate} <ExternalLink size={14} aria-hidden /></a><RevokeCertificate code={r.certificate} onDone={load} /></span>
                     : r.blockers.length
                       ? <span className="subtle">{r.blockers.map((b) => REASONS[b] ?? b).join(", ")}</span>
                       : <Badge tone="success">Berish mumkin</Badge>}

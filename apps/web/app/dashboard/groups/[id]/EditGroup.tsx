@@ -24,7 +24,7 @@ export default function EditGroup({ open, onClose, group, onSaved }: { open: boo
       end_date: (group.end_date ?? "").slice(0, 10),
     });
     setSlots(group.schedules.map((x) => ({ weekday: x.weekday, start_time: x.start_time.slice(0, 5), end_time: x.end_time.slice(0, 5) })));
-    call<{ data: Person[] }>("GET", "users?role=TEACHER").then((r) => r.ok && setTeachers(r.data.data ?? []));
+    call<{ data: Person[] }>("GET", "users?role=TEACHER&active=1&per_page=500").then((r) => r.ok && setTeachers(r.data.data ?? []));
   }, [open, group]);
 
   async function save() {

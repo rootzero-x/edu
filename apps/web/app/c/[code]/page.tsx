@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
+import { headers } from "next/headers";
+import { MONTHS, dateParts } from "@/lib/format";
 import { API_URL, publicSettings } from "@/lib/api";
 import PrintButton from "./PrintButton";
 import "./certificate.css";
@@ -8,8 +10,14 @@ import "./certificate.css";
 type Cert = { code: string; issued_at: string; name: string; course: string; duration_months: number };
 
 async function load(code: string): Promise<Cert | null> {
-  const res = await fetch(`${API_URL}/v1/public/certificates/${encodeURIComponent(code)}`, { next: { revalidate: 300 } });
-  return res.ok ? ((await res.json()) as { certificate: Cert }).certificate : null;
+  try {
+    const res = await fetch(`${API_URL}/v1/public/certificates/${encodeURIComponent(code)}`, { next: { revalidate: 300 }, signal: AbortSignal.timeout(8000) });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return ((await res.json()) as { certificate: Cert }).certificate;
+  } catch (e) {
+    throw new Error("Sertifikatni hozir tekshirib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.", { cause: e });
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
@@ -22,20 +30,24 @@ export default async function CertificatePage({ params }: { params: Promise<{ co
   const { code } = await params;
   const [c, s] = await Promise.all([load(code), publicSettings()]);
   if (!c) notFound();
-  const base = String(s?.["certificate.public_base_url"] ?? "");
-  const url = `${base.replace(/\/$/, "")}/${c.code}`;
+  // QR manzili: sozlamadan; bo'sh bo'lsa — joriy sayt manzili.
+  const h = await headers();
+  const fallback = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? ""}/c`;
+  const base = String(s?.["certificate.public_base_url"] || fallback);
+  const url = `${base.replace(/\/$/, "")}/${encodeURIComponent(c.code)}`;
   const qr = await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M" });
-  const date = new Date(c.issued_at.replace(" ", "T")).toLocaleDateString("uz-UZ", { day: "2-digit", month: "long", year: "numeric" });
+  const dp = dateParts(c.issued_at.replace(" ", "T"));
+  const date = `${dp.day}-${MONTHS[dp.month - 1]} ${dp.year}-yil`;
   const body = String(s?.["certificate.body"] ?? "{name}\n{course}")
     .replaceAll("{name}", c.name).replaceAll("{course}", c.course).replaceAll("{date}", date)
-    .replaceAll("{hours}", String(c.duration_months));
+    .replaceAll("{months}", String(c.duration_months)).replaceAll("{hours}", String(c.duration_months));
   const bg = String(s?.["certificate.background_url"] ?? "");
   const logo = String(s?.["site.logo_url"] ?? "");
   const [nameLine, ...rest] = body.split("\n");
 
   return (
     <div className="cert-wrap">
-      <div className="cert-actions"><span>✅ Sertifikat haqiqiy</span><PrintButton /></div>
+      <div className="cert-actions"><span>{String(s?.["certificate.verified_text"] || "✅")}</span><PrintButton /></div>
       <article className="cert" style={bg ? { backgroundImage: `url(${bg})` } : undefined}>
         {logo && <img src={logo} alt="" className="cert-logo" />}
         <p className="cert-org">{String(s?.["site.name"] ?? "")}</p>

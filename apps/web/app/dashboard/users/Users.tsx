@@ -2,19 +2,30 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, KeyRound, Link2, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, Users as UsersIcon } from "lucide-react";
-import { Avatar, Badge, Button, Card, Dropdown, EmptyState, Input, PageHeader, Table, Tabs, Td, Th, type Tone, usePrompt, useToast } from "@/components/ui";
+import { ChevronLeft, ChevronRight, KeyRound, Link2, Unlink, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, Users as UsersIcon } from "lucide-react";
+import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
+import { useSiteSettings } from "@/components/SiteProvider";
+import { obj } from "@/lib/settings";
 import { ROLE_LABELS } from "@/components/shell/nav";
 import { call, errorText } from "@/lib/client";
 import { personName } from "@/lib/format";
 
-export type UserRow = { id: number; phone: string; first_name: string; last_name: string | null; role: string; active: boolean };
+export type UserRow = { id: number; phone: string; first_name: string; last_name: string | null; role: string; active: boolean; branch_id?: number | null };
+export type BranchOpt = { id: number; name: string };
 const ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"];
 const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", PARENT: "neutral", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
-export default function Users({ rows: initialRows, meta, role, q, actorRole, selfId }: {
-  rows: UserRow[]; meta: { total: number; page: number; pages: number }; role: string; q: string; actorRole: string; selfId: number;
+export default function Users({ rows: initialRows, meta, role, q, actorRole, selfId, branches = [] }: {
+  rows: UserRow[]; meta: { total: number; page: number; pages: number }; role: string; q: string; actorRole: string; selfId: number; branches?: BranchOpt[];
 }) {
+  // Rol nomlari sozlamalardan (telegram.role_labels) — bot, Mini App va sayt bir xil ko'rsatadi.
+  const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels") };
+  const confirm = useConfirm();
+  const [kids, setKids] = useState<{ parent: UserRow; list: UserRow[] } | null>(null);
+  const branchField = (value?: number | null) => branches.length ? [{
+    name: "branch_id", label: "Filial", type: "select" as const, defaultValue: value ? String(value) : "",
+    options: [{ value: "", label: "— tanlanmagan —" }, ...branches.map((b) => ({ value: String(b.id), label: b.name }))],
+  }] : [];
   const router = useRouter();
   const path = usePathname();
   const toast = useToast();
@@ -48,12 +59,13 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
       { name: "phone", label: "Telefon", type: "tel", defaultValue: "+998", required: true, placeholder: "+998901234567" },
       { name: "first_name", label: "Ism", required: true },
       { name: "last_name", label: "Familiya" },
-      { name: "role", label: "Rol", type: "select", required: true, defaultValue: role || "STUDENT", options: roles.map((r) => ({ value: r, label: ROLE_LABELS[r] ?? r })) },
+      { name: "role", label: "Rol", type: "select", required: true, defaultValue: role || "STUDENT", options: roles.map((r) => ({ value: r, label: roleNames[r] ?? r })) },
+      ...branchField(),
       { name: "password", label: "Parol", type: "password", hint: "Ixtiyoriy — Telegram orqali kirish uchun shart emas", autoComplete: "new-password" },
     ],
     submitText: "Qo'shish",
     onSubmit: async (v) => {
-      const r = await call("POST", "users", { ...v, last_name: v.last_name || null, password: v.password || undefined });
+      const r = await call("POST", "users", { ...v, last_name: v.last_name || null, password: v.password || undefined, branch_id: v.branch_id ? Number(v.branch_id) : null });
       if (!r.ok) return errorText(r.data);
       toast.success("Foydalanuvchi qo'shildi", `${v.first_name} · ${v.phone}`);
       router.refresh();
@@ -66,10 +78,12 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
       { name: "first_name", label: "Ism", required: true, defaultValue: u.first_name },
       { name: "last_name", label: "Familiya", defaultValue: u.last_name ?? "" },
       { name: "phone", label: "Telefon", type: "tel", required: true, defaultValue: u.phone },
-      { name: "role", label: "Rol", type: "select", required: true, defaultValue: u.role, options: roles.map((r) => ({ value: r, label: ROLE_LABELS[r] ?? r })) },
+      { name: "role", label: "Rol", type: "select", required: true, defaultValue: u.role, options: roles.map((r) => ({ value: r, label: roleNames[r] ?? r })) },
+      ...branchField(u.branch_id),
     ],
     onSubmit: async (v) => {
       const body: Record<string, unknown> = { first_name: v.first_name, last_name: v.last_name || null, phone: v.phone };
+      if (branches.length) body.branch_id = v.branch_id ? Number(v.branch_id) : null;
       if (v.role !== u.role) body.role = v.role;
       const r = await call("PATCH", `users/${u.id}`, body);
       if (!r.ok) return errorText(r.data);
@@ -102,8 +116,23 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
       const r = await call("POST", `users/${u.id}/children`, { child_id: child.id });
       if (!r.ok) return errorText(r.data);
       toast.success("Farzand bog'landi", personName(child));
+      if (kids?.parent.id === u.id) void openKids(u);
     },
   });
+
+  async function openKids(u: UserRow) {
+    const r = await call<{ data: UserRow[] }>("GET", `users/${u.id}/children`);
+    if (!r.ok) return toast.error("Yuklanmadi", errorText(r.data));
+    setKids({ parent: u, list: r.data.data ?? [] });
+  }
+
+  async function unlinkKid(parent: UserRow, child: UserRow) {
+    if (!(await confirm({ title: "Bog'lanish uzilsinmi?", description: `${personName(child)} endi ${personName(parent)} ga bog'liq bo'lmaydi.`, confirmText: "Uzish", tone: "danger" }))) return;
+    const r = await call("DELETE", `users/${parent.id}/children/${child.id}`);
+    if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
+    toast.success("Bog'lanish uzildi");
+    void openKids(parent);
+  }
 
   async function toggleActive(u: UserRow) {
     setRows((l) => l.map((x) => (x.id === u.id ? { ...x, active: !u.active } : x)));
@@ -124,7 +153,7 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
           label="Rol bo'yicha"
           value={role || "all"}
           onChange={(id) => go({ role: id === "all" ? "" : id, page: "" })}
-          items={[{ id: "all", label: "Barchasi" }, ...roles.map((r) => ({ id: r, label: ROLE_LABELS[r] ?? r }))]}
+          items={[{ id: "all", label: "Barchasi" }, ...roles.map((r) => ({ id: r, label: roleNames[r] ?? r }))]}
         />
         <div style={{ flex: "0 1 320px", minWidth: 220 }}>
           <Input type="search" placeholder="Ism yoki telefon…" aria-label="Qidirish" value={search} onChange={(e) => setSearch(e.target.value)} leading={<Search />} />
@@ -147,7 +176,7 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
                     </span>
                   </Td>
                   <Td className="mono">{u.phone}</Td>
-                  <Td><Badge tone={ROLE_TONE[u.role] ?? "neutral"}>{ROLE_LABELS[u.role] ?? u.role}</Badge></Td>
+                  <Td><Badge tone={ROLE_TONE[u.role] ?? "neutral"}>{roleNames[u.role] ?? u.role}</Badge></Td>
                   <Td>{u.active ? <Badge tone="success" dot>Faol</Badge> : <Badge tone="danger" dot>Bloklangan</Badge>}</Td>
                   <Td actions>
                     {canEdit(u) && (
@@ -156,7 +185,7 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
                         items={[
                           { label: "Tahrirlash", icon: <Pencil />, onSelect: () => edit(u) },
                           { label: "Parol o'rnatish", icon: <KeyRound />, onSelect: () => password(u) },
-                          ...(u.role === "PARENT" ? [{ label: "Farzandni bog'lash", icon: <Link2 />, onSelect: () => linkChild(u) }] : []),
+                          ...(u.role === "PARENT" ? [{ label: "Farzandlari", icon: <UsersIcon />, onSelect: () => openKids(u) }, { label: "Farzandni bog'lash", icon: <Link2 />, onSelect: () => linkChild(u) }] : []),
                           { type: "separator" as const },
                           u.active
                             ? { label: "Bloklash", icon: <ShieldOff />, danger: true, onSelect: () => toggleActive(u) }
@@ -178,6 +207,20 @@ export default function Users({ rows: initialRows, meta, role, q, actorRole, sel
           <Button variant="secondary" size="sm" disabled={meta.page >= meta.pages} onClick={() => go({ page: String(meta.page + 1) })}>Keyingi<ChevronRight size={16} aria-hidden /></Button>
         </nav>
       )}
+      <Dialog open={kids !== null} onClose={() => setKids(null)} title="Farzandlari" description={kids ? personName(kids.parent) : undefined} icon={<UsersIcon />}
+        footer={kids && <Button icon={<Link2 />} onClick={() => linkChild(kids.parent)}>Farzandni bog&apos;lash</Button>}>
+        {kids && (kids.list.length === 0 ? <EmptyState compact icon={<UsersIcon />} title="Bog'langan farzand yo'q" /> : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+            {kids.list.map((c) => (
+              <li key={c.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Avatar name={personName(c)} size={32} />
+                <span style={{ flex: 1 }}><b>{personName(c)}</b><div className="subtle">{c.phone}</div></span>
+                <Button variant="ghost" size="sm" icon={<Unlink />} onClick={() => unlinkKid(kids.parent, c)}>Uzish</Button>
+              </li>
+            ))}
+          </ul>
+        ))}
+      </Dialog>
     </>
   );
 }

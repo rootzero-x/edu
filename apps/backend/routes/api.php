@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::get('/branches', [BranchController::class, 'index']);
         Route::middleware('perm:user.manage')->group(function () {
+            Route::get('/users/{parent}/children', [UserController::class, 'children']);
             Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
             Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
         });

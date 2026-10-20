@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronsUpDown, LogOut, Menu, UserRound } from "lucide-react";
 import { Avatar, Button, Dropdown, cx } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import { logout } from "@/components/LogoutButton";
 import { NAV, ROLE_LABELS } from "./nav";
+import { useSiteSettings } from "@/components/SiteProvider";
+import { obj } from "@/lib/settings";
 import s from "./Shell.module.css";
 
 type User = { first_name: string; last_name: string | null; role: string; phone: string; permissions: string[] };
@@ -15,7 +17,23 @@ type User = { first_name: string; last_name: string | null; role: string; phone:
 export default function Shell({ user, siteName, logoUrl, children }: { user: User; siteName: string; logoUrl?: string; children: ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const sideRef = useRef<HTMLElement>(null);
+  const st = useSiteSettings();
+  const labels = obj<Record<string, string>>(st, "ui.nav_labels");
+  const roles = { ...ROLE_LABELS, ...obj<Record<string, string>>(st, "telegram.role_labels") };
   useEffect(() => setOpen(false), [path]);
+  // Mobil: yopiq tortma klaviatura/ekran o'quvchi uchun ham yopiq (inert); ochilganda fokus ichkariga.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    const sync = () => setMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  useEffect(() => {
+    if (open) sideRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -32,7 +50,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
     const Icon = n.icon;
     return (
       <Link key={n.href} href={n.href} className={s.link} aria-current={isActive(n.href, n.exact) ? "page" : undefined}>
-        <Icon aria-hidden />{n.label}
+        <Icon aria-hidden />{labels[n.href] || n.label}
       </Link>
     );
   };
@@ -42,7 +60,13 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
   return (
     <div className={s.shell}>
       <a href="#content" className="skip-link">Asosiy qismga o&apos;tish</a>
-      <aside className={cx(s.side, open && s.open)} aria-label="Asosiy menyu">
+      <aside
+        ref={sideRef}
+        className={cx(s.side, open && s.open)}
+        aria-label="Asosiy menyu"
+        inert={mobile && !open ? true : undefined}
+        {...(mobile && open ? { role: "dialog", "aria-modal": true } : {})}
+      >
         <Link href="/dashboard" className={s.brand}>
           <span className={s.brandMark} aria-hidden>{logoUrl ? <img src={logoUrl} alt="" /> : siteName.slice(0, 1)}</span>
           <span className={s.brandName}>{siteName}</span>
@@ -61,13 +85,14 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
                 <Avatar name={name} size={34} />
                 <span className={s.userText}>
                   <span className={s.userName}>{name}</span>
-                  <span className={s.userRole}>{ROLE_LABELS[user.role] ?? user.role}</span>
+                  <span className={s.userRole}>{roles[user.role] ?? user.role}</span>
                 </span>
                 <ChevronsUpDown aria-hidden />
               </button>
             )}
             items={[
               { type: "label", label: user.phone },
+              { label: labels["/dashboard/profile"] || "Profil", icon: <UserRound />, onSelect: () => { window.location.href = "/dashboard/profile"; } },
               { type: "separator" },
               { label: "Chiqish", icon: <LogOut />, danger: true, onSelect: logout },
             ]}
@@ -78,12 +103,13 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
       <div className={s.main}>
         <header className={s.topbar}>
           <Button variant="ghost" iconOnly icon={<Menu />} aria-label="Menyuni ochish" aria-expanded={open} className={s.menuBtn} onClick={() => setOpen(true)} />
-          <div className={s.crumb}>{current?.label ?? siteName}</div>
+          <div className={s.crumb}>{current ? labels[current.href] || current.label : siteName}</div>
           <ThemeToggle />
           <Dropdown
             trigger={(p) => <Button variant="ghost" iconOnly aria-label="Profil" icon={<UserRound />} {...p} />}
             items={[
-              { type: "label", label: <>{name}<br />{ROLE_LABELS[user.role] ?? user.role}</> },
+              { type: "label", label: <>{name}<br />{roles[user.role] ?? user.role}</> },
+              { label: labels["/dashboard/profile"] || "Profil", icon: <UserRound />, onSelect: () => { window.location.href = "/dashboard/profile"; } },
               { type: "separator" },
               { label: "Chiqish", icon: <LogOut />, danger: true, onSelect: logout },
             ]}

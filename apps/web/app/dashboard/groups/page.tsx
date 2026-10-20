@@ -16,7 +16,7 @@ export default async function GroupsPage() {
       ? Promise.all([
           api<{ data: { id: number; title: string }[] }>("/v1/courses"),
           api<{ data: { id: number; name: string; active: boolean }[] }>("/v1/branches"),
-          api<{ data: Person[] }>("/v1/users?role=TEACHER"),
+          api<{ data: Person[] }>("/v1/users?role=TEACHER&active=1&per_page=500"),
           api<{ data: Person[] }>("/v1/users?role=ADMIN"),
         ])
       : Promise.resolve(null),

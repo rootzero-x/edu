@@ -13,7 +13,7 @@ export default async function ReportsPage() {
     api<{ data: { id: number; name: string; course_id: number; branch_id: number; teacher_id: number }[] }>("/v1/groups"),
     api<{ data: { id: number; title: string }[] }>("/v1/courses"),
     api<{ data: { id: number; name: string }[] }>("/v1/branches"),
-    manage && user.permissions.includes("user.manage") ? api<{ data: { id: number; first_name: string; last_name: string | null }[] }>("/v1/users?role=TEACHER") : Promise.resolve(null),
+    manage && user.permissions.includes("user.manage") ? api<{ data: { id: number; first_name: string; last_name: string | null }[] }>("/v1/users?role=TEACHER&active=1&per_page=500") : Promise.resolve(null),
   ]);
   const refs: Refs = {
     groups: groups.data.data ?? [],

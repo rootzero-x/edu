@@ -251,7 +251,7 @@ function AddMemberDialog({ open, onClose, memberIds, onAdd }: { open: boolean; o
     if (timer.current) clearTimeout(timer.current);
     const ctrl = new AbortController();
     timer.current = setTimeout(async () => {
-      const r = await call<{ data: Person[] }>("GET", `users?role=STUDENT${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`, undefined, { signal: ctrl.signal }).catch(() => null);
+      const r = await call<{ data: Person[] }>("GET", `users?role=STUDENT&active=1${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`, undefined, { signal: ctrl.signal }).catch(() => null);
       if (r?.ok) setResults(r.data.data ?? []);
     }, 250);
     return () => { ctrl.abort(); if (timer.current) clearTimeout(timer.current); };

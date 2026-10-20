@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, ExternalLink, FileText, Link2, PlayCircle } from "lucide-react";
-import { api, publicSettings } from "@/lib/api";
+import { api, me, publicSettings } from "@/lib/api";
+import { LessonActions, MaterialActions } from "./LessonManage";
 import { list } from "@/lib/settings";
 import { embedUrl } from "@/lib/embed";
 import AccessDenied, { isDenial, type Denial } from "@/components/AccessDenied";
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [r, st] = await Promise.all([api<Res | Denial>(`/v1/lessons/${id}`), publicSettings()]);
+  const [r, st, user] = await Promise.all([api<Res | Denial>(`/v1/lessons/${id}`), publicSettings(), me()]);
+  const manage = Boolean(user?.permissions.includes("course.manage"));
   if (r.status === 403 && isDenial(r.data)) {
     const d = r.data;
     return (
@@ -45,7 +47,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         back={{ href: `/dashboard/courses/${course.id}`, label: course.title }}
         title={lesson.title}
         description={lesson.module.title}
-        badge={nav.index ? <Badge>{nav.index}/{nav.total}</Badge> : undefined}
+        badge={<>{nav.index ? <Badge>{nav.index}/{nav.total}</Badge> : null}{manage && !lesson.published ? <Badge tone="warning">Qoralama</Badge> : null}</>}
+        actions={manage ? <LessonActions lessonId={lesson.id} title={lesson.title} body={lesson.body} /> : undefined}
       />
       {lesson.body && (
         <Card>
@@ -53,14 +56,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
       {lesson.materials.length === 0 && !lesson.body && (
-        <Card><EmptyState icon={<FileText />} title="Materiallar hali qo'shilmagan" /></Card>
+        <Card><EmptyState icon={<FileText />} title="Materiallar hali qo'shilmagan">{manage ? "Yuqoridagi «Material» tugmasi orqali video, fayl yoki matn qo'shing." : null}</EmptyState></Card>
       )}
       <div className={s.materials}>
         {lesson.materials.map((m) => {
           const embed = m.type === "VIDEO" && m.url ? embedUrl(m.url, hosts) : null;
           return (
             <Card key={m.id}>
-              <CardHeader as="h3" title={<span className={s.mTitle}>{icon(m.type)} {m.title}</span>} />
+              <CardHeader as="h3" title={<span className={s.mTitle}>{icon(m.type)} {m.title}</span>} actions={manage ? <MaterialActions material={m} /> : undefined} />
               <CardBody>
                 {embed ? (
                   <div className={s.video}>

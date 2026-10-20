@@ -30,7 +30,9 @@ export default function TgLesson() {
                 <Section key={v.id} title={v.title}>
                   {yt
                     ? <iframe className="tg-video" src={yt} allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen title={v.title} />
-                    : <video className="tg-video" src={v.url!} controls playsInline preload="metadata" />}
+                    : /\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(v.url!)
+                      ? <video className="tg-video" src={v.url!} controls playsInline preload="metadata" />
+                      : <Row icon="🎬" title={v.title} onClick={() => openLink(v.url!)} />}
                 </Section>
               );
             })}

@@ -5,7 +5,8 @@ import { api, me, publicSettings } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
 import { timezone } from "@/lib/settings";
 import AccessDenied, { isDenial, type Denial } from "@/components/AccessDenied";
-import { Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
+import StartQuiz from "./StartQuiz";
+import { Badge, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
 
 type Attempt = { id: number; submitted_at: string | null; score: number | null; max_score: number | null; percent: number | null; passed: boolean | null };
 type Res = {
@@ -45,7 +46,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         title={quiz.title}
         badge={quiz.is_final ? <Badge tone="accent">Yakuniy test</Badge> : undefined}
         actions={can_take && (open || left > 0)
-          ? <ButtonLink href={`/dashboard/quizzes/${id}/take`} icon={<ClipboardCheck />}>{open ? "Davom ettirish" : "Testni boshlash"}</ButtonLink>
+          ? <StartQuiz quizId={quiz.id} resume={Boolean(open)} left={left} minutes={quiz.time_limit_sec ? Math.round(quiz.time_limit_sec / 60) : null} />
           : undefined}
       />
       <div className="stats-grid">

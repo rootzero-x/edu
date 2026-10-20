@@ -22,16 +22,22 @@ export const tgCookieOptions = {
 /** Mini App tokeni bilan API chaqiruvi. */
 export async function tgApi<T>(path: string, init: RequestInit = {}, token?: string): Promise<{ status: number; data: T }> {
   const t = token ?? (await cookies()).get(TG_TOKEN_COOKIE)?.value;
-  const res = await fetch(`${API_URL}${path}`, {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
     ...init,
     cache: "no-store",
+    signal: init.signal ?? AbortSignal.timeout(15000),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...(t ? { Authorization: `Bearer ${t}` } : {}),
       ...(init.headers ?? {}),
     },
-  });
+    });
+  } catch {
+    return { status: 503, data: { message: "API bilan aloqa yo'q." } as T };
+  }
   const data = (await res.json().catch(() => ({}))) as T;
   return { status: res.status, data };
 }

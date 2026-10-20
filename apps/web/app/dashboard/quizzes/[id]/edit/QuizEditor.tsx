@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, ClipboardList, Plus, Save, Trash2, Trophy } from "lucide-react";
+import { CheckCircle2, Circle, ClipboardList, MoreHorizontal, Pencil, Plus, Save, Trash2, Trophy } from "lucide-react";
 import {
-  Badge, Button, Card, CardBody, CardHeader, Checkbox, EmptyState, Field, Input, PageHeader, Select, Switch, Table, Td, Textarea, Th,
-  useConfirm, useToast,
+  Badge, Button, Card, CardBody, CardHeader, Checkbox, Dropdown, EmptyState, Field, Input, PageHeader, Select, Switch, Table, Td, Textarea, Th,
+  useConfirm, usePrompt, useToast,
 } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
 import s from "./editor.module.css";
@@ -19,6 +19,7 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
+  const prompt = usePrompt();
   const [busy, setBusy] = useState<string | null>(null);
   const [nq, setNq] = useState({ type: "SINGLE", text: "", points: 1, accepted: "" });
   const [opts, setOpts] = useState<Opt[]>(blankOpts);
@@ -56,6 +57,37 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
     }
   }
 
+  /** Savolni tahrirlash: variantlar har qatorda, to'g'ri javob oldida «*». */
+  const editQuestion = (q: any) => prompt({
+    title: `${typeLabel(q.type)} savol`,
+    fields: [
+      { name: "text", label: "Savol matni", type: "textarea", required: true, defaultValue: q.text },
+      { name: "points", label: "Ball", type: "number", required: true, defaultValue: String(q.points) },
+      q.type === "TEXT"
+        ? { name: "answers", label: "Qabul qilinadigan javoblar", type: "textarea", required: true, defaultValue: (q.accepted_answers ?? []).join("\n"), hint: "Har biri yangi qatorda" }
+        : { name: "answers", label: "Variantlar", type: "textarea", required: true, defaultValue: q.options.map((o: any) => `${o.is_correct ? "*" : ""}${o.text}`).join("\n"), hint: "Har biri yangi qatorda; to'g'ri javob(lar) oldiga * qo'ying" },
+    ],
+    submitText: "Saqlash",
+    onSubmit: async (v) => {
+      const lines = v.answers.split("\n").map((x: string) => x.trim()).filter(Boolean);
+      const body: Record<string, unknown> = { text: v.text, points: Number(v.points) || 1 };
+      if (q.type === "TEXT") body.accepted_answers = lines;
+      else body.options = lines.map((l: string) => ({ text: l.replace(/^\*\s*/, ""), is_correct: l.startsWith("*") }));
+      const r = await call("PATCH", `questions/${q.id}`, body);
+      if (!r.ok) return errorText(r.data);
+      toast.success("Savol saqlandi");
+      router.refresh();
+    },
+  });
+
+  async function deleteQuiz() {
+    if (!(await confirm({ title: "Test o'chirilsinmi?", description: `«${quiz.title}» va uning savollari o'chiriladi. Topshirganlar bo'lsa, o'chirib bo'lmaydi — yashiring.`, confirmText: "O'chirish", tone: "danger" }))) return;
+    const r = await call("DELETE", `quizzes/${quiz.id}`);
+    if (!r.ok) return toast.error("O'chirilmadi", errorText(r.data));
+    toast.success("Test o'chirildi");
+    router.push(`/dashboard/courses/${quiz.course.id}`);
+  }
+
   const totalPoints = quiz.questions.reduce((n: number, q: any) => n + q.points, 0);
 
   return (
@@ -66,8 +98,14 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
         description={`${quiz.questions.length} savol · ${totalPoints} ball`}
         badge={quiz.published ? <Badge tone="success" dot>E&apos;lon qilingan</Badge> : <Badge tone="warning" dot>Yashirin</Badge>}
         actions={
-          <Switch label="E'lon qilish" checked={quiz.published}
-            onChange={(e) => run("pub", "PATCH", `quizzes/${quiz.id}`, { published: e.target.checked }, e.target.checked ? "Test e'lon qilindi" : "Test yashirildi")} />
+          <>
+            <Switch label="E'lon qilish" checked={quiz.published}
+              onChange={(e) => run("pub", "PATCH", `quizzes/${quiz.id}`, { published: e.target.checked }, e.target.checked ? "Test e'lon qilindi" : "Test yashirildi")} />
+            <Dropdown
+              trigger={(p) => <Button variant="ghost" iconOnly aria-label="Test amallari" icon={<MoreHorizontal />} {...p} />}
+              items={[{ label: "Testni o'chirish", icon: <Trash2 />, danger: true, onSelect: deleteQuiz }]}
+            />
+          </>
         }
       />
 
@@ -107,6 +145,7 @@ export default function QuizEditor({ quiz, results }: { quiz: any; results: any[
                 <span className={s.qMeta}>
                   <Badge>{typeLabel(q.type)}</Badge>
                   <Badge tone="accent">{q.points} ball</Badge>
+                  <Button variant="ghost" size="sm" iconOnly aria-label="Savolni tahrirlash" icon={<Pencil />} onClick={() => editQuestion(q)} />
                   <Button variant="ghost" size="sm" iconOnly aria-label="Savolni o'chirish" icon={<Trash2 />} loading={busy === `del${q.id}`} onClick={() => removeQuestion(q)} />
                 </span>
               </div>
