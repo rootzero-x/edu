@@ -35,3 +35,6 @@ button.tisu-status.accent:checked  { background: @accent_bg_color; color: @accen
 
 /* Telegram sign-in QR: rounded white tile, readable in dark mode too. */
 .tisu-qr { border-radius: 12px; box-shadow: 0 0 0 1px alpha(@window_fg_color, 0.1); }
+
+.tisu-certificate { padding: 28px 24px; }
+.tisu-textarea { background: transparent; }

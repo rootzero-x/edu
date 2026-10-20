@@ -273,4 +273,4 @@ class LoginView(Adw.Bin):
         if bot:
             self.win.open_uri(f"https://t.me/{bot}")
         else:
-            self.win.open_uri(self.s.web_url + "/login")
+            self.win.toast("Telegram bot sozlanmagan — administratorga murojaat qiling.")

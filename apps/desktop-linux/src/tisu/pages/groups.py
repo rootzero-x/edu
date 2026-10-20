@@ -3,7 +3,12 @@
 from gi.repository import Adw, GLib, Gtk
 
 from .. import fmt
-from ..widgets import Page, group, join, label, link_row, pill, prefs_page, row, status_css, text_button
+from ..forms import confirm, form, pick
+from ..schedule import ScheduleEditor
+from ..widgets import (Page, done_toast, group, icon_button, join, label, menu_button, pill, prefs_page, row, status_css,
+                       text_button)
+from .certificates import CertificateDetailPage, revoke_certificate
+from .users import search_students
 
 STATUSES = ["PRESENT", "LATE", "ABSENT", "EXCUSED"]
 
@@ -20,6 +25,14 @@ def schedule_text(schedules):
 class GroupsPage(Page):
     def __init__(self, win):
         super().__init__(win, win.public.nav_label("/dashboard/groups", "Guruhlar"))
+        if win.has("group.manage"):
+            self.header.pack_start(icon_button("list-add-symbolic", "Yangi guruh", lambda: group_form(self, None, self._created),
+                                               css=()))
+
+    def _created(self, g):
+        self.reload()
+        if g:
+            self.push(GroupPage(self.win, g["id"], g["name"], on_changed=self.reload))
 
     def fetch(self, done):
         self.api.get("groups", done)
@@ -27,7 +40,11 @@ class GroupsPage(Page):
     def render(self, data):
         groups = data.get("data") or []
         if not groups:
-            self.show_empty("tisu-people-symbolic", "Guruhlar yo'q", "Siz hali birorta guruhga biriktirilmagansiz.")
+            if self.win.has("group.manage"):
+                self.show_status("tisu-people-symbolic", "Guruhlar yo'q", "Birinchi guruhni yarating.", "Yangi guruh",
+                                 lambda: group_form(self, None, self._created))
+            else:
+                self.show_empty("tisu-people-symbolic", "Guruhlar yo'q", "Siz hali birorta guruhga biriktirilmagansiz.")
             return None
         active = group("Faol guruhlar")
         inactive = group("Yakunlangan / nofaol")
@@ -37,15 +54,91 @@ class GroupsPage(Page):
                      f"{g.get('students_count', 0)} {students_word}", schedule_text(g.get("schedules"))]
             target = active if g.get("active") else inactive
             target.add(row(g["name"], " · ".join(p for p in parts if p and p != "—"), icon="tisu-people-symbolic",
-                           on_activate=lambda g=g: self.push(GroupPage(self.win, g["id"], g["name"]))))
-        return prefs_page(active if active.get_first_child() else None,
+                           on_activate=lambda g=g: self.push(GroupPage(self.win, g["id"], g["name"], on_changed=self.reload))))
+        return prefs_page(active if any(g.get("active") for g in groups) else None,
                           inactive if any(not g.get("active") for g in groups) else None)
 
 
+def group_form(page, g, on_done):
+    """Create (g=None) or edit a group, then (re)generate its lessons from the schedule."""
+    win, api = page.win, page.api
+
+    def open_with(courses, teachers):
+        cur = g or {}
+        teacher_opts = [(t["id"], fmt.name(t)) for t in teachers]
+        if cur.get("teacher") and cur["teacher"]["id"] not in [t[0] for t in teacher_opts]:
+            teacher_opts.insert(0, (cur["teacher"]["id"], fmt.name(cur["teacher"])))
+        editor = ScheduleEditor(cur.get("schedules"), min_rows=0 if g else 1)
+        fields = [{"name": "name", "label": "Guruh nomi", "value": cur.get("name"), "required": True}]
+        if g is None:
+            fields.append({"name": "course_id", "label": "Kurs", "type": "choice",
+                           "options": [(c["id"], c["title"]) for c in courses]})
+        fields += [
+            {"name": "teacher_id", "label": "O'qituvchi", "type": "choice", "options": teacher_opts,
+             "value": (cur.get("teacher") or {}).get("id") or cur.get("teacher_id")},
+            {"name": "room", "label": "Xona (ixtiyoriy)", "value": cur.get("room")},
+        ]
+        if g is None:
+            fields.append({"name": "start_date", "label": "Boshlanish sanasi (YYYY-MM-DD)", "type": "date",
+                           "value": fmt.now().format("%Y-%m-%d"), "required": True})
+        fields += [
+            {"name": "end_date", "label": "Tugash sanasi (YYYY-MM-DD, ixtiyoriy)", "type": "date",
+             "value": (cur.get("end_date") or "")[:10]},
+            {"name": "schedules", "label": "Haftalik jadval", "type": "widget", "widget": editor, "get": editor.value},
+        ]
+
+        def submit(v, done):
+            if not v.get("teacher_id"):
+                done(ValueError("O'qituvchini tanlang."))
+                return
+            body = {"name": v["name"], "teacher_id": v["teacher_id"], "room": v["room"] or None,
+                    "end_date": v["end_date"] or None, "schedules": v["schedules"]}
+            if g is None:
+                if not v.get("course_id"):
+                    done(ValueError("Kursni tanlang."))
+                    return
+                body.update(course_id=v["course_id"], start_date=v["start_date"])
+
+            def saved(data, err):
+                if err:
+                    done(err)
+                    return
+                grp = data.get("group") or {}
+
+                def generated(gen, gerr):
+                    done(None)
+                    created = (gen or {}).get("created")
+                    win.toast("Saqlandi" + (f". Yangi darslar: {created}" if created else "") if not gerr
+                              else f"Saqlandi, lekin darslar yaratilmadi: {gerr.message}", timeout=5)
+                    on_done(grp)
+
+                api.post(f"groups/{grp.get('id', (g or {}).get('id'))}/sessions/generate", {}, generated)
+
+            if g is None:
+                api.post("groups", body, saved)
+            else:
+                api.patch(f"groups/{g['id']}", body, saved)
+
+        form(win, "Guruhni tahrirlash" if g else "Yangi guruh", fields, submit,
+             submit_label="Saqlash" if g else "Yaratish", width=560)
+
+    cb = join(lambda res, err: win.toast(err.message) if err else open_with((res["courses"] or {}).get("data") or [],
+                                                                            (res["teachers"] or {}).get("data") or []),
+              ["courses", "teachers"])
+    api.get("courses", cb("courses"))
+    api.get("groups/teachers", cb("teachers"))
+
+
 class GroupPage(Page):
-    def __init__(self, win, group_id, name):
+    def __init__(self, win, group_id, name, on_changed=None):
         super().__init__(win, name)
         self.group_id = group_id
+        self.on_changed = on_changed
+
+    def changed(self, *_):
+        self.reload()
+        if self.on_changed:
+            self.on_changed()
 
     def fetch(self, done):
         today = fmt.now()
@@ -57,7 +150,8 @@ class GroupPage(Page):
 
     def render(self, data):
         s = self.settings
-        g = data["group"]["group"]
+        g = self.group = data["group"]["group"]
+        manage = self.win.has("group.manage")
         self.set_title(g["name"])
 
         info = group("Ma'lumot")
@@ -65,8 +159,6 @@ class GroupPage(Page):
         info.add(row(s.text("teacher", "O'qituvchi"), fmt.name(teacher) + (f" · {teacher['phone']}" if teacher.get("phone") else "")))
         if g.get("course"):
             info.add(row("Kurs", g["course"]["title"]))
-        if g.get("branch"):
-            info.add(row("Filial", g["branch"]["name"]))
         if g.get("room"):
             info.add(row(s.text("room", "Xona"), g["room"]))
         dates = fmt.date(g.get("start_date")) + (f" — {fmt.date(g['end_date'])}" if g.get("end_date") else "")
@@ -74,9 +166,22 @@ class GroupPage(Page):
         sch = schedule_text(g.get("schedules"))
         if sch:
             info.add(row(s.text("weekly", "Haftalik jadval"), sch))
-        if self.win.has("group.manage"):
-            info.add(link_row("Sertifikatlar va boshqaruv", "Saytdagi boshqaruv panelida ochiladi",
-                              lambda: self.win.open_web(f"/dashboard/groups/{g['id']}"), icon="tisu-award-symbolic"))
+        if not g.get("active", True):
+            info.add(row("Guruh yopilgan", None, icon="dialog-information-symbolic"))
+        groups_ = [info]
+
+        if manage:
+            mg = group("Boshqarish")
+            mg.add(row("Guruhni tahrirlash", "Nomi, o'qituvchi, xona, tugash sanasi, jadval", icon="document-edit-symbolic",
+                       on_activate=lambda: group_form(self, g, lambda _g: self.changed())))
+            mg.add(row("Darslarni jadvaldan yaratish", "Yetishmayotgan darslar qo'shiladi (dublikat bo'lmaydi)",
+                       icon="x-office-calendar-symbolic", on_activate=self.generate))
+            mg.add(row("Sertifikatlar", "Shartlarni tekshirish, berish va bekor qilish", icon="tisu-award-symbolic",
+                       on_activate=lambda: self.push(GroupCertificatesPage(self.win, g))))
+            mg.add(row("Guruhni yopish" if g.get("active", True) else "Guruhni qayta ochish", None,
+                       icon="action-unavailable-symbolic" if g.get("active", True) else "object-select-symbolic",
+                       on_activate=self.toggle_active))
+            groups_.append(mg)
 
         sessions = data["sessions"].get("data") or []
         past = [x for x in sessions if fmt.is_past(x["starts_at"])]
@@ -88,31 +193,138 @@ class GroupPage(Page):
             soon.add(self._session_row(x, g, students_count))
         if not upcoming:
             soon.add(row(s.text("schedule_empty", "Yaqin kunlarda dars yo'q."), icon="x-office-calendar-symbolic"))
-        recent = group("O'tgan darslar")
-        for x in list(reversed(past))[:8]:
-            recent.add(self._session_row(x, g, students_count))
+        groups_.append(soon)
+        if past:
+            recent = group("O'tgan darslar")
+            for x in list(reversed(past))[:8]:
+                recent.add(self._session_row(x, g, students_count))
+            groups_.append(recent)
 
-        students = group(f"O'quvchilar ({students_count})" if self.win.has("attendance.mark") else s.text("attendance_rate", "Davomat"))
+        add = text_button("O'quvchi qo'shish", self.add_member, css=("flat",), icon="list-add-symbolic") if manage else None
+        students = group(f"O'quvchilar ({students_count})" if self.win.has("attendance.mark") else s.text("attendance_rate", "Davomat"),
+                         suffix=add)
         phones = {st["id"]: st.get("phone") for st in g.get("students") or []}
         report = (data.get("report") or {}).get("data") or []
-        if report:
-            for r in report:
-                c = r.get("counts", {})
-                sub = " · ".join(f"{s.status_label(k)} {c.get(k, 0)}" for k in STATUSES)
-                if phones.get(r["student_id"]):
-                    sub = f"{phones[r['student_id']]} · {sub}"
+        people = report or [{"student_id": st["id"], "name": fmt.name(st)} for st in g.get("students") or []]
+        for r in people:
+            c = r.get("counts")
+            sub = " · ".join(f"{s.status_label(k)} {c.get(k, 0)}" for k in STATUSES) if c else None
+            if phones.get(r["student_id"]):
+                sub = f"{phones[r['student_id']]} · {sub}" if sub else phones[r["student_id"]]
+            suffix = []
+            if "rate" in r:
                 rate = r.get("rate")
-                students.add(row(r["name"], sub, icon="avatar-default-symbolic",
-                                 suffix=pill(fmt.percent(rate), "success" if (rate or 0) >= 80 else "warning" if (rate or 0) >= 60 else "error")))
-        else:
-            for st in g.get("students") or []:
-                students.add(row(fmt.name(st), st.get("phone"), icon="avatar-default-symbolic"))
-            if not g.get("students"):
-                students.add(row(s.text("sheet_empty", "Guruhda o'quvchi yo'q."), icon="avatar-default-symbolic"))
-        return prefs_page(info, soon, recent if past else None, students)
+                suffix.append(pill(fmt.percent(rate), "success" if (rate or 0) >= 80 else "warning" if (rate or 0) >= 60 else "error"))
+            if manage:
+                suffix.append(icon_button("list-remove-symbolic", "Guruhdan chiqarish", lambda r=r: self.remove_member(r)))
+            students.add(row(r["name"], sub, icon="avatar-default-symbolic", suffix=suffix))
+        if not people:
+            students.add(row(s.text("sheet_empty", "Guruhda o'quvchi yo'q."), icon="avatar-default-symbolic"))
+        groups_.append(students)
+        return prefs_page(*groups_)
 
     def _session_row(self, x, g, students_count):
         return session_row(self, x, g["name"], students_count, on_saved=self.reload)
+
+    # ── Management ───────────────────────────────────────────
+    def generate(self):
+        def ok(data, err):
+            if err:
+                self.win.toast(err.message, timeout=6)
+                return
+            n = data.get("created", 0)
+            self.win.toast(f"Yangi darslar: {n}" + (f" ({fmt.date(data['from'])} — {fmt.date(data['to'])})" if data.get("from") else ""))
+            self.changed()
+
+        self.api.post(f"groups/{self.group_id}/sessions/generate", {}, ok)
+
+    def toggle_active(self):
+        active = self.group.get("active", True)
+        do = lambda: self.api.patch(f"groups/{self.group_id}", {"active": not active},  # noqa: E731
+                                    done_toast(self.win, "Guruh yopildi" if active else "Guruh qayta ochildi", self.changed))
+        if active:
+            confirm(self.win, "Guruh yopilsinmi?", "Yopilgan guruh uchun yangi darslar va to'lov hisoblanmaydi.", "Yopish", do)
+        else:
+            do()
+
+    def add_member(self):
+        existing = {st["id"] for st in self.group.get("students") or []}
+
+        def picked(student_id, title):
+            self.api.post(f"groups/{self.group_id}/members", {"student_id": student_id},
+                          done_toast(self.win, f"{title} guruhga qo'shildi", self.changed))
+
+        pick(self.win, "O'quvchi qo'shish", lambda q, done: search_students(self.api, q, done, exclude=existing), picked,
+             placeholder="O'quvchi ismi yoki telefoni")
+
+    def remove_member(self, r):
+        confirm(self.win, "Guruhdan chiqarilsinmi?", f"{r['name']} guruhdan chiqariladi (davomat tarixi saqlanadi).", "Chiqarish",
+                lambda: self.api.delete(f"groups/{self.group_id}/members/{r['student_id']}",
+                                        done_toast(self.win, "Guruhdan chiqarildi", self.changed)))
+
+
+BLOCKERS = {
+    "NO_ATTENDANCE_DATA": "davomat ma'lumoti yetarli emas",
+    "LOW_ATTENDANCE": "davomat past",
+    "QUIZ_NOT_PASSED": "yakuniy testdan o'tmagan",
+}
+
+
+class GroupCertificatesPage(Page):
+    def __init__(self, win, g):
+        super().__init__(win, f"{g['name']} — sertifikatlar")
+        self.g = g
+        self.issue_button = Gtk.Button(label="Sertifikat berish", sensitive=False)
+        self.issue_button.add_css_class("suggested-action")
+        self.issue_button.connect("clicked", lambda *_: self.issue())
+        self.header.pack_end(self.issue_button)
+        self.rows_data = []
+
+    def fetch(self, done):
+        self.api.get(f"groups/{self.g['id']}/certificates", done)
+
+    def render(self, data):
+        self.rows_data = data.get("data") or []
+        ready = [r for r in self.rows_data if not r.get("certificate") and not r.get("blockers")]
+        self.issue_button.set_sensitive(bool(ready))
+        self.issue_button.set_label(f"Sertifikat berish ({len(ready)})" if ready else "Sertifikat berish")
+        if not self.rows_data:
+            self.show_empty("tisu-award-symbolic", "Guruhda o'quvchi yo'q")
+            return None
+        g = group(None, f"Tayyor: {len(ready)} · berilgan: {sum(1 for r in self.rows_data if r.get('certificate'))}")
+        for r in self.rows_data:
+            bits = [f"davomat {fmt.percent(r.get('attendance_rate'))}", f"{r.get('marked_sessions', 0)} dars belgilangan",
+                    "yakuniy test: o'tdi" if r.get("final_quiz_passed") else "yakuniy test: o'tmagan"]
+            if r.get("blockers"):
+                bits.append("Sabab: " + ", ".join(BLOCKERS.get(b, b) for b in r["blockers"]))
+            if r.get("certificate"):
+                code = r["certificate"]
+                suffix = [pill(code, "success"), menu_button([
+                    ("Ko'rish", lambda c=code: self.push(CertificateDetailPage(self.win, c))),
+                    ("Bekor qilish", lambda c=code: revoke_certificate(self, c, self.reload), True),
+                ])]
+            elif r.get("blockers"):
+                suffix = [pill("shart bajarilmagan", "warning")]
+            else:
+                suffix = [pill("tayyor", "accent")]
+            g.add(row(r["name"], " · ".join(bits), icon="avatar-default-symbolic", suffix=suffix))
+        return prefs_page(g)
+
+    def issue(self):
+        ready = [r for r in self.rows_data if not r.get("certificate") and not r.get("blockers")]
+
+        def yes():
+            def ok(data, err):
+                if err:
+                    self.win.toast(err.message, timeout=6)
+                    return
+                self.win.toast(f"Berildi: {len(data.get('issued') or [])} ta sertifikat")
+                self.reload()
+
+            self.api.post(f"groups/{self.g['id']}/certificates", {}, ok)
+
+        confirm(self.win, "Sertifikatlar berilsinmi?", f"{len(ready)} ta o'quvchiga sertifikat beriladi va Telegram orqali xabar yuboriladi.",
+                "Berish", yes, destructive=False)
 
 
 def session_row(page, x, group_name, students_count, on_saved=None):
@@ -205,6 +417,13 @@ class SessionSheetPage(Page):
         self.save_button.set_visible(self.can_edit)
         self.save_button.set_sensitive(False)
         self._history_button.set_visible(self.win.has("attendance.mark"))
+        if self.win.has("attendance.mark"):
+            if getattr(self, "_menu", None) is not None:
+                self.header.remove(self._menu)
+            cancelled = bool(sess.get("cancelled"))
+            self._menu = menu_button([("Darsni tiklash" if cancelled else "Darsni bekor qilish",
+                                       lambda: self.set_cancelled(not cancelled), not cancelled)], tooltip="Dars amallari")
+            self.header.pack_end(self._menu)
 
         groups_ = []
         notes = []
@@ -373,6 +592,25 @@ class SessionSheetPage(Page):
                 self.on_saved()
 
         self.api.put(f"sessions/{self.session_id}/attendance", body, done)
+
+    def set_cancelled(self, cancelled):
+        def do():
+            def ok(_d, err):
+                if err:
+                    self.win.toast(err.message, timeout=6)
+                    return
+                self.win.toast("Dars bekor qilindi" if cancelled else "Dars tiklandi")
+                self.reload()
+                if self.on_saved:
+                    self.on_saved()
+
+            self.api.patch(f"sessions/{self.session_id}", {"cancelled": cancelled}, ok)
+
+        if cancelled:
+            confirm(self.win, "Dars bekor qilinsinmi?", "Bekor qilingan dars davomat va hisobotlarda hisobga olinmaydi.",
+                    "Bekor qilish", do)
+        else:
+            do()
 
     def save_topic(self):
         text = self.topic.get_text().strip()

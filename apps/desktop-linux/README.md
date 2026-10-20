@@ -35,7 +35,14 @@ asynchronous without threads and the UI never blocks.
 | Certificates | List; opens the public verification page, copy link | everyone (scoped by API) |
 | Reports | Period + group filter, overview, attendance by group, students at risk, quizzes; **CSV export** to a file | `report.view` |
 | Profile | Name editing, Telegram link status, change / set password, sign out | everyone |
-| Administration | Users, branches, settings, course/quiz/announcement editing and certificate issuing **open the web dashboard** in the browser | `user.manage`, `settings.manage`, … |
+| Billing | Balances / debtors with filters, payment and adjustment entry (de-duplicated), voiding with reason, per-student ledger and monthly summary, income report, CSV exports; students and parents see their own balance | `billing.manage` / own |
+| Users | Search, role filter, create, edit (name, phone, role), set password, block / unblock, link / unlink a parent's children | `user.manage` |
+| Settings | All platform settings by group with search, typed editors (switch, number, text, colour, list, key/value, JSON), role × permission matrix, unsaved draft, reset to default | `settings.manage` |
+| Content editing | Courses (create, edit, publish, delete), modules, lessons, materials (video / file / link / text), quizzes and questions, announcements (drafts, audience, publish / hide), groups (create, edit, weekly schedule, lessons generation, members, close), certificates (eligibility, issue, revoke), cancelling a lesson | authors / `course.manage`, `quiz.manage`, `announcement.manage`, `group.manage`, `attendance.mark` |
+
+Lesson materials (YouTube videos, links, files) open **inside the app** with WebKitGTK 6
+(`gir1.2-webkit-6.0`, pulled in by the .deb as a recommended package and included in the GNOME Flatpak runtime);
+without it they fall back to the browser. Certificates open as an in-app page with a verification QR code.
 
 All business texts (login texts, status labels, nav labels, Mini App texts, access-denied
 message, timezone, refresh interval, …) are read from `GET /v1/public/settings` and cached in
@@ -125,8 +132,7 @@ tests/               unit tests
 tools/run-dev.sh     run from the source tree
 ```
 
-## Not included yet
+## What still leaves the app
 
-- Admin CRUD screens (users, branches, settings, course/quiz editors, issuing certificates) —
-  these open the web dashboard.
-- Linking a parent's children (needs `user.manage` on the API).
+- Nothing opens the web dashboard any more. Only Telegram links (the sign-in bot, the
+  "contact" button of a locked course) leave the app, because they open Telegram itself.

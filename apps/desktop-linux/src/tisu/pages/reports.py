@@ -1,8 +1,9 @@
 """Reports (report.view): overview, attendance by group, students at risk, quizzes; CSV export."""
 
-from gi.repository import Adw, Gio, GLib, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from .. import fmt
+from ..csvexport import save_csv
 from ..widgets import Page, group, join, pill, prefs_page, row, stat_card
 
 STATUSES = ["PRESENT", "LATE", "ABSENT", "EXCUSED"]
@@ -143,43 +144,8 @@ class ReportsPage(Page):
     # ── CSV ──────────────────────────────────────────────────
     def export_csv(self):
         q = self.query()
-        default = f"davomat_{q['from'].replace('-', '')}_{q['to'].replace('-', '')}.csv"
-        dialog = Gtk.FileDialog(title="CSV faylni saqlash", initial_name=default)
-        f = Gtk.FileFilter(name="CSV (Excel)")
-        f.add_pattern("*.csv")
-        filters = Gio.ListStore.new(Gtk.FileFilter)
-        filters.append(f)
-        dialog.set_filters(filters)
-
-        def chosen(dlg, result):
-            try:
-                file = dlg.save_finish(result)
-            except GLib.Error:
-                return  # cancelled
-            self.csv_button.set_sensitive(False)
-            self.api.get("reports/attendance.csv", lambda data, err: self._write_csv(file, data, err), query=q, raw=True)
-
-        dialog.save(self.win, None, chosen)
-
-    def _write_csv(self, file, data, err):
-        if err:
-            self.csv_button.set_sensitive(True)
-            self.win.toast(err.message, timeout=5)
-            return
-
-        def written(f, result, _d):
-            self.csv_button.set_sensitive(True)
-            try:
-                f.replace_contents_finish(result)
-            except GLib.Error as e:
-                self.win.toast(f"Faylni yozib bo'lmadi: {e.message}", timeout=5)
-                return
-            toast = Adw.Toast(title=GLib.markup_escape_text(f"Saqlandi: {f.get_basename()}"), button_label="Ochish", timeout=5)
-            toast.connect("button-clicked", lambda *_: Gtk.FileLauncher.new(f).launch(self.win, None, None, None))
-            self.win.toasts.add_toast(toast)
-
-        file.replace_contents_bytes_async(GLib.Bytes.new(data["bytes"]), None, False,
-                                          Gio.FileCreateFlags.REPLACE_DESTINATION, None, written, None)
+        save_csv(self.win, self.api, "reports/attendance.csv", q,
+                 f"davomat_{q['from'].replace('-', '')}_{q['to'].replace('-', '')}.csv", self.csv_button)
 
 
 def _rate_pill(rate, prefix=""):

@@ -114,3 +114,11 @@ def duration(seconds):
     h, rem = divmod(seconds, 3600)
     m, s = divmod(rem, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def money(amount, currency="so'm"):
+    """1234500 → "1 234 500 so'm" (negative keeps its sign)."""
+    if amount is None:
+        return "—"
+    a = int(amount)
+    return ("-" if a < 0 else "") + f"{abs(a):,}".replace(",", " ") + (f" {currency}" if currency else "")
