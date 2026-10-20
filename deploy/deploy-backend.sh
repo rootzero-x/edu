@@ -52,22 +52,28 @@ echo "→ upload $REL"
 set -euo pipefail
 cd $REMOTE_DIR
 PHP=$PHP_BIN
-umask 077; mkdir -p ~/tisu-backups && chmod 700 ~/tisu-backups
+# Zaxiralar maxfiy (700/600). umask faqat shu katalog uchun — kod fayllariga ta'sir qilmasin.
+mkdir -p ~/tisu-backups && chmod 700 ~/tisu-backups
 # 1) Zaxira: kod va baza
-tar --exclude=./storage/logs -czf ~/tisu-backups/code-$REL.tgz . 2>/dev/null || true
+(umask 077; tar --exclude=./storage/logs -czf ~/tisu-backups/code-$REL.tgz . 2>/dev/null) || true
 DB_HOST=\$(grep -E '^DB_HOST=' .env | cut -d= -f2-); DB_DATABASE=\$(grep -E '^DB_DATABASE=' .env | cut -d= -f2-)
 DB_USERNAME=\$(grep -E '^DB_USERNAME=' .env | cut -d= -f2-); DB_PASSWORD=\$(grep -E '^DB_PASSWORD=' .env | cut -d= -f2-)
 case "\$DB_PASSWORD" in \'*\') DB_PASSWORD=\${DB_PASSWORD:1:-1};; \"*\") DB_PASSWORD=\${DB_PASSWORD:1:-1};; esac
 if command -v mysqldump >/dev/null; then
   MYSQL_PWD="\$DB_PASSWORD" mysqldump --single-transaction --no-tablespaces -h"\${DB_HOST:-localhost}" -u"\$DB_USERNAME" "\$DB_DATABASE" 2>/dev/null \
-    | gzip > ~/tisu-backups/db-$REL.sql.gz || echo "ogohlantirish: mysqldump muvaffaqiyatsiz"
+    | (umask 077; gzip > ~/tisu-backups/db-$REL.sql.gz) || echo "ogohlantirish: mysqldump muvaffaqiyatsiz"
 fi
 # 2) Yangi kod (.env va storage saqlanadi)
 [ -f artisan ] && \$PHP artisan down --retry=30 >/dev/null 2>&1 || true
 rm -rf app bootstrap/cache/*.php config database public resources routes vendor
 tar -xzf ~/tisu-release-$REL.tgz && rm ~/tisu-release-$REL.tgz
 mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
-chmod -R u+rwX storage bootstrap/cache
+# Veb-server o'qishi uchun: kataloglar 755, fayllar 644; .env faqat egasi uchun.
+chmod 755 .
+find . -path ./storage -prune -o -type d -exec chmod 755 {} +
+find . -path ./storage -prune -o -type f -exec chmod 644 {} +
+chmod 755 artisan; chmod 600 .env
+chmod -R u+rwX,go+rX storage bootstrap/cache
 # 3) Laravel
 \$PHP artisan package:discover >/dev/null
 \$PHP artisan migrate --force --no-ansi
