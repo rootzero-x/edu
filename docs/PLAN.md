@@ -21,7 +21,9 @@ O'quv markazi (TISU) uchun edu platforma: kurslar/darslar, testlar/baholash/sert
 5. Baza: faqat o'z bazamiz ichida migratsiyalar; har deploydan oldin `mysqldump`/`pg_dump` zaxira.
 6. Rollback: `current` symlinkni oldingi releasega qaytarish.
 
-## Stack
+## Stack (2026-10-20 yangilandi)
+> myxvest — PHP-only shared hosting (Node yo'q, MySQL faqat localhost). Backend **Laravel 12 (PHP 8.3) + Sanctum** ga o'tkazildi; Node/Fastify, pm2, Prisma bo'limlari quyida tarixiy.
+
 - Monorepo (npm workspaces): `apps/api` (Fastify 5 + TypeScript), `apps/web` (Next.js 15, App Router — admin, o'qituvchi, o'quvchi kabineti + Telegram Mini App sahifalari `/tg/*`), `apps/bot` (grammY, API bilan bitta jarayonda webhook rejimida), `packages/core` (biznes qoidalar), `packages/contract` (OpenAPI + zod sxemalar).
 - ORM: Prisma (MySQL va Postgres ikkalasini qo'llaydi — server tekshiruvidan keyin tanlanadi).
 - Auth: telefon + parol / OTP, Telegram `initData` tekshiruvi, JWT access + refresh (httpOnly cookie), RBAC: super-admin, admin, o'qituvchi, o'quvchi, ota-ona.

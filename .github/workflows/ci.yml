@@ -3,7 +3,20 @@ on:
   push: { branches: [main] }
   pull_request:
 jobs:
-  test:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, dom, xml, pdo_sqlite, pdo_mysql
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+  web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -11,7 +24,5 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @tisu/api db:generate
       - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm --filter @tisu/web build
+      - run: pnpm build:web
