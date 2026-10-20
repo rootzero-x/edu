@@ -60,6 +60,8 @@ class DashboardTest extends TestCase
 
     public function test_requires_login(): void
     {
+        // setUp admin sifatida kirgan — mehmon holatini tekshirish uchun guard'ni tozalaymiz.
+        $this->app['auth']->forgetGuards();
         $this->getJson('/v1/dashboard/summary')->assertUnauthorized();
     }
 
