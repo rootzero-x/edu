@@ -107,7 +107,7 @@ class CourseController
         return [
             'title' => [$req, 'string', 'max:200'],
             'description' => ['sometimes', 'nullable', 'string', 'max:20000'],
-            'cover_url' => ['sometimes', 'nullable', 'url', 'max:500'],
+            'cover_url' => ['sometimes', 'nullable', 'url:https', 'max:500'],
             'monthly_fee' => ['sometimes', 'integer', 'min:0', 'max:100000000'],
             'duration_months' => ['sometimes', 'integer', 'min:1', 'max:60'],
             'published' => ['sometimes', 'boolean'],

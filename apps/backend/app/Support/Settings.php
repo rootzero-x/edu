@@ -151,6 +151,11 @@ final class Settings
                     && (($d = \DateTimeImmutable::createFromFormat('!Y-m-d', $v)) === false || $d->format('Y-m-d') !== $v)) {
                     return "Sana YYYY-MM-DD formatida bo'lishi kerak.";
                 }
+                // Rasm manzillari (logo, hero, fon, avatar) — faqat https (aralash kontent va boshqa sxemalar yo'q).
+                if ($v !== '' && preg_match('/(logo|image|background|photo)_url$/', $key)
+                    && (! filter_var($v, FILTER_VALIDATE_URL) || strtolower((string) parse_url($v, PHP_URL_SCHEME)) !== 'https')) {
+                    return 'Rasm manzili https:// bilan boshlanadigan to\'g\'ri havola bo\'lishi kerak.';
+                }
 
                 return null;
             case 'text':
