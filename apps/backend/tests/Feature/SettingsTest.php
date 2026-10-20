@@ -24,7 +24,7 @@ class SettingsTest extends TestCase
         Sanctum::actingAs(User::factory()->role(Role::SuperAdmin)->create());
 
         $this->patchJson('/v1/settings', ['values' => ['site.name' => 'TISU Akademiya']])->assertOk();
-        $this->getJson('/v1/public/settings')->assertJsonPath('settings.site\.name', 'TISU Akademiya');
+        $this->assertSame('TISU Akademiya', $this->getJson('/v1/public/settings')->json('settings')['site.name']);
 
         $this->patchJson('/v1/settings', ['values' => ['attendance.grace_minutes' => 999]])->assertUnprocessable();
         $this->patchJson('/v1/settings', ['values' => ['nope' => 1]])->assertUnprocessable();

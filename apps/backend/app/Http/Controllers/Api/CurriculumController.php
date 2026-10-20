@@ -133,8 +133,9 @@ class CurriculumController
         return [
             'type' => [$req, Rule::in(['VIDEO', 'FILE', 'LINK', 'TEXT'])],
             'title' => [$req, 'string', 'max:200'],
-            'url' => ['sometimes', 'nullable', 'url:http,https', 'max:2000', 'required_if:type,VIDEO,FILE,LINK'],
-            'content' => ['sometimes', 'nullable', 'string', 'max:200000', 'required_if:type,TEXT'],
+            // Yaratishda: VIDEO/FILE/LINK uchun url, TEXT uchun content majburiy.
+            'url' => [...($partial ? ['sometimes'] : ['required_if:type,VIDEO,FILE,LINK']), 'nullable', 'url:http,https', 'max:2000'],
+            'content' => [...($partial ? ['sometimes'] : ['required_if:type,TEXT']), 'nullable', 'string', 'max:200000'],
             'position' => ['sometimes', 'integer', 'min:0'],
         ];
     }
