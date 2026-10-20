@@ -54,7 +54,7 @@ return [
         'title' => 'nomi', 'name' => 'nomi', 'description' => 'tavsif', 'cover_url' => 'muqova rasmi', 'duration_months' => 'davomiylik',
         'url' => 'havola', 'content' => 'matn', 'type' => 'turi', 'position' => 'tartib raqami', 'text' => 'matn', 'points' => 'ball',
         'options' => 'variantlar', 'accepted_answers' => 'qabul qilinadigan javoblar',
-        'course_id' => 'kurs', 'teacher_id' => "o'qituvchi", 'student_id' => "o'quvchi", 'child_id' => 'farzand',
+        'course_id' => 'kurs', 'teacher_id' => "o'qituvchi", 'student_id' => "o'quvchi",
         'start_date' => 'boshlanish sanasi', 'end_date' => 'tugash sanasi', 'room' => 'xona', 'schedules' => 'jadval',
         'schedules.*.weekday' => 'hafta kuni', 'schedules.*.start_time' => 'boshlanish vaqti', 'schedules.*.end_time' => 'tugash vaqti',
         'items' => "ro'yxat", 'items.*.status' => 'holat', 'items.*.arrived_at' => 'kelgan vaqti', 'topic' => 'mavzu',

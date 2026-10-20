@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
  * Kurs ro'yxati va tuzilmasi hammaga ko'rinadi; ichini faqat:
  *  - adminlar va course.manage huquqi borlar, kurs muallifi,
  *  - kursning faol guruhi o'qituvchisi,
- *  - kursning faol guruhiga a'zo o'quvchi (va uning ota-onasi) ochadi.
+ *  - kursning faol guruhiga a'zo o'quvchi ochadi.
  *
  * courses.published faqat ochiq katalog uchun: kursi e'lon qilinmagan bo'lsa ham, yuqoridagilar uni,
  * uning e'lon qilingan darslari va testlarini ochadi. Qolganlar — tushunarli xabar (COURSE_UNPUBLISHED).
@@ -36,13 +36,10 @@ final class CourseAccess
             return true;
         }
 
-        return $this->enrolledQuery($courseId)->where(function ($w) use ($user) {
-            $w->where('group_members.student_id', $user->id)
-                ->orWhereIn('group_members.student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'));
-        })->exists();
+        return $this->enrolledStudent($user, $courseId);
     }
 
-    /** O'quvchining o'zi shu kursda o'qiydimi (test topshirish uchun — ota-onasiz). */
+    /** O'quvchi shu kursning faol guruhida o'qiydimi. */
     public function enrolledStudent(User $user, int $courseId): bool
     {
         return $this->enrolledQuery($courseId)->where('group_members.student_id', $user->id)->exists();
@@ -57,8 +54,7 @@ final class CourseAccess
         return $own->merge(DB::table('group_members')
             ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
             ->whereNull('group_members.left_at')->where('study_groups.active', true)
-            ->where(fn ($w) => $w->where('group_members.student_id', $user->id)
-                ->orWhereIn('group_members.student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id')))
+            ->where('group_members.student_id', $user->id)
             ->distinct()->pluck('study_groups.course_id'))->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 

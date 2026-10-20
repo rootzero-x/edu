@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Copy, GitMerge, KeyRound, Link2, Unlink, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, Users as UsersIcon, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, GitMerge, KeyRound, MoreHorizontal, Pencil, Search, ShieldOff, ShieldCheck, UserPlus, Users as UsersIcon, X } from "lucide-react";
 import { Avatar, Badge, Button, Card, Dialog, Dropdown, EmptyState, Input, PageHeader, Table, Tabs, Td, Th, type Tone, useConfirm, usePrompt, useToast } from "@/components/ui";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { obj } from "@/lib/settings";
@@ -23,8 +23,8 @@ const VIEWS = [
 ];
 /** Ariza orqali beriladigan rollar (backend Registration::ROLES). */
 const APPLICANT_ROLES = ["STUDENT", "TEACHER"];
-const ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"];
-const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", PARENT: "neutral", ADMIN: "warning", SUPER_ADMIN: "danger" };
+const ROLES = ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"];
+const ROLE_TONE: Record<string, Tone> = { STUDENT: "info", TEACHER: "accent", ADMIN: "warning", SUPER_ADMIN: "danger" };
 
 export default function Users({ rows: initialRows, meta, role, q, view, actorRole, selfId, phoneHint }: {
   rows: UserRow[]; meta: { total: number; page: number; pages: number; pending?: number }; role: string; q: string; view: string;
@@ -32,12 +32,11 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
 }) {
   // Rol nomlari sozlamalardan (telegram.role_labels) — bot, Mini App va sayt bir xil ko'rsatadi.
   const roleNames = { ...ROLE_LABELS, ...obj<Record<string, string>>(useSiteSettings(), "telegram.role_labels") };
-  const confirm = useConfirm();
-  const [kids, setKids] = useState<{ parent: UserRow; list: UserRow[] } | null>(null);
   const router = useRouter();
   const path = usePathname();
   const toast = useToast();
   const prompt = usePrompt();
+  const confirm = useConfirm();
   const [rows, setRows] = useState(initialRows);
   const [search, setSearch] = useState(q);
   const [loading, startTransition] = useTransition();
@@ -111,36 +110,6 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
     },
   });
 
-  const linkChild = (u: UserRow) => prompt({
-    title: "Farzandni bog'lash",
-    description: `${personName(u)} farzandining davomati bo'yicha Telegram xabar oladi.`,
-    fields: [{ name: "phone", label: "Farzandning telefon raqami", type: "tel", required: true, defaultValue: "+998" }],
-    submitText: "Bog'lash",
-    onSubmit: async (v) => {
-      const f = await call<{ data: UserRow[] }>("GET", `users?role=STUDENT&q=${encodeURIComponent(v.phone)}`);
-      const child = (f.data.data ?? []).find((x) => x.phone === v.phone);
-      if (!child) return "Bu raqamli o'quvchi topilmadi.";
-      const r = await call("POST", `users/${u.id}/children`, { child_id: child.id });
-      if (!r.ok) return errorText(r.data);
-      toast.success("Farzand bog'landi", personName(child));
-      if (kids?.parent.id === u.id) void openKids(u);
-    },
-  });
-
-  async function openKids(u: UserRow) {
-    const r = await call<{ data: UserRow[] }>("GET", `users/${u.id}/children`);
-    if (!r.ok) return toast.error("Yuklanmadi", errorText(r.data));
-    setKids({ parent: u, list: r.data.data ?? [] });
-  }
-
-  async function unlinkKid(parent: UserRow, child: UserRow) {
-    if (!(await confirm({ title: "Bog'lanish uzilsinmi?", description: `${personName(child)} endi ${personName(parent)} ga bog'liq bo'lmaydi.`, confirmText: "Uzish", tone: "danger" }))) return;
-    const r = await call("DELETE", `users/${parent.id}/children/${child.id}`);
-    if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
-    toast.success("Bog'lanish uzildi");
-    void openKids(parent);
-  }
-
   async function approve(u: UserRow, asRole: string) {
     const r = await call("POST", `users/${u.id}/approve`, { role: asRole });
     if (!r.ok) return toast.error("Tasdiqlanmadi", errorText(r.data));
@@ -166,7 +135,7 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
   async function merge(from: DupUser, into: DupUser) {
     if (!(await confirm({
       title: "Akkauntlar birlashtirilsinmi?",
-      description: `#${from.id} ${from.name} (${fmtPhone(from.phone)}) → #${into.id} ${into.name}. Telegram va ota-ona bog'lanishlari ko'chiriladi, takror akkaunt arxivlanadi.`,
+      description: `#${from.id} ${from.name} (${fmtPhone(from.phone)}) → #${into.id} ${into.name}. Telegram bog'lanishi ko'chiriladi, takror akkaunt arxivlanadi.`,
       confirmText: "Birlashtirish",
     }))) return;
     const r = await call("POST", `users/${from.id}/merge`, { into_id: into.id });
@@ -252,7 +221,6 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
                         items={[
                           { label: "Tahrirlash", icon: <Pencil />, onSelect: () => edit(u) },
                           { label: "Parol o'rnatish", icon: <KeyRound />, onSelect: () => password(u) },
-                          ...(u.role === "PARENT" ? [{ label: "Farzandlari", icon: <UsersIcon />, onSelect: () => openKids(u) }, { label: "Farzandni bog'lash", icon: <Link2 />, onSelect: () => linkChild(u) }] : []),
                           { type: "separator" as const },
                           u.active
                             ? { label: "Bloklash", icon: <ShieldOff />, danger: true, onSelect: () => toggleActive(u) }
@@ -313,20 +281,6 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
               )}
             </div>
           ))}
-      </Dialog>
-      <Dialog open={kids !== null} onClose={() => setKids(null)} title="Farzandlari" description={kids ? personName(kids.parent) : undefined} icon={<UsersIcon />}
-        footer={kids && <Button icon={<Link2 />} onClick={() => linkChild(kids.parent)}>Farzandni bog&apos;lash</Button>}>
-        {kids && (kids.list.length === 0 ? <EmptyState compact icon={<UsersIcon />} title="Bog'langan farzand yo'q" /> : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-            {kids.list.map((c) => (
-              <li key={c.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Avatar name={personName(c)} size={32} />
-                <span style={{ flex: 1 }}><b>{personName(c)}</b><div className="subtle">{c.phone}</div></span>
-                <Button variant="ghost" size="sm" icon={<Unlink />} onClick={() => unlinkKid(kids.parent, c)}>Uzish</Button>
-              </li>
-            ))}
-          </ul>
-        ))}
       </Dialog>
     </>
   );

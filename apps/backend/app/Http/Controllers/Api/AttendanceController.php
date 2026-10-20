@@ -6,7 +6,6 @@ use App\Domain\Attendance;
 use App\Models\ClassSession;
 use App\Support\Audit;
 use App\Support\Settings;
-use App\Telegram\Notifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +22,7 @@ class AttendanceController
         $students = self::roster($group->id, $session, $records->keys()->all());
         $canSeeAll = $request->user()->hasPermission('attendance.mark');
 
-        $rows = $students->filter(fn ($s) => $canSeeAll || $this->isSelfOrChild($request->user()->id, $s->id))
+        $rows = $students->filter(fn ($s) => $canSeeAll || (int) $s->id === (int) $request->user()->id)
             ->map(fn ($s) => [
                 'student_id' => $s->id,
                 'name' => trim($s->first_name.' '.$s->last_name),
@@ -46,7 +45,7 @@ class AttendanceController
     }
 
     /** Davomatni saqlash. status berilmasa arrived_at bo'yicha sozlamalardagi qoidalar bilan aniqlanadi. */
-    public function mark(Request $request, Settings $settings, Notifier $notifier, ClassSession $session): JsonResponse
+    public function mark(Request $request, Settings $settings, ClassSession $session): JsonResponse
     {
         $user = $request->user();
         $group = GroupController::findVisible($user, $session->group_id);
@@ -97,40 +96,7 @@ class AttendanceController
                 'reason' => $data['reason'] ?? null,
             ]);
         }
-        $sameDay = $session->starts_at->isSameDay(now());
-
-        $notified = 0;
-        $outbox = [];
-        if ($settings->bool('attendance.notify_parents') && ($sameDay || ! $settings->bool('attendance.notify_only_same_day'))) {
-            $notifyOn = (array) $settings->get('attendance.notify_statuses');
-            $labels = (array) $settings->get('attendance.status_labels');
-            foreach ($changed as $sid => $status) {
-                if (! in_array($status, $notifyOn, true)) {
-                    continue;
-                }
-                $child = DB::table('users')->where('id', $sid)->first(['first_name', 'last_name']);
-                foreach (DB::table('parent_child')->where('child_id', $sid)->pluck('parent_id') as $parentId) {
-                    $outbox[] = [(int) $parentId, 'attendance.'.$status, [
-                        'child' => trim($child->first_name.' '.$child->last_name),
-                        'group' => $group->name,
-                        'date' => $session->starts_at->format('d.m.Y'),
-                        'time' => $session->starts_at->format('H:i'),
-                        'status' => $labels[$status] ?? $status,
-                    ]];
-                    $notified++;
-                }
-            }
-        }
-        // Telegram'ga yuborish javobdan keyin — katta guruhda so'rov vaqt limitiga tushmasin.
-        if ($outbox) {
-            defer(function () use ($notifier, $outbox) {
-                foreach ($outbox as [$uid, $kind, $vars]) {
-                    $notifier->sendTemplate($uid, $kind, 'telegram.text.attendance_parent', $vars);
-                }
-            });
-        }
-
-        return response()->json(['ok' => true, 'changed' => count($changed), 'notified' => $notified]);
+        return response()->json(['ok' => true, 'changed' => count($changed)]);
     }
 
     /** Guruh bo'yicha davomat foizi (o'tgan, bekor qilinmagan darslar). */
@@ -149,7 +115,7 @@ class AttendanceController
             ->orderBy('users.first_name')->get(['users.id', 'users.first_name', 'users.last_name', 'group_members.left_at']);
         $canSeeAll = $request->user()->hasPermission('attendance.mark');
 
-        $data = $students->filter(fn ($s) => $canSeeAll || $this->isSelfOrChild($request->user()->id, $s->id))->map(function ($s) use ($rows) {
+        $data = $students->filter(fn ($s) => $canSeeAll || (int) $s->id === (int) $request->user()->id)->map(function ($s) use ($rows) {
             $statuses = ($rows[$s->id] ?? collect())->pluck('status')->all();
 
             return [
@@ -260,11 +226,5 @@ class AttendanceController
                 ->orWhereIn('group_members.student_id', $markedIds))
             ->orderBy('users.first_name')
             ->get(['users.id', 'users.first_name', 'users.last_name', 'group_members.left_at']);
-    }
-
-    private function isSelfOrChild(int $userId, int $studentId): bool
-    {
-        return $userId === $studentId
-            || DB::table('parent_child')->where(['parent_id' => $userId, 'child_id' => $studentId])->exists();
     }
 }

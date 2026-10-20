@@ -11,7 +11,7 @@ use Throwable;
 /**
  * Telegram xabarlari navbati (telegram_outbox). Shared hostingda doimiy worker yo'q, shuning uchun:
  *  - har daqiqada cron `tisu:outbox-drain` ni ishga tushiradi (≈40 soniya ishlaydi, navbat bo'sh bo'lsa darhol tugaydi);
- *  - so'rovdan keyin (defer) oz sonli xabar darhol yuboriladi (telegram.outbox_inline_limit) — ota-onaga xabar kechikmasin.
+ *  - so'rovdan keyin (defer) oz sonli xabar darhol yuboriladi (telegram.outbox_inline_limit) — xabarlar kechikmasin.
  * Tezlik: telegram.send_per_second (umumiy, bitta qulf orqali). 429 — retry_after kutiladi, 403 — chat "bloklagan" deb belgilanadi.
  */
 class Outbox

@@ -6,9 +6,8 @@ use App\Support\Billing;
 use App\Support\Settings;
 use App\Telegram\Notifier;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
-/** Qarzdor o'quvchilarga (va ota-onasiga) Telegram eslatma — billing.debt_reminder_every_days kunda bir marta. */
+/** Qarzdor o'quvchilarga Telegram eslatma — billing.debt_reminder_every_days kunda bir marta. */
 class BillingRemindDebtsCommand extends Command
 {
     protected $signature = 'tisu:billing-remind-debts
@@ -27,23 +26,14 @@ class BillingRemindDebtsCommand extends Command
         $bucket = intdiv((int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse('2000-01-01')->startOfDay(), true), $settings->int('billing.debt_reminder_every_days'));
         $kind = "billing.debt:$bucket";
         $fee = $billing->money($billing->feeOn(now()->toDateString()));
-        $notifyParents = $settings->bool('billing.notify_parents');
 
         $debtors = $billing->balancesQuery()->where('users.active', true)->whereRaw('coalesce(b.balance, 0) <= ?', [-$min])
             ->get(['users.id', 'users.first_name', 'users.last_name', 'b.balance']);
-        $parents = DB::table('parent_child')->join('users', 'users.id', '=', 'parent_child.parent_id')->where('users.active', true)
-            ->whereIn('parent_child.child_id', $debtors->pluck('id'))->get(['parent_child.child_id', 'parent_child.parent_id'])->groupBy('child_id');
 
         $items = [];
         foreach ($debtors as $d) {
             $vars = ['debt' => $billing->money(-(int) $d->balance), 'balance' => $billing->money((int) $d->balance), 'fee' => $fee];
             $items[] = ['user_id' => (int) $d->id, 'kind' => $kind, 'key' => 'telegram.text.billing_debt_reminder', 'vars' => $vars + ['name' => $d->first_name]];
-            if ($notifyParents) {
-                foreach ($parents[$d->id] ?? [] as $p) {
-                    $items[] = ['user_id' => (int) $p->parent_id, 'kind' => $kind.':'.$d->id, 'key' => 'telegram.text.billing_debt_reminder_parent',
-                        'vars' => $vars + ['child' => trim($d->first_name.' '.$d->last_name)]];
-                }
-            }
         }
         AutomationCommands::deliver($this, $notifier, $items);
 

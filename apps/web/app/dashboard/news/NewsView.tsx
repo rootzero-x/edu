@@ -20,7 +20,7 @@ export type NewsItem = {
 };
 type Draft = { title: string; body: string; image_url: string; audience: string; audience_role: string; group_id: string; is_public: boolean; pinned: boolean; notify_telegram: boolean };
 
-const ROLES = ["STUDENT", "PARENT", "TEACHER", "ADMIN"];
+const ROLES = ["STUDENT", "TEACHER", "ADMIN"];
 
 export default function NewsView({ feed, unread: initialUnread, managed, groups, isAdmin }: {
   feed: NewsItem[]; unread: number; managed: NewsItem[] | null; groups: { id: number; name: string }[]; isAdmin: boolean;

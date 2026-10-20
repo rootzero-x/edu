@@ -62,9 +62,8 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
     saving.current = true;
     setBusy(true);
     setMsg(null);
-    let notified = 0;
     if (changed.length) {
-      const r = await tg<{ notified: number }>("PUT", `sessions/${sheet.session.id}/attendance`, {
+      const r = await tg("PUT", `sessions/${sheet.session.id}/attendance`, {
         items: changed.map((x) => ({ student_id: x.student_id, status: status[x.student_id] })),
         ...(reason.trim() ? { reason: reason.trim() } : {}),
       });
@@ -74,7 +73,6 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
         haptic.error();
         return setMsg({ ok: false, text: errorText(r.data, t("error")) });
       }
-      notified = r.data.notified ?? 0;
     }
     if (topicChanged) {
       const r = await tg("PATCH", `sessions/${sheet.session.id}`, { topic: topic || null });
@@ -89,7 +87,7 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
     setBusy(false);
     haptic.success();
     setReason("");
-    setMsg({ ok: true, text: notified ? t("sheet_saved_notified", { n: notified }) : t("sheet_saved") });
+    setMsg({ ok: true, text: t("sheet_saved") });
     reload();
   }
 
