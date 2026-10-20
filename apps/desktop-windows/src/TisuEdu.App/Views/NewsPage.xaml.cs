@@ -27,7 +27,7 @@ public sealed partial class NewsPage : ViewPage
         {
             _focusId = null;
             ViewModel.Select(id);
-            if (ViewModel.Selected is not null) List.ScrollIntoView(ViewModel.Selected);
+            if (ViewModel.Selected is not null) NewsList.ScrollIntoView(ViewModel.Selected);
         }
         else if (e.PropertyName == nameof(ViewModel.Selected))
         {

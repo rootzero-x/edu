@@ -58,9 +58,9 @@ public sealed partial class MainWindow : Window
         var tb = AppWindow.TitleBar;
         tb.ButtonForegroundColor = dark ? Colors.White : Colors.Black;
         tb.ButtonHoverForegroundColor = dark ? Colors.White : Colors.Black;
-        tb.ButtonHoverBackgroundColor = dark ? Windows.UI.Color.FromArgb(0x15, 0xFF, 0xFF, 0xFF) : Windows.UI.Color.FromArgb(0x0F, 0, 0, 0);
-        tb.ButtonPressedBackgroundColor = dark ? Windows.UI.Color.FromArgb(0x0B, 0xFF, 0xFF, 0xFF) : Windows.UI.Color.FromArgb(0x0A, 0, 0, 0);
-        tb.ButtonInactiveForegroundColor = dark ? Windows.UI.Color.FromArgb(0x5D, 0xFF, 0xFF, 0xFF) : Windows.UI.Color.FromArgb(0x5C, 0, 0, 0);
+        tb.ButtonHoverBackgroundColor = dark ? ColorHelper.FromArgb(0x15, 0xFF, 0xFF, 0xFF) : ColorHelper.FromArgb(0x0F, 0, 0, 0);
+        tb.ButtonPressedBackgroundColor = dark ? ColorHelper.FromArgb(0x0B, 0xFF, 0xFF, 0xFF) : ColorHelper.FromArgb(0x0A, 0, 0, 0);
+        tb.ButtonInactiveForegroundColor = dark ? ColorHelper.FromArgb(0x5D, 0xFF, 0xFF, 0xFF) : ColorHelper.FromArgb(0x5C, 0, 0, 0);
     }
 
     public void ShowSplash()

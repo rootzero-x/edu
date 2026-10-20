@@ -31,7 +31,7 @@
                 <ColumnDefinition Width="2*" MinWidth="280" />
                 <ColumnDefinition Width="3*" />
             </Grid.ColumnDefinitions>
-            <ListView x:Name="List" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="Single"
+            <ListView x:Name="NewsList" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="Single"
                       SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay, Converter={StaticResource ItemPassThrough}}">
                 <ListView.Footer>
                     <Button Content="Ko'proq yuklash" HorizontalAlignment="Stretch" Margin="0,8" Command="{x:Bind ViewModel.LoadMoreCommand}"

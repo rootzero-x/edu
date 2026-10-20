@@ -27,12 +27,12 @@ internal static class Theme
         if (string.IsNullOrWhiteSpace(hex)) return false;
         var h = hex.Trim().TrimStart('#');
         if (h.Length != 6 || !uint.TryParse(h, System.Globalization.NumberStyles.HexNumber, null, out var v)) return false;
-        color = Color.FromArgb(255, (byte)(v >> 16), (byte)(v >> 8), (byte)v);
+        color = ColorHelper.FromArgb(255, (byte)(v >> 16), (byte)(v >> 8), (byte)v);
         return true;
     }
 
     public static SolidColorBrush Brush(string hex, Color fallback) => new(TryParse(hex, out var c) ? c : fallback);
 
-    private static Color Mix(Color a, Color b, double t) => Color.FromArgb(255,
+    private static Color Mix(Color a, Color b, double t) => ColorHelper.FromArgb(255,
         (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
 }
