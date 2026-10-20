@@ -6,6 +6,8 @@ use App\Domain\Attendance;
 use App\Domain\Billing;
 use App\Domain\CertificatePolicy;
 use App\Domain\QuizGrader;
+use App\Domain\ScheduleExpander;
+use DateTimeZone;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
@@ -70,5 +72,18 @@ class DomainRulesTest extends TestCase
         $this->assertSame([], CertificatePolicy::blockers(80, true, 0, 75, true, true));
         $this->assertSame(['LOW_ATTENDANCE', 'QUIZ_NOT_PASSED', 'HAS_DEBT'], CertificatePolicy::blockers(50, false, 1, 75, true, true));
         $this->assertSame([], CertificatePolicy::blockers(50, false, 1, 40, false, false));
+    }
+
+    public function test_schedule_expander(): void
+    {
+        $tz = new DateTimeZone('Asia/Tashkent');
+        // 2026-10-19 — dushanba. Du/Cho 14:00–15:30 → 2 hafta ichida 4 dars.
+        $out = ScheduleExpander::expand(
+            [['weekday' => 1, 'start_time' => '14:00', 'end_time' => '15:30'], ['weekday' => 3, 'start_time' => '14:00:00', 'end_time' => '15:30:00']],
+            new DateTimeImmutable('2026-10-19', $tz), new DateTimeImmutable('2026-11-01', $tz), $tz,
+        );
+        $this->assertSame(['2026-10-19 14:00', '2026-10-21 14:00', '2026-10-26 14:00', '2026-10-28 14:00'],
+            array_map(fn ($s) => $s['starts_at']->format('Y-m-d H:i'), $out));
+        $this->assertSame('15:30', $out[0]['ends_at']->format('H:i'));
     }
 }

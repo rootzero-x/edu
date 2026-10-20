@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\CurriculumController;
+use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TelegramAuthController;
@@ -41,6 +43,28 @@ Route::prefix('v1')->group(function () {
             Route::patch('/branches/{branch}', [BranchController::class, 'update']);
         });
         Route::get('/branches', [BranchController::class, 'index']);
+        Route::middleware('perm:user.manage')->group(function () {
+            Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
+            Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
+        });
+
+        // Guruhlar va davomat (ko'rish — ko'rinish doirasi controller'da)
+        Route::get('/groups', [GroupController::class, 'index']);
+        Route::get('/groups/{group}', [GroupController::class, 'show'])->whereNumber('group');
+        Route::get('/groups/{group}/sessions', [GroupController::class, 'sessions'])->whereNumber('group');
+        Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
+        Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
+        Route::middleware('perm:attendance.mark')->group(function () {
+            Route::put('/sessions/{session}/attendance', [AttendanceController::class, 'mark']);
+            Route::patch('/sessions/{session}', [GroupController::class, 'updateSession']);
+        });
+        Route::middleware('perm:group.manage')->group(function () {
+            Route::post('/groups', [GroupController::class, 'store']);
+            Route::patch('/groups/{group}', [GroupController::class, 'update']);
+            Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);
+            Route::delete('/groups/{group}/members/{student}', [GroupController::class, 'removeMember']);
+            Route::post('/groups/{group}/sessions/generate', [GroupController::class, 'generateSessions']);
+        });
 
         // Kurslar (ko'rish)
         Route::middleware('perm:course.view')->group(function () {

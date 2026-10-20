@@ -81,6 +81,26 @@ class UserController
         return response()->json(['user' => $user->fresh()->toApi()]);
     }
 
+    /** Ota-onani farzandga bog'lash (davomat xabarlari va ko'rish huquqi uchun). */
+    public function linkChild(Request $request, User $parent): JsonResponse
+    {
+        $data = $request->validate(['child_id' => ['required', 'integer', 'exists:users,id']]);
+        abort_unless($parent->role === Role::Parent, 422, 'Foydalanuvchi ota-ona roliga ega emas.');
+        abort_unless(User::find($data['child_id'])->role === Role::Student, 422, 'Farzand o\'quvchi bo\'lishi kerak.');
+        \Illuminate\Support\Facades\DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $data['child_id']]);
+        Audit::log('user.link_child', 'user', $parent->id, $data);
+
+        return response()->json(['ok' => true], 201);
+    }
+
+    public function unlinkChild(User $parent, User $child): JsonResponse
+    {
+        \Illuminate\Support\Facades\DB::table('parent_child')->where(['parent_id' => $parent->id, 'child_id' => $child->id])->delete();
+        Audit::log('user.unlink_child', 'user', $parent->id, ['child_id' => $child->id]);
+
+        return response()->json(['ok' => true]);
+    }
+
     /** ADMIN SUPER_ADMIN yarata/o'zgartira olmaydi. */
     private function guardRole(User $actor, Role $target): void
     {

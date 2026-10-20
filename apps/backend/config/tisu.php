@@ -44,6 +44,14 @@ return [
         'attendance.absent_after_minutes' => ['group' => 'attendance', 'type' => 'int', 'min' => 1, 'max' => 240, 'label' => "Shundan ko'p kechiksa — kelmagan", 'default' => 30],
         'attendance.notify_parents' => ['group' => 'attendance', 'type' => 'bool', 'label' => "Kelmaganda ota-onaga xabar", 'default' => true],
 
+        'attendance.teacher_edit_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 365, 'label' => "O'qituvchi davomatni necha kun ichida o'zgartira oladi", 'default' => 3],
+        'attendance.sessions_ahead_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 7, 'max' => 366, 'label' => 'Jadvaldan oldindan yaratiladigan darslar (kun)', 'default' => 31],
+        'attendance.notify_statuses' => ['group' => 'attendance', 'type' => 'list', 'label' => "Ota-onaga xabar boradigan holatlar", 'default' => ['ABSENT']],
+        'telegram.text.attendance_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ota-onaga davomat xabari', 'default' => "{child} bugun {date} {time} dagi «{group}» darsida: {status}."],
+        'attendance.status_labels' => ['group' => 'attendance', 'type' => 'object', 'public' => true, 'label' => 'Davomat holatlari nomlari', 'default' => [
+            'PRESENT' => 'keldi', 'LATE' => 'kechikdi', 'ABSENT' => 'kelmadi', 'EXCUSED' => 'sababli',
+        ]],
+
         // ── Testlar ──────────────────────────────────────────
         'quiz.default_pass_percent' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Yangi test uchun o'tish foizi", 'default' => 60],
         'quiz.default_max_attempts' => ['group' => 'quiz', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Yangi test uchun urinishlar soni', 'default' => 3],
