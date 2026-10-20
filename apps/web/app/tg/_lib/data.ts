@@ -12,19 +12,34 @@ export type Group = {
 export type Session = { id: number; group_id: number; starts_at: string; ends_at: string; topic: string | null; cancelled: boolean; marked_count: number };
 export type SessionWithGroup = Session & { group: Group };
 
-/** Guruhlar bo'yicha darslar (GET /groups/{id}/sessions) — bitta ro'yxatga, vaqt bo'yicha. */
+/** GET /v1/calendar qatori (web taqvimi bilan bir xil manba). */
+type CalRow = Session & { homework_count: number; room: string | null };
+
+/**
+ * Guruhlar bo'yicha mashg'ulotlar — web taqvimi bilan bir xil endpoint (GET /calendar), bitta so'rovda;
+ * natija berilgan guruhlar bilan cheklanadi va vaqt bo'yicha tartiblanadi.
+ */
 export function useSessions(groups: Group[] | null, from: string, to: string) {
   const [state, setState] = useState<{ data: SessionWithGroup[] | null; error: boolean }>({ data: null, error: false });
   const key = groups?.map((g) => g.id).join(",") ?? "";
   useEffect(() => {
     if (!groups) return;
     let cancelled = false;
-    Promise.all(groups.map(async (g) => {
-      const r = await tg<{ data: Session[] }>("GET", `groups/${g.id}/sessions?from=${from}&to=${to}`);
-      if (!r.ok) throw new Error(String(r.status));
-      return r.data.data.map((s) => ({ ...s, group: g }));
-    }))
-      .then((lists) => !cancelled && setState({ data: lists.flat().sort((a, b) => a.starts_at.localeCompare(b.starts_at)), error: false }))
+    const byId = new Map(groups.map((g) => [g.id, g]));
+    if (byId.size === 0) {
+      setState({ data: [], error: false });
+      return;
+    }
+    tg<{ data: CalRow[] }>("GET", `calendar?from=${from}&to=${to}`)
+      .then((r) => {
+        if (cancelled) return;
+        if (!r.ok) return setState({ data: null, error: true });
+        const list = r.data.data
+          .filter((x) => byId.has(x.group_id))
+          .map((x) => ({ ...x, marked_count: x.marked_count ?? 0, group: byId.get(x.group_id)! }))
+          .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+        setState({ data: list, error: false });
+      })
       .catch(() => !cancelled && setState({ data: null, error: true }));
     return () => {
       cancelled = true;
