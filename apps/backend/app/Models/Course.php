@@ -10,6 +10,9 @@ class Course extends Model
 {
     protected $fillable = ['title', 'description', 'cover_url', 'monthly_fee', 'duration_months', 'published', 'created_by'];
 
+    /** To'lov tizimi yo'q — eski ustun API'da ko'rinmaydi. */
+    protected $hidden = ['monthly_fee'];
+
     protected function casts(): array
     {
         return ['published' => 'boolean', 'monthly_fee' => 'integer', 'duration_months' => 'integer'];

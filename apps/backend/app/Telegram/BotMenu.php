@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 class BotMenu
 {
     /** Menyu amallari (telegram.menu sozlamasida ishlatiladi). */
-    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'profile', 'today', 'children', 'app'];
+    public const ACTIONS = ['courses', 'schedule', 'attendance', 'quizzes', 'certificates', 'profile', 'today', 'unmarked', 'children', 'app'];
 
     private const STATUS_CODES = ['P' => 'PRESENT', 'L' => 'LATE', 'A' => 'ABSENT', 'E' => 'EXCUSED'];
 
@@ -156,6 +156,7 @@ class BotMenu
                 'certificates' => $this->certificates($user),
                 'profile' => $this->profile($user),
                 'today' => $this->today($user),
+                'unmarked' => $this->unmarked($user),
                 'children' => $this->children($user),
                 'app' => [$this->t->get('telegram.text.app_open'), $this->inline([[$this->webApp('telegram.text.btn_open_app', '')]])],
                 default => [$this->t->get('telegram.text.unknown'), null],
@@ -370,9 +371,31 @@ class BotMenu
             'time' => $s->starts_at->format('H:i'), 'group' => $groups[$s->group_id]->name,
             'marked' => $s->attendances_count, 'total' => $groups[$s->group_id]->students_count,
         ]), 'callback_data' => 'a:s:'.$s->id]])->all();
-        $rows[] = [['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => 'm:today']];
+        $rows[] = [['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => 'm:today'],
+            ['text' => $this->t->get('telegram.text.btn_unmarked'), 'callback_data' => 'm:unmarked']];
 
         return [$this->t->get('telegram.text.today_title', ['date' => now()->format('d.m.Y')]), $this->inline($rows)];
+    }
+
+    /** O'tgan, davomati to'liq belgilanmagan darslar (AttendanceController::unmarked orqali). */
+    private function unmarked(User $user): array
+    {
+        $res = $this->api->call($user, [AttendanceController::class, 'unmarked'], [], [], 'attendance.mark');
+        $list = array_slice($res['data'] ?? [], 0, $this->limit());
+        if (! $list) {
+            return [$this->t->get('telegram.text.unmarked_empty'), $this->inline([[['text' => $this->t->get('telegram.text.btn_today'), 'callback_data' => 'm:today']]])];
+        }
+        $rows = array_map(function ($s) {
+            $at = \Illuminate\Support\Carbon::parse($s['starts_at']);
+
+            return [['text' => $this->t->get('telegram.text.unmarked_button', [
+                'date' => $at->format('d.m'), 'time' => $at->format('H:i'), 'group' => $s['group']['name'],
+                'marked' => $s['marked'], 'total' => $s['members'],
+            ]), 'callback_data' => 'a:s:'.$s['id']]];
+        }, $list);
+        $rows[] = [['text' => $this->t->get('telegram.text.btn_refresh'), 'callback_data' => 'm:unmarked']];
+
+        return [$this->t->get('telegram.text.unmarked_title', ['count' => $res['total'] ?? count($list)]), $this->inline($rows)];
     }
 
     private function attendanceCallback(User $user, int $chatId, int $messageId, array $p): ?string

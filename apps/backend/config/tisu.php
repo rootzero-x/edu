@@ -21,7 +21,7 @@ return [
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
         'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
-        'certificate' => 'Sertifikat', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'reports' => 'Hisobotlar', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
         'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
     ],
 
@@ -95,10 +95,13 @@ return [
         'attendance.absent_after_minutes' => ['group' => 'attendance', 'type' => 'int', 'min' => 1, 'max' => 240, 'label' => "Shundan ko'p kechiksa — kelmagan", 'default' => 30],
         'attendance.notify_parents' => ['group' => 'attendance', 'type' => 'bool', 'label' => "Kelmaganda ota-onaga xabar", 'default' => true],
 
-        'attendance.teacher_edit_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 365, 'label' => "O'qituvchi davomatni necha kun ichida o'zgartira oladi", 'default' => 3],
+        'attendance.teacher_edit_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 3650, 'label' => "O'qituvchi davomatni necha kun ichida o'zgartira oladi (0 — cheklovsiz)", 'default' => 30],
+        'attendance.notify_only_same_day' => ['group' => 'attendance', 'type' => 'bool', 'label' => "Ota-onaga xabar faqat dars kuni belgilanganda (keyingi tuzatishlarda emas)", 'default' => true],
+        'attendance.unmarked_lookback_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => "Belgilanmagan darslar ro'yxati necha kun orqaga qaraydi", 'default' => 60],
+        'attendance.edit_reason_required_after_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 0, 'max' => 3650, 'label' => "Necha kundan eski darsni o'zgartirishda sabab majburiy (0 — hech qachon)", 'default' => 0],
         'attendance.sessions_ahead_days' => ['group' => 'attendance', 'type' => 'int', 'min' => 7, 'max' => 366, 'label' => 'Jadvaldan oldindan yaratiladigan darslar (kun)', 'default' => 31],
         'attendance.notify_statuses' => ['group' => 'attendance', 'type' => 'list', 'label' => "Ota-onaga xabar boradigan holatlar", 'default' => ['ABSENT']],
-        'telegram.text.attendance_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ota-onaga davomat xabari', 'default' => "{child} bugun {date} {time} dagi «{group}» darsida: {status}."],
+        'telegram.text.attendance_parent' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: ota-onaga davomat xabari', 'default' => "{child} {date} kuni {time} dagi «{group}» darsida: {status}."],
         'attendance.status_labels' => ['group' => 'attendance', 'type' => 'object', 'public' => true, 'label' => 'Davomat holatlari nomlari', 'default' => [
             'PRESENT' => 'keldi', 'LATE' => 'kechikdi', 'ABSENT' => 'kelmadi', 'EXCUSED' => 'sababli',
         ]],
@@ -236,10 +239,10 @@ return [
         // Amallar: courses, schedule, attendance, quizzes, certificates, profile, today, children, app
         'telegram.menu' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot menyusi (rol → tugmalar qatorlari)', 'default' => [
             'STUDENT' => [['courses', 'schedule'], ['attendance', 'quizzes'], ['certificates', 'profile'], ['app']],
-            'TEACHER' => [['today', 'schedule'], ['courses', 'profile'], ['app']],
+            'TEACHER' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
             'PARENT' => [['children', 'schedule'], ['certificates', 'profile'], ['app']],
-            'ADMIN' => [['today', 'schedule'], ['courses', 'profile'], ['app']],
-            'SUPER_ADMIN' => [['today', 'schedule'], ['courses', 'profile'], ['app']],
+            'ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
+            'SUPER_ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
         ]],
         'telegram.weekday_names' => ['group' => 'telegram', 'type' => 'list', 'label' => 'Hafta kunlari (Dushanbadan)', 'default' => ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba']],
         'telegram.role_labels' => ['group' => 'telegram', 'type' => 'object', 'public' => true, 'label' => 'Rollar nomlari', 'default' => [
@@ -289,6 +292,10 @@ return [
         'telegram.text.certificate_line' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: sertifikat qatori ({course}, {name}, {code}, {date}, {url})', 'default' => "🎓 {course} — {name}\n   № {code}, {date}\n   {url}"],
         'telegram.text.certificates_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: sertifikat yo'q", 'default' => "Hozircha sertifikat yo'q."],
         'telegram.text.profile' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: profil ({name}, {phone}, {role}, {groups})', 'default' => "👤 {name}\n📱 {phone}\n🏷 {role}\n👥 Guruhlar: {groups}"],
+        'telegram.text.btn_unmarked' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: belgilanmagan darslar', 'default' => '⚠️ Belgilanmaganlar'],
+        'telegram.text.unmarked_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: belgilanmagan darslar ({count})', 'default' => "⚠️ Davomati belgilanmagan o'tgan darslar: {count} ta.\nTuzatish uchun darsni tanlang:"],
+        'telegram.text.unmarked_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: belgilanmagan dars yo'q", 'default' => "✅ Barcha o'tgan darslar davomati belgilangan."],
+        'telegram.text.unmarked_button' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: belgilanmagan dars tugmasi ({date} {time} {group} {marked}/{total})', 'default' => '{date} {time} · {group} · {marked}/{total}'],
         'telegram.text.today_title' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: bugungi darslar ({date})', 'default' => "📋 Bugungi darslar, {date}.\nDavomat belgilash uchun darsni tanlang:"],
         'telegram.text.today_button' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: dars tugmasi ({time}, {group}, {marked}, {total})', 'default' => '{time} · {group} ({marked}/{total})'],
         'telegram.text.today_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: bugun dars yo'q", 'default' => "Bugun sizda dars yo'q."],
@@ -409,6 +416,21 @@ return [
             'room' => 'Xona',
             'quiz_back' => 'Test sahifasiga qaytish',
         ]],
+
+        // ── Kurs maxfiyligi ──────────────────────────────────
+        'course.access_contact' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => "Kursga yozilish uchun murojaat (masalan @rootzero_x)", 'default' => '@rootzero_x'],
+        'course.contact_url' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => 'Murojaat havolasi', 'default' => 'https://t.me/rootzero_x'],
+        'course.access_denied_title' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => 'Ruxsat yo\'q: sarlavha', 'default' => "Bu kurs faqat yozilgan o'quvchilar uchun"],
+        'course.access_denied_text' => ['group' => 'course', 'type' => 'text', 'public' => true, 'label' => "Ruxsat yo'q: matn ({course}, {contact})", 'default' => "«{course}» kursi materiallari va testlari faqat shu kursga biriktirilgan guruh o'quvchilari uchun ochiq. Kursga yozilish uchun {contact} ga yozing."],
+        'course.access_denied_button' => ['group' => 'course', 'type' => 'string', 'public' => true, 'label' => "Ruxsat yo'q: tugma matni", 'default' => "{contact} ga yozish"],
+        'course.show_outline_to_guests' => ['group' => 'course', 'type' => 'bool', 'label' => "Yozilmaganlarga kurs tuzilmasi (modul/dars nomlari) ko'rinsin", 'default' => true],
+        'course.embed_hosts' => ['group' => 'course', 'type' => 'list', 'public' => true, 'label' => 'Video joylash mumkin bo\'lgan saytlar', 'default' => ['youtube.com', 'youtu.be', 'vimeo.com', 'player.vimeo.com']],
+
+        // ── Hisobotlar ───────────────────────────────────────
+        'reports.default_days' => ['group' => 'reports', 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => 'Hisobotning standart davri (kun)', 'default' => 30],
+        'reports.top_n' => ['group' => 'reports', 'type' => 'int', 'min' => 3, 'max' => 100, 'label' => "Xavf ro'yxatida nechta o'quvchi", 'default' => 10],
+        'reports.risk_threshold_percent' => ['group' => 'reports', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => "Davomati shundan past o'quvchi xavf ostida (%)", 'default' => 75],
+        'reports.max_days' => ['group' => 'reports', 'type' => 'int', 'min' => 31, 'max' => 3650, 'label' => 'Hisobotning maksimal davri (kun)', 'default' => 366],
 
         // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──
         'automation.generate_sessions' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni jadvaldan darslarni oldindan yaratish', 'default' => true],

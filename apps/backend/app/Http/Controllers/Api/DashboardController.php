@@ -61,17 +61,10 @@ class DashboardController
             ->when(! $marker, fn ($q) => $q->whereIn('attendances.student_id', $this->selfAndChildren($user->id)))
             ->pluck('attendances.status')->all();
 
-        $unmarked = null;
-        if ($marker) {
-            $unmarked = ClassSession::query()
-                ->whereIn('group_id', $groupIds)
-                ->where('cancelled', false)
-                ->where('starts_at', '<=', now())
-                ->where('starts_at', '>=', now()->subDays(max(1, $settings->int('attendance.teacher_edit_days'))))
-                ->whereIn('group_id', $members->keys())
-                ->doesntHave('attendances')
-                ->count();
-        }
+        // Belgilanmagan darslar — /v1/attendance/unmarked bilan bir xil qoida (qisman belgilanganlar ham).
+        $unmarked = $marker
+            ? (int) app(AttendanceController::class)->unmarked($request, $settings)->getData(true)['total']
+            : null;
 
         return response()->json([
             'role' => $user->role,

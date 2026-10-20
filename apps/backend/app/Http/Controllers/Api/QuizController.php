@@ -9,6 +9,7 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\CourseAccess;
 use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,18 +22,20 @@ class QuizController
 {
     // ── Boshqarish (quiz.manage + kurs muallifi yoki admin) ─────
 
-    public function index(Request $request, Course $course): JsonResponse
+    public function index(Request $request, CourseAccess $access, Course $course): JsonResponse
     {
         $user = $request->user();
         $manage = $user->hasPermission('quiz.manage');
         abort_unless($manage || $course->published, 404);
+        $granted = $manage || $access->granted($user, $course);
         $quizzes = $course->quizzes()
             ->when(! $manage, fn ($q) => $q->where('published', true))
             ->withCount('questions')->orderBy('id')->get();
         if (! $manage) {
             $mine = QuizAttempt::where('student_id', $user->id)->whereIn('quiz_id', $quizzes->pluck('id'))
                 ->whereNotNull('submitted_at')->get()->groupBy('quiz_id');
-            $quizzes->each(function ($q) use ($mine) {
+            $quizzes->each(function ($q) use ($mine, $granted) {
+                $q->setAttribute('locked', ! $granted);
                 $a = $mine[$q->id] ?? collect();
                 $q->setAttribute('my_attempts', $a->count());
                 $q->setAttribute('my_best_percent', $a->max('percent'));
@@ -40,7 +43,7 @@ class QuizController
             });
         }
 
-        return response()->json(['data' => $quizzes]);
+        return response()->json(['data' => $quizzes, 'access' => $granted ? ['granted' => true] : ['granted' => false] + $access->denial($course)]);
     }
 
     public function store(Request $request, Settings $settings, Course $course): JsonResponse
@@ -58,13 +61,14 @@ class QuizController
     }
 
     /** Boshqaruvchi uchun to'liq (to'g'ri javoblar bilan). */
-    public function show(Request $request, Quiz $quiz): JsonResponse
+    public function show(Request $request, CourseAccess $access, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
         if ($user->hasPermission('quiz.manage')) {
             return response()->json(['quiz' => $quiz->load('questions.options', 'course:id,title')]);
         }
         abort_unless($quiz->published && $quiz->course->published, 404);
+        $access->authorize($user, $quiz->course);
         $attempts = QuizAttempt::where(['quiz_id' => $quiz->id, 'student_id' => $user->id])->orderByDesc('id')->get();
 
         return response()->json([
@@ -160,10 +164,11 @@ class QuizController
     // ── Topshirish (quiz.take) ───────────────────────────────
 
     /** Urinish boshlash (ochiq urinish bo'lsa o'shani qaytaradi). Savollar to'g'ri javobsiz. */
-    public function start(Request $request, Quiz $quiz): JsonResponse
+    public function start(Request $request, CourseAccess $access, Quiz $quiz): JsonResponse
     {
         $user = $request->user();
         abort_unless($quiz->published && $quiz->course->published, 404);
+        $access->authorize($user, $quiz->course);
         abort_unless($this->eligible($user, $quiz), 403, 'Bu test sizning guruhingiz kursiga tegishli emas.');
 
         $attempt = DB::transaction(function () use ($quiz, $user) {
@@ -218,11 +223,7 @@ class QuizController
     /** O'quvchi shu kursning faol guruhida bo'lishi kerak. */
     private function eligible(User $user, Quiz $quiz): bool
     {
-        return $user->hasPermission('quiz.take') && DB::table('group_members')
-            ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
-            ->where('group_members.student_id', $user->id)->whereNull('group_members.left_at')
-            ->where('study_groups.course_id', $quiz->course_id)->where('study_groups.active', true)
-            ->exists();
+        return $user->hasPermission('quiz.take') && app(CourseAccess::class)->enrolledStudent($user, (int) $quiz->course_id);
     }
 
     private function expired(Quiz $quiz, QuizAttempt $a): bool

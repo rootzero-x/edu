@@ -32,7 +32,14 @@ class AttendanceController
                 'note' => $records[$s->id]->note ?? null,
             ])->values();
 
-        return response()->json(['session' => $session, 'group' => ['id' => $group->id, 'name' => $group->name], 'rows' => $rows]);
+        $admin = $request->user()->hasPermission('group.manage');
+        $isTeacher = $admin || (int) $group->teacher_id === (int) $request->user()->id;
+
+        return response()->json([
+            'session' => $session, 'group' => ['id' => $group->id, 'name' => $group->name], 'rows' => $rows,
+            'edit' => $isTeacher && $request->user()->hasPermission('attendance.mark')
+                ? self::editWindow(app(Settings::class), $session, $admin) : ['can_edit' => false, 'reason_required' => false],
+        ]);
     }
 
     /** Davomatni saqlash. status berilmasa arrived_at bo'yicha sozlamalardagi qoidalar bilan aniqlanadi. */
@@ -44,8 +51,8 @@ class AttendanceController
         abort_unless($admin || (int) $group->teacher_id === (int) $user->id, 403, 'Faqat guruh o\'qituvchisi belgilay oladi.');
         abort_if($session->cancelled, 422, 'Dars bekor qilingan.');
         abort_if($session->starts_at->isFuture(), 422, 'Dars hali boshlanmagan.');
-        $days = $settings->int('attendance.teacher_edit_days');
-        abort_if(! $admin && $session->starts_at->lt(now()->subDays($days)), 403, "Davomatni faqat $days kun ichida o'zgartirish mumkin.");
+        $window = self::editWindow($settings, $session, $admin);
+        abort_unless($window['can_edit'], 403, $window['message'] ?? 'Ruxsat yo\'q.');
 
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1', 'max:500'],
@@ -53,9 +60,11 @@ class AttendanceController
             'items.*.status' => ['nullable', Rule::in([Attendance::PRESENT, Attendance::LATE, Attendance::ABSENT, Attendance::EXCUSED])],
             'items.*.arrived_at' => ['nullable', 'date_format:H:i'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
+            'reason' => [$window['reason_required'] ? 'required' : 'nullable', 'string', 'max:255'],
         ]);
         $memberIds = $group->students()->pluck('users.id')->map(fn ($id) => (int) $id)->all();
-        $before = DB::table('attendances')->where('session_id', $session->id)->pluck('status', 'student_id');
+        $before = DB::table('attendances')->where('session_id', $session->id)->pluck('status', 'student_id')
+            ->mapWithKeys(fn ($v, $k) => [(int) $k => $v]);
         $grace = $settings->int('attendance.grace_minutes');
         $absentAfter = $settings->int('attendance.absent_after_minutes');
 
@@ -78,10 +87,16 @@ class AttendanceController
                 }
             }
         });
-        Audit::log('attendance.mark', 'session', $session->id, ['changed' => $changed]);
+        if ($changed) {
+            Audit::log('attendance.mark', 'session', $session->id, [
+                'changes' => array_map(fn ($sid, $to) => ['student_id' => $sid, 'from' => $before[$sid] ?? null, 'to' => $to], array_keys($changed), $changed),
+                'reason' => $data['reason'] ?? null,
+            ]);
+        }
+        $sameDay = $session->starts_at->isSameDay(now());
 
         $notified = 0;
-        if ($settings->bool('attendance.notify_parents')) {
+        if ($settings->bool('attendance.notify_parents') && ($sameDay || ! $settings->bool('attendance.notify_only_same_day'))) {
             $notifyOn = (array) $settings->get('attendance.notify_statuses');
             $labels = (array) $settings->get('attendance.status_labels');
             foreach ($changed as $sid => $status) {
@@ -129,6 +144,88 @@ class AttendanceController
         })->values();
 
         return response()->json(['data' => $data]);
+    }
+
+    /** O'zgarishlar tarixi (audit_logs dan). */
+    public function history(Request $request, ClassSession $session): JsonResponse
+    {
+        GroupController::findVisible($request->user(), $session->group_id);
+        abort_unless($request->user()->hasPermission('attendance.mark'), 403, 'Ruxsat yo\'q.');
+        $names = [];
+        $rows = DB::table('audit_logs')->leftJoin('users', 'users.id', '=', 'audit_logs.actor_id')
+            ->where(['audit_logs.entity' => 'session', 'audit_logs.entity_id' => $session->id, 'audit_logs.action' => 'attendance.mark'])
+            ->orderByDesc('audit_logs.id')->limit(100)
+            ->get(['audit_logs.id', 'audit_logs.data', 'audit_logs.created_at', 'users.first_name', 'users.last_name'])
+            ->map(function ($r) use (&$names) {
+                $d = json_decode((string) $r->data, true) ?: [];
+                $changes = $d['changes'] ?? array_map(fn ($sid, $to) => ['student_id' => (int) $sid, 'from' => null, 'to' => $to],
+                    array_keys($d['changed'] ?? []), $d['changed'] ?? []);
+                foreach ($changes as $c) {
+                    $names[$c['student_id']] = true;
+                }
+
+                return ['id' => $r->id, 'at' => $r->created_at, 'by' => trim(($r->first_name ?? '').' '.($r->last_name ?? '')),
+                    'reason' => $d['reason'] ?? null, 'changes' => $changes];
+            });
+        $people = DB::table('users')->whereIn('id', array_keys($names))->get(['id', 'first_name', 'last_name'])
+            ->mapWithKeys(fn ($u) => [$u->id => trim($u->first_name.' '.$u->last_name)]);
+
+        return response()->json(['data' => $rows->map(function ($r) use ($people) {
+            $r['changes'] = array_map(fn ($c) => $c + ['name' => $people[$c['student_id']] ?? '#'.$c['student_id']], $r['changes']);
+
+            return $r;
+        })]);
+    }
+
+    /** O'tgan, bekor qilinmagan, davomati to'liq belgilanmagan darslar (o'qituvchi — o'z guruhlari). */
+    public function unmarked(Request $request, Settings $settings): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate(['group_id' => ['nullable', 'integer']]);
+        $groupIds = GroupController::visible($user)->where('active', true)
+            ->when(! $user->hasPermission('group.manage'), fn ($q) => $q->where('teacher_id', $user->id))
+            ->when($data['group_id'] ?? null, fn ($q, $g) => $q->where('id', $g))
+            ->pluck('id');
+        $rows = DB::table('class_sessions')
+            ->join('study_groups', 'study_groups.id', '=', 'class_sessions.group_id')
+            ->whereIn('class_sessions.group_id', $groupIds)
+            ->where('class_sessions.cancelled', false)
+            ->where('class_sessions.starts_at', '<=', now())
+            ->where('class_sessions.starts_at', '>=', now()->subDays($settings->int('attendance.unmarked_lookback_days')))
+            ->select('class_sessions.id', 'class_sessions.starts_at', 'class_sessions.group_id', 'study_groups.name as group_name')
+            ->selectSub(DB::table('group_members')->whereColumn('group_members.group_id', 'class_sessions.group_id')
+                ->whereNull('group_members.left_at')->selectRaw('count(*)'), 'members')
+            ->selectSub(DB::table('attendances')->whereColumn('attendances.session_id', 'class_sessions.id')->selectRaw('count(*)'), 'marked')
+            ->orderByDesc('class_sessions.starts_at')
+            ->get()
+            ->filter(fn ($r) => (int) $r->members > 0 && (int) $r->marked < (int) $r->members)
+            ->map(fn ($r) => ['id' => $r->id, 'starts_at' => \Illuminate\Support\Carbon::parse($r->starts_at)->toIso8601String(), 'group' => ['id' => $r->group_id, 'name' => $r->group_name],
+                'members' => (int) $r->members, 'marked' => (int) $r->marked])
+            ->values();
+
+        return response()->json(['data' => $rows, 'total' => $rows->count()]);
+    }
+
+    /** O'qituvchi/admin uchun tahrir oynasi — UI ham shu ma'lumotni ko'rsatadi. */
+    public static function editWindow(Settings $settings, ClassSession $session, bool $admin): array
+    {
+        if ($session->cancelled) {
+            return ['can_edit' => false, 'reason_required' => false, 'message' => 'Dars bekor qilingan.'];
+        }
+        if ($session->starts_at->isFuture()) {
+            return ['can_edit' => false, 'reason_required' => false, 'message' => 'Dars hali boshlanmagan.'];
+        }
+        $age = (int) floor($session->starts_at->diffInDays(now(), true));
+        $reasonAfter = $settings->int('attendance.edit_reason_required_after_days');
+        $reason = $reasonAfter > 0 && $age >= $reasonAfter;
+        $days = $settings->int('attendance.teacher_edit_days');
+        if (! $admin && $days > 0 && $age > $days) {
+            return ['can_edit' => false, 'reason_required' => $reason,
+                'message' => "Bu dars $age kun oldin bo'lgan. O'qituvchi davomatni $days kun ichida o'zgartira oladi — administratorga murojaat qiling."];
+        }
+
+        return ['can_edit' => true, 'reason_required' => $reason,
+            'deadline' => ! $admin && $days > 0 ? $session->starts_at->copy()->addDays($days)->toIso8601String() : null];
     }
 
     private function isSelfOrChild(int $userId, int $studentId): bool

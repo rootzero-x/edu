@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\QuizController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TelegramAuthController;
 use App\Http\Controllers\Api\UserController;
@@ -62,6 +63,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/groups/{group}/attendance', [AttendanceController::class, 'report'])->whereNumber('group');
         Route::get('/sessions/{session}/attendance', [AttendanceController::class, 'sheet']);
         Route::middleware('perm:attendance.mark')->group(function () {
+            Route::get('/sessions/{session}/attendance/history', [AttendanceController::class, 'history']);
+            Route::get('/attendance/unmarked', [AttendanceController::class, 'unmarked']);
+        });
+        Route::middleware('perm:attendance.mark')->group(function () {
             Route::put('/sessions/{session}/attendance', [AttendanceController::class, 'mark']);
             Route::patch('/sessions/{session}', [GroupController::class, 'updateSession']);
         });
@@ -71,6 +76,14 @@ Route::prefix('v1')->group(function () {
             Route::post('/groups/{group}/members', [GroupController::class, 'addMember']);
             Route::delete('/groups/{group}/members/{student}', [GroupController::class, 'removeMember']);
             Route::post('/groups/{group}/sessions/generate', [GroupController::class, 'generateSessions']);
+        });
+
+        // Hisobotlar
+        Route::middleware('perm:report.view')->group(function () {
+            Route::get('/reports/overview', [ReportController::class, 'overview']);
+            Route::get('/reports/attendance', [ReportController::class, 'attendance']);
+            Route::get('/reports/attendance.csv', [ReportController::class, 'attendanceCsv']);
+            Route::get('/reports/quizzes', [ReportController::class, 'quizzes']);
         });
 
         // Testlar

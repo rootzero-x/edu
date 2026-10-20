@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Models\Course;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\CourseAccess;
+use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,23 +26,32 @@ class CourseController
         return $user->hasPermission('course.manage');
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, CourseAccess $access): JsonResponse
     {
         $user = $request->user();
+        $manage = self::canManage($user);
         $courses = Course::query()
-            ->when(! self::canManage($user), fn ($q) => $q->where('published', true))
+            ->when(! $manage, fn ($q) => $q->where('published', true))
             ->withCount('modules')
             ->orderByDesc('id')
             ->get();
+        $granted = $manage ? null : array_flip($access->grantedCourseIds($user));
+        $courses->each(fn ($c) => $c->setAttribute('access', ['granted' => $manage || isset($granted[$c->id])]));
 
         return response()->json(['data' => $courses]);
     }
 
-    public function show(Request $request, Course $course): JsonResponse
+    public function show(Request $request, CourseAccess $access, Settings $settings, Course $course): JsonResponse
     {
         $manage = self::canManage($request->user());
         if (! $manage && ! $course->published) {
             abort(404);
+        }
+        $granted = $manage || $access->granted($request->user(), $course);
+        if (! $granted && ! $settings->bool('course.show_outline_to_guests')) {
+            $course->setRelation('modules', collect());
+
+            return response()->json(['course' => $course, 'access' => ['granted' => false] + $access->denial($course)]);
         }
         $course->load(['modules.lessons' => function ($q) use ($manage) {
             $q->select('id', 'module_id', 'title', 'position', 'published');
@@ -49,7 +60,7 @@ class CourseController
             }
         }]);
 
-        return response()->json(['course' => $course]);
+        return response()->json(['course' => $course, 'access' => $granted ? ['granted' => true] : ['granted' => false] + $access->denial($course)]);
     }
 
     public function store(Request $request): JsonResponse

@@ -7,8 +7,10 @@ use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Models\LessonMaterial;
 use App\Support\Audit;
+use App\Support\CourseAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /** Modullar, darslar va materiallar. Tahrirlash huquqi kurs bo'yicha tekshiriladi. */
@@ -47,15 +49,29 @@ class CurriculumController
 
     // ── Darslar ──────────────────────────────────────────────
 
-    public function showLesson(Request $request, Lesson $lesson): JsonResponse
+    public function showLesson(Request $request, CourseAccess $access, Lesson $lesson): JsonResponse
     {
         $lesson->load('module.course', 'materials');
+        $course = $lesson->module->course;
         $manage = $request->user()->hasPermission('course.manage');
-        if (! $manage && (! $lesson->published || ! $lesson->module->course->published)) {
+        if (! $manage && (! $lesson->published || ! $course->published)) {
             abort(404);
         }
+        $access->authorize($request->user(), $course);
 
-        return response()->json(['lesson' => $lesson]);
+        // Navigatsiya: kursdagi (ko'rinadigan) darslar tartibi bo'yicha oldingi/keyingi.
+        $ids = DB::table('lessons')->join('course_modules', 'course_modules.id', '=', 'lessons.module_id')
+            ->where('course_modules.course_id', $course->id)
+            ->when(! $manage, fn ($q) => $q->where('lessons.published', true))
+            ->orderBy('course_modules.position')->orderBy('lessons.position')
+            ->pluck('lessons.id')->map(fn ($id) => (int) $id)->all();
+        $i = array_search((int) $lesson->id, $ids, true);
+
+        return response()->json(['lesson' => $lesson, 'nav' => [
+            'prev' => $i !== false && $i > 0 ? $ids[$i - 1] : null,
+            'next' => $i !== false && $i < count($ids) - 1 ? $ids[$i + 1] : null,
+            'index' => $i === false ? null : $i + 1, 'total' => count($ids),
+        ]]);
     }
 
     public function storeLesson(Request $request, CourseModule $module): JsonResponse
