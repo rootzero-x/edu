@@ -38,6 +38,7 @@
                             <StackPanel Grid.Column="1" Spacing="2">
                                 <TextBlock Text="{x:Bind Course}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                                 <TextBlock Text="{x:Bind Student}" />
+                                <TextBlock Text="{x:Bind RevokedText}" Style="{StaticResource SecondaryTextStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="{x:Bind Revoked}" />
                                 <TextBlock Style="{StaticResource SecondaryTextStyle}">
                                     <Run Text="{x:Bind Code}" FontFamily="Consolas" />
                                     <Run Text=" · " />
@@ -45,6 +46,9 @@
                                 </TextBlock>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Tag="{x:Bind}" Click="Revoke_Click" Visibility="{x:Bind ShowRevoke}" ToolTipService.ToolTip="Bekor qilish" AutomationProperties.Name="Sertifikatni bekor qilish">
+                                    <FontIcon Glyph="&#xE711;" FontSize="14" />
+                                </Button>
                                 <Button Tag="{x:Bind}" Click="Copy_Click" ToolTipService.ToolTip="Havolani nusxalash" AutomationProperties.Name="Havolani nusxalash">
                                     <FontIcon Glyph="&#xE8C8;" FontSize="14" />
                                 </Button>

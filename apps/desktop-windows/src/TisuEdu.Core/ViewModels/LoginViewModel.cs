@@ -41,6 +41,7 @@ public sealed partial class LoginViewModel : ObservableObject
     public string TelegramButton => Settings.Login("telegram_button", "Telegram orqali kirish");
     public string WaitingText => Settings.Login("waiting_text", "Telegram'da botni oching, «Start» ni bosing va kirishni tasdiqlang.");
     public string SuccessText => Settings.Login("success_text", "Tasdiqlandi!");
+    public string QrHint => Settings.Login("qr_hint", "Telefon kamerasi bilan skanerlang");
     public string RegisterTitle => Settings.Login("register_title", "Ro'yxatdan o'tish");
     public string RegisterText => Settings.Login("register_text", "");
     public string RegisterButton => Settings.Login("register_button", "Telegram orqali ro'yxatdan o'tish");

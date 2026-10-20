@@ -11,6 +11,20 @@
         <StackPanel MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" Spacing="8">
             <TextBlock Text="{x:Bind ViewModel.Name, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
             <TextBlock Text="{x:Bind ViewModel.Course, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+            <CommandBar DefaultLabelPosition="Right" Background="Transparent" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.CanManage}">
+                <AppBarButton Label="Tahrirlash" Command="{x:Bind ViewModel.EditGroupCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE70F;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="O'quvchi qo'shish" Command="{x:Bind ViewModel.AddMemberCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE8FA;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="Darslarni yaratish" Command="{x:Bind ViewModel.GenerateSessionsCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE787;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="Sertifikatlar" Command="{x:Bind ViewModel.LoadCandidatesCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xEB95;" /></AppBarButton.Icon>
+                </AppBarButton>
+            </CommandBar>
 
             <controls:StatusBanner Model="{x:Bind ViewModel}" />
 
@@ -30,16 +44,42 @@
                         <TextBlock Text="{x:Bind ViewModel.Schedule, Mode=OneWay}" TextWrapping="Wrap" />
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Davr · Xona · Filial" Style="{StaticResource SecondaryTextStyle}" />
+                        <TextBlock Text="Davr · Xona" Style="{StaticResource SecondaryTextStyle}" />
                         <TextBlock TextWrapping="Wrap">
                             <Run Text="{x:Bind ViewModel.Period, Mode=OneWay}" />
                             <Run Text=" " />
                             <Run Text="{x:Bind ViewModel.Room, Mode=OneWay}" />
-                            <Run Text=" " />
-                            <Run Text="{x:Bind ViewModel.Branch, Mode=OneWay}" />
                         </TextBlock>
                     </StackPanel>
                 </Grid>
+            </Border>
+
+            <!-- Sertifikat berish: shartlar va natija -->
+            <Border Style="{StaticResource CardStyle}" Visibility="{x:Bind ViewModel.HasCandidates, Mode=OneWay}">
+                <StackPanel Spacing="8">
+                    <Grid>
+                        <TextBlock Text="Sertifikat berish" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                        <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" Content="Mos o'quvchilarga berish"
+                                Command="{x:Bind ViewModel.IssueCertificatesCommand}" IsEnabled="{x:Bind ViewModel.CanIssue, Mode=OneWay}" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Candidates}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CandidateItem">
+                                <Grid ColumnSpacing="12" Padding="0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Name}" />
+                                        <TextBlock Text="{x:Bind Meta}" Style="{StaticResource SecondaryTextStyle}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Status}" Style="{StaticResource SecondaryTextStyle}" VerticalAlignment="Center" MaxWidth="260" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
             </Border>
 
             <Grid ColumnSpacing="24">
@@ -110,9 +150,15 @@
                                             <TextBlock Text="{x:Bind Phone}" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind HasPhone}" IsTextSelectionEnabled="True" />
                                             <TextBlock Text="{x:Bind Counts}" Style="{StaticResource SecondaryTextStyle}" />
                                         </StackPanel>
-                                        <StackPanel Grid.Column="2" Width="72" VerticalAlignment="Center" Visibility="{x:Bind HasRate}">
-                                            <TextBlock Text="{x:Bind Rate}" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" />
-                                            <ProgressBar Value="{x:Bind RateValue}" Maximum="100" />
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <StackPanel Width="72" Visibility="{x:Bind HasRate}">
+                                                <TextBlock Text="{x:Bind Rate}" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" />
+                                                <ProgressBar Value="{x:Bind RateValue}" Maximum="100" />
+                                            </StackPanel>
+                                            <Button Tag="{x:Bind}" Click="RemoveMember_Click" Visibility="{x:Bind CanManage}" ToolTipService.ToolTip="Guruhdan chiqarish"
+                                                    AutomationProperties.Name="Guruhdan chiqarish">
+                                                <FontIcon Glyph="&#xE8F8;" FontSize="12" />
+                                            </Button>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

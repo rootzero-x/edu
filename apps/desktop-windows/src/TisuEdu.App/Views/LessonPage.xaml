@@ -18,6 +18,19 @@
                 <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" TextWrapping="Wrap" />
                 <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Position, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" VerticalAlignment="Center" />
             </Grid>
+            <CommandBar DefaultLabelPosition="Right" Background="Transparent" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
+                <AppBarButton Label="Darsni tahrirlash" Command="{x:Bind ViewModel.EditLessonCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE70F;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="Material qo'shish" Command="{x:Bind ViewModel.AddMaterialCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE710;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Label="Darsni o'chirish" Command="{x:Bind ViewModel.DeleteLessonCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE74D;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar.SecondaryCommands>
+            </CommandBar>
 
             <controls:StatusBanner Model="{x:Bind ViewModel}" />
 
@@ -31,6 +44,23 @@
                     <Button Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Center" Content="{x:Bind ViewModel.Denied.Button, Mode=OneWay}"
                             Command="{x:Bind ViewModel.ContactCommand}" />
                 </StackPanel>
+            </Border>
+
+            <!-- Video ilova ichida (course.embed_hosts: YouTube, Vimeo) -->
+            <Border Style="{StaticResource CardStyle}" Padding="0" Visibility="{x:Bind ViewModel.HasVideo, Mode=OneWay}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Padding="16,8">
+                        <TextBlock Text="{x:Bind ViewModel.VideoTitle, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                        <Button HorizontalAlignment="Right" Command="{x:Bind ViewModel.CloseVideoCommand}" AutomationProperties.Name="Videoni yopish">
+                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                        </Button>
+                    </Grid>
+                    <WebView2 x:Name="VideoView" Grid.Row="1" Height="480" />
+                </Grid>
             </Border>
 
             <TextBlock Text="Bu darsda hali material yo'q." Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
@@ -58,8 +88,15 @@
                                         <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                         <TextBlock Text="{x:Bind Host}" Style="{StaticResource SecondaryTextStyle}" />
                                     </StackPanel>
-                                    <Button Grid.Column="2" Content="{x:Bind ActionText}" Tag="{x:Bind}" Click="Material_Click"
-                                            Visibility="{x:Bind HasUrl}" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Content="{x:Bind ActionText}" Tag="{x:Bind}" Click="Material_Click" Visibility="{x:Bind HasUrl}" />
+                                        <Button Tag="{x:Bind}" Click="EditMaterial_Click" Visibility="{x:Bind CanEdit}" ToolTipService.ToolTip="Tahrirlash" AutomationProperties.Name="Materialni tahrirlash">
+                                            <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                                        </Button>
+                                        <Button Tag="{x:Bind}" Click="DeleteMaterial_Click" Visibility="{x:Bind CanEdit}" ToolTipService.ToolTip="O'chirish" AutomationProperties.Name="Materialni o'chirish">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="12" />
+                                        </Button>
+                                    </StackPanel>
                                 </Grid>
                                 <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="{x:Bind IsText}" />
                             </StackPanel>

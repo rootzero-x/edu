@@ -35,7 +35,6 @@ public sealed partial class ShellViewModel : ObservableObject
     public string NavReports => Settings.Nav("/dashboard/reports", "Hisobotlar");
     public string NavProfile => Settings.Nav("/dashboard/profile", "Profil");
     public string NavUsers => Settings.Nav("/dashboard/users", "Foydalanuvchilar");
-    public string NavBranches => Settings.Nav("/dashboard/branches", "Filiallar");
     public string NavSettings => Settings.Nav("/dashboard/settings", "Sozlamalar");
     public string NavBilling => Settings.Nav("/dashboard/billing", "To'lovlar");
     public string LogoutText => Settings.Text("logout", "Chiqish");

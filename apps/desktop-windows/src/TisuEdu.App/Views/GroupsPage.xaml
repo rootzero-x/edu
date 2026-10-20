@@ -18,8 +18,15 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <Button Grid.Column="3" Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.NewGroupCommand}" Visibility="{x:Bind ViewModel.CanManage}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE710;" FontSize="14" />
+                    <TextBlock Text="Yangi guruh" />
+                </StackPanel>
+            </Button>
             <ToggleSwitch Grid.Column="1" OnContent="Faqat faollar" OffContent="Barchasi" IsOn="{x:Bind ViewModel.OnlyActive, Mode=TwoWay}" MinWidth="0" />
             <AutoSuggestBox Grid.Column="2" Width="280" PlaceholderText="Guruh, kurs yoki o'qituvchi" QueryIcon="Find"
                             Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

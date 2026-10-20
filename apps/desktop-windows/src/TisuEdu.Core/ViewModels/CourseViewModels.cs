@@ -70,6 +70,7 @@ public sealed partial class CoursesViewModel(AppServices services) : PageViewMod
 public sealed class ModuleItem(CourseModule m, int index)
 {
     public CourseModule Module { get; } = m;
+    public bool CanEdit { get; init; }
     public string Title => m.Title;
     public string Number => (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
     public string Meta => $"{m.Lessons.Count} dars";
@@ -140,7 +141,7 @@ public sealed partial class CourseViewModel(AppServices services, int courseId) 
         Denied = d.Access.Granted ? null : d.Access;
         IsDenied = Denied is not null;
         Modules.Clear();
-        foreach (var (m, i) in d.Course.Modules.OrderBy(m => m.Position).Select((m, i) => (m, i))) Modules.Add(new ModuleItem(m, i));
+        foreach (var (m, i) in d.Course.Modules.OrderBy(m => m.Position).Select((m, i) => (m, i))) Modules.Add(new ModuleItem(m, i) { CanEdit = d.CanEdit });
         NoLessons = Modules.Count == 0 && !IsDenied;
 
         Quizzes.Clear();
@@ -223,6 +224,7 @@ internal static class AccessActions
 public sealed class MaterialItem(Material m)
 {
     public Material Material { get; } = m;
+    public bool CanEdit { get; init; }
     public string Title => m.Title;
     public string Type => m.Type;
     public bool IsText => m.Type == "TEXT";
@@ -303,7 +305,7 @@ public sealed partial class LessonViewModel(AppServices services, int lessonId) 
         HasPrev = Prev is not null;
         HasNext = Next is not null;
         Materials.Clear();
-        foreach (var m in d.Lesson.Materials.OrderBy(m => m.Position)) Materials.Add(new MaterialItem(m));
+        foreach (var m in d.Lesson.Materials.OrderBy(m => m.Position)) Materials.Add(new MaterialItem(m) { CanEdit = d.CanEdit });
         IsEmpty = Materials.Count == 0 && !HasBody;
     }
 

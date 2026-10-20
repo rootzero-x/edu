@@ -86,6 +86,7 @@ public sealed partial class QuestionItem : ObservableObject
 public sealed class QuestionKeyItem(QuizQuestion q, int index)
 {
     public QuizQuestion Question { get; } = q;
+    public bool CanEdit { get; init; }
     public string Header => $"{index + 1}. {q.Text}";
     public string Meta => (q.Type switch { "SINGLE" => "Bitta javob", "MULTIPLE" => "Bir nechta javob", _ => "Matnli javob" }) + $" · {q.Points} ball";
     public string Answers => q.Type == "TEXT"
@@ -206,7 +207,7 @@ public sealed partial class QuizViewModel(AppServices services, int quizId) : Pa
         _info = q;
         CanEdit = d.CanEdit == true;
         KeyQuestions.Clear();
-        foreach (var (kq, i) in (q.Questions ?? []).Select((x, i) => (x, i))) KeyQuestions.Add(new QuestionKeyItem(kq, i));
+        foreach (var (kq, i) in (q.Questions ?? []).Select((x, i) => (x, i))) KeyQuestions.Add(new QuestionKeyItem(kq, i) { CanEdit = d.CanEdit == true });
         HasKeyQuestions = KeyQuestions.Count > 0;
         Title = q.Title;
         CourseTitle = q.Course?.Title ?? "";

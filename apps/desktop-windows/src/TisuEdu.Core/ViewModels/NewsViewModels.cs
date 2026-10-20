@@ -28,6 +28,7 @@ public sealed partial class NewsItem(Announcement a, SiteSettings st) : Observab
     public bool IsUnread => !IsRead;
     public bool IsDraft => a.PublishedAt is null;
     public string StatusText => IsDraft ? "Qoralama" : "Chop etilgan";
+    public string PublishActionText => IsDraft ? "Chop etish" : "Yashirish";
 }
 
 /// <summary>Yangiliklar: sahifalab yuklash, ochilganda o'qilgan deb belgilash, menyu belgisi bilan sinxron.</summary>
@@ -177,6 +178,8 @@ public sealed class CertificateItem(Certificate c, SiteSettings st)
     public string Url => st.CertificateBaseUrl.TrimEnd('/') + "/" + Uri.EscapeDataString(c.Code);
     public string OpenText => st.Text("certificate_open", "Ochish");
     public bool Revoked => c.Revoked;
+    public bool CanRevoke { get; init; }
+    public bool ShowRevoke => CanRevoke && !c.Revoked;
     public string RevokedText => "Bekor qilingan" + (string.IsNullOrEmpty(c.RevokedReason) ? "" : ": " + c.RevokedReason);
 }
 
@@ -200,7 +203,7 @@ public sealed partial class CertificatesViewModel(AppServices services) : PageVi
         ResetStale();
         var r = await S.Api.CertificatesAsync(ct);
         Track(r);
-        _all = r.Value.Data.Select(c => new CertificateItem(c, Settings)).ToList();
+        _all = r.Value.Data.Select(c => new CertificateItem(c, Settings) { CanRevoke = CanRevoke }).ToList();
         Filter();
     }
 

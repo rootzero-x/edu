@@ -62,6 +62,9 @@ public sealed partial class ShellPage : Page
             AppPage.Certificates => CertificatesItem,
             AppPage.Reports => ReportsItem,
             AppPage.Profile => ProfileItem,
+            AppPage.Billing => BillingItem,
+            AppPage.Users => UsersItem,
+            AppPage.AdminSettings => AdminSettingsItem,
             _ => null,
         };
         // Masalan, o'quvchi guruh sahifasidan davomat varaqasiga o'tsa — "Davomat" menyusi yo'q, guruh tanlangan qoladi.

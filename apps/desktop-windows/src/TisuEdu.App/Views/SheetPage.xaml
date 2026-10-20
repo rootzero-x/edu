@@ -29,6 +29,8 @@
                     <Border Style="{StaticResource PillStyle}">
                         <TextBlock Text="{x:Bind ViewModel.MarkedText, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
                     </Border>
+                    <HyperlinkButton Content="{x:Bind ViewModel.CancelActionText, Mode=OneWay}" Command="{x:Bind ViewModel.ToggleCancelCommand}"
+                                     Visibility="{x:Bind ViewModel.CanCancel}" />
                 </StackPanel>
 
                 <controls:StatusBanner Model="{x:Bind ViewModel}" />

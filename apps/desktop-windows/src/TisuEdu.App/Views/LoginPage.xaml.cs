@@ -13,6 +13,11 @@ public sealed partial class LoginPage : Page
         var s = App.Services;
         ViewModel = new LoginViewModel(s.Session, s.Settings, s.Platform, s.Preferences);
         InitializeComponent();
+        ViewModel.PropertyChanged += async (_, e) =>
+        {
+            if (e.PropertyName == nameof(LoginViewModel.TelegramUrl) && ViewModel.TelegramUrl is { } url)
+                QrImage.Source = await Services.QrCode.RenderAsync(url);
+        };
     }
 
     public LoginViewModel ViewModel { get; }

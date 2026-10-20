@@ -15,14 +15,26 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" TextWrapping="Wrap" />
-                <Button Grid.Column="1" Visibility="{x:Bind ViewModel.CanEdit, Mode=OneWay}" Command="{x:Bind ViewModel.OpenOnWebCommand}"
-                        ToolTipService.ToolTip="Kursni tahrirlash saytdagi boshqaruv panelida">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE8A7;" FontSize="14" />
-                        <TextBlock Text="{x:Bind ViewModel.OpenOnWebText, Mode=OneWay}" />
-                    </StackPanel>
-                </Button>
+                <CommandBar Grid.Column="1" DefaultLabelPosition="Right" Background="Transparent" IsOpen="False"
+                            Visibility="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
+                    <AppBarButton Label="Tahrirlash" Command="{x:Bind ViewModel.EditCourseCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE70F;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Label="Modul qo'shish" Command="{x:Bind ViewModel.AddModuleCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE710;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Label="Yangi test" Command="{x:Bind ViewModel.NewQuizCommand}" Visibility="{x:Bind ViewModel.CanCreateQuiz, Mode=OneWay}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE9D5;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <CommandBar.SecondaryCommands>
+                        <AppBarButton Label="Kursni o'chirish" Command="{x:Bind ViewModel.DeleteCourseCommand}">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE74D;" /></AppBarButton.Icon>
+                        </AppBarButton>
+                    </CommandBar.SecondaryCommands>
+                </CommandBar>
             </Grid>
+            <InfoBar Severity="Warning" IsClosable="False" IsOpen="{x:Bind local:CoursePage.Not(ViewModel.IsPublished), Mode=OneWay}"
+                     Message="Kurs chop etilmagan — o'quvchilarga ko'rinmaydi." Visibility="{x:Bind ViewModel.CanEdit, Mode=OneWay}" />
             <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" />
 
@@ -49,7 +61,19 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Visibility="{x:Bind CanEdit}">
+                                                    <Button Tag="{x:Bind}" Click="AddLesson_Click" ToolTipService.ToolTip="Dars qo'shish" AutomationProperties.Name="Dars qo'shish">
+                                                        <FontIcon Glyph="&#xE710;" FontSize="12" />
+                                                    </Button>
+                                                    <Button Tag="{x:Bind}" Click="EditModule_Click" ToolTipService.ToolTip="Modulni tahrirlash" AutomationProperties.Name="Modulni tahrirlash">
+                                                        <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                                                    </Button>
+                                                    <Button Tag="{x:Bind}" Click="DeleteModule_Click" ToolTipService.ToolTip="Modulni o'chirish" AutomationProperties.Name="Modulni o'chirish">
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="12" />
+                                                    </Button>
+                                                </StackPanel>
                                                 <Border Width="28" Height="28" CornerRadius="14" Background="{ThemeResource AccentFillColorDefaultBrush}">
                                                     <TextBlock Text="{x:Bind Number}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" />

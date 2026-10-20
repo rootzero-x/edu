@@ -145,6 +145,7 @@ public sealed class StudentRow(int id, string name, string? phone, StudentAttend
     public string Rate => Format.Percent(a?.Rate);
     public double RateValue => a?.Rate ?? 0;
     public bool HasRate => a?.Rate is not null;
+    public bool CanManage { get; init; }
     public string Counts => a is null ? "" : string.Join("  ", AttendanceStatus.All.Select(s => $"{st.StatusLabel(s)}: {a.Counts.GetValueOrDefault(s)}"));
 }
 
@@ -207,7 +208,7 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
 
         Students.Clear();
         foreach (var s in group.Students)
-            Students.Add(new StudentRow(s.Id, s.FullName, s.Phone, rates.GetValueOrDefault(s.Id), Settings));
+            Students.Add(new StudentRow(s.Id, s.FullName, s.Phone, rates.GetValueOrDefault(s.Id), Settings) { CanManage = CanManage });
         // O'quvchi guruh a'zolari ro'yxatini emas, faqat o'zini ko'radi.
         if (Students.Count == 0)
             foreach (var r in rates.Values) Students.Add(new StudentRow(r.StudentId, r.Name, null, r, Settings));

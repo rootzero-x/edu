@@ -13,5 +13,7 @@ public sealed partial class CertificatesPage : ViewPage
 
     private void Open_Click(object sender, RoutedEventArgs e) => ViewModel.OpenCommand.Execute((sender as FrameworkElement)?.Tag as CertificateItem);
 
+    private void Revoke_Click(object sender, RoutedEventArgs e) => ViewModel.RevokeCommand.Execute((sender as FrameworkElement)?.Tag as CertificateItem);
+
     private void Copy_Click(object sender, RoutedEventArgs e) => ViewModel.CopyCommand.Execute((sender as FrameworkElement)?.Tag as CertificateItem);
 }

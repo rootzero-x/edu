@@ -73,6 +73,10 @@ internal sealed class NavigationService : INavigator
         AppPage.Reports => typeof(ReportsPage),
         AppPage.Profile => typeof(ProfilePage),
         AppPage.AppSettings => typeof(AppSettingsPage),
+        AppPage.Users => typeof(UsersPage),
+        AppPage.AdminSettings => typeof(AdminSettingsPage),
+        AppPage.Billing => typeof(BillingPage),
+        AppPage.BillingStudent => typeof(BillingStudentPage),
         _ => typeof(DashboardPage),
     };
 
@@ -87,5 +91,8 @@ internal sealed class NavigationService : INavigator
         : t == typeof(ReportsPage) ? AppPage.Reports
         : t == typeof(ProfilePage) ? AppPage.Profile
         : t == typeof(AppSettingsPage) ? AppPage.AppSettings
+        : t == typeof(UsersPage) ? AppPage.Users
+        : t == typeof(AdminSettingsPage) ? AppPage.AdminSettings
+        : t == typeof(BillingPage) || t == typeof(BillingStudentPage) ? AppPage.Billing
         : null;
 }

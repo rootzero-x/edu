@@ -52,13 +52,51 @@
                         </ItemsControl>
                     </StackPanel>
 
-                    <!-- Boshqaruvchi: natijalar; tahrirlash — saytda -->
+                    <!-- Boshqaruvchi: savollar (javob kaliti) va natijalar -->
                     <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.IsManager, Mode=OneWay}">
-                        <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="{x:Bind ViewModel.ManageOnWebText, Mode=OneWay}">
-                            <InfoBar.ActionButton>
-                                <Button Content="{x:Bind ViewModel.OpenOnWebText, Mode=OneWay}" Command="{x:Bind ViewModel.OpenOnWebCommand}" />
-                            </InfoBar.ActionButton>
-                        </InfoBar>
+                        <CommandBar DefaultLabelPosition="Right" Background="Transparent" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
+                            <AppBarButton Label="Sozlamalar" Command="{x:Bind ViewModel.EditQuizCommand}">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE713;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton Label="Savol qo'shish" Command="{x:Bind ViewModel.AddQuestionCommand}">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE710;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <CommandBar.SecondaryCommands>
+                                <AppBarButton Label="Testni o'chirish" Command="{x:Bind ViewModel.DeleteQuizCommand}">
+                                    <AppBarButton.Icon><FontIcon Glyph="&#xE74D;" /></AppBarButton.Icon>
+                                </AppBarButton>
+                            </CommandBar.SecondaryCommands>
+                        </CommandBar>
+                        <TextBlock Text="Savollar" Style="{StaticResource SectionHeaderStyle}" />
+                        <TextBlock Text="Hali savol qo'shilmagan." Style="{StaticResource SecondaryTextStyle}"
+                                   Visibility="{x:Bind ViewModel.HasKeyQuestions, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.KeyQuestions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:QuestionKeyItem">
+                                    <Border Style="{StaticResource ListCardStyle}" Margin="0,0,0,4">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="{x:Bind Header}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{x:Bind Meta}" Style="{StaticResource SecondaryTextStyle}" />
+                                                <TextBlock Text="{x:Bind Answers}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top" Visibility="{x:Bind CanEdit}">
+                                                <Button Tag="{x:Bind}" Click="EditQuestion_Click" AutomationProperties.Name="Savolni tahrirlash">
+                                                    <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                                                </Button>
+                                                <Button Tag="{x:Bind}" Click="DeleteQuestion_Click" AutomationProperties.Name="Savolni o'chirish">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="12" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                         <TextBlock Text="Natijalar" Style="{StaticResource SectionHeaderStyle}" />
                         <TextBlock Text="Hali hech kim topshirmagan." Style="{StaticResource SecondaryTextStyle}"
                                    Visibility="{x:Bind ViewModel.HasResults, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />

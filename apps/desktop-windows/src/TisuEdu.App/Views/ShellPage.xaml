@@ -59,23 +59,17 @@
             <NavigationViewItem x:Name="ReportsItem" Tag="Reports" Content="{x:Bind ViewModel.NavReports, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanReports, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D2;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem x:Name="BillingItem" Tag="Billing" Content="{x:Bind ViewModel.NavBilling, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanBilling, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE8C7;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>
-            <!-- Admin bo'limlari saytdagi boshqaruv panelida ochiladi. -->
-            <NavigationViewItem Content="Boshqaruv (saytda)" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.HasAdmin, Mode=OneWay}">
+            <NavigationViewItem x:Name="UsersItem" Tag="Users" Content="{x:Bind ViewModel.NavUsers, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanUsers, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE716;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="AdminSettingsItem" Tag="AdminSettings" Content="{x:Bind ViewModel.NavSettings, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanSettings, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE7EF;" /></NavigationViewItem.Icon>
-                <NavigationViewItem.MenuItems>
-                    <NavigationViewItem Tag="web:/dashboard/users" Content="{x:Bind ViewModel.NavUsers, Mode=OneWay}" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.CanUsers, Mode=OneWay}">
-                        <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FA;" /></NavigationViewItem.Icon>
-                    </NavigationViewItem>
-                    <NavigationViewItem Tag="web:/dashboard/branches" Content="{x:Bind ViewModel.NavBranches, Mode=OneWay}" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.CanUsers, Mode=OneWay}">
-                        <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;" /></NavigationViewItem.Icon>
-                    </NavigationViewItem>
-                    <NavigationViewItem Tag="web:/dashboard/settings" Content="{x:Bind ViewModel.NavSettings, Mode=OneWay}" SelectsOnInvoked="False" Visibility="{x:Bind ViewModel.CanSettings, Mode=OneWay}">
-                        <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;" /></NavigationViewItem.Icon>
-                    </NavigationViewItem>
-                </NavigationViewItem.MenuItems>
             </NavigationViewItem>
             <NavigationViewItem x:Name="ProfileItem" Tag="Profile" Content="{x:Bind ViewModel.NavProfile, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE77B;" /></NavigationViewItem.Icon>

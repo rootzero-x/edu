@@ -72,7 +72,7 @@ public partial class App : Application
         Navigation = new NavigationService();
         var notifier = new ToastNotifier();
         var watcher = new AnnouncementWatcher(session, settings, notifier, paths.Data) { NotificationsEnabled = prefs.Notifications };
-        Services = new AppServices(session, settings, Platform, Navigation, watcher, prefs);
+        Services = new AppServices(session, settings, Platform, Navigation, watcher, prefs, new FormDialogService(_window));
 
         notifier.Invoked += (_, id) => _dispatcher.TryEnqueue(() => OpenAnnouncement(id));
         notifier.Register();

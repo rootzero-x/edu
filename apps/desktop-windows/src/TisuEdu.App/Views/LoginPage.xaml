@@ -61,6 +61,11 @@
                             <ProgressRing IsActive="{x:Bind ViewModel.IsWaitingTelegram, Mode=OneWay}" Width="20" Height="20" />
                             <TextBlock Text="{x:Bind ViewModel.WaitingText, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="320" />
                         </StackPanel>
+                        <!-- Telefon kamerasi bilan skanerlash uchun QR-kod (t.me havolasi) -->
+                        <Border Background="White" CornerRadius="8" Padding="8" HorizontalAlignment="Center">
+                            <Image x:Name="QrImage" Width="200" Height="200" AutomationProperties.Name="Telegram orqali kirish QR-kodi" />
+                        </Border>
+                        <TextBlock Text="{x:Bind ViewModel.QrHint, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" HorizontalAlignment="Center" />
                         <TextBlock Style="{StaticResource SecondaryTextStyle}">
                             <Run Text="Qolgan vaqt:" />
                             <Run Text="{x:Bind ViewModel.SecondsLeft, Mode=OneWay}" />
