@@ -132,7 +132,7 @@ class ReportController
         $data = $request->validate([
             'from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from'],
             'group_id' => ['nullable', 'integer'], 'teacher_id' => ['nullable', 'integer'],
-            'branch_id' => ['nullable', 'integer'], 'course_id' => ['nullable', 'integer'],
+            'course_id' => ['nullable', 'integer'],
         ]);
         $to = isset($data['to']) ? Carbon::parse($data['to'])->endOfDay() : now()->endOfDay();
         $from = isset($data['from']) ? Carbon::parse($data['from'])->startOfDay() : $to->copy()->subDays($settings->int('reports.default_days') - 1)->startOfDay();
@@ -143,7 +143,6 @@ class ReportController
             ->when(! $user->hasPermission('group.manage'), fn ($q) => $q->where('teacher_id', $user->id))
             ->when($data['group_id'] ?? null, fn ($q, $v) => $q->where('id', $v))
             ->when($data['teacher_id'] ?? null, fn ($q, $v) => $q->where('teacher_id', $v))
-            ->when($data['branch_id'] ?? null, fn ($q, $v) => $q->where('branch_id', $v))
             ->when($data['course_id'] ?? null, fn ($q, $v) => $q->where('course_id', $v))
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
 

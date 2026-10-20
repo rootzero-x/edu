@@ -8,6 +8,8 @@ const common = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Qayta ochilgan sahifa 30 s ichida keshdan darhol ko'rsatiladi (jonli ma'lumot polling bilan yangilanadi).
+  experimental: { staleTimes: { dynamic: 30, static: 180 } },
   async headers() {
     return [
       // Mini App Telegram Web ichida (iframe) ochiladi — faqat Telegram domenlariga ruxsat.

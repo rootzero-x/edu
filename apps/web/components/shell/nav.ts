@@ -1,4 +1,4 @@
-import { Award, BarChart3, Wallet, Megaphone, BookOpen, Building2, CircleUserRound, ClipboardCheck, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Award, BarChart3, Wallet, Megaphone, BookOpen, CircleUserRound, ClipboardCheck, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -26,7 +26,6 @@ export const NAV: NavItem[] = [
   { href: "/dashboard/billing", label: "To'lovlar", icon: Wallet, perm: "billing.manage" },
   { href: "/dashboard/profile", label: "Profil", icon: CircleUserRound },
   { href: "/dashboard/users", label: "Foydalanuvchilar", icon: Users, perm: "user.manage", section: "admin" },
-  { href: "/dashboard/branches", label: "Filiallar", icon: Building2, perm: "user.manage", section: "admin" },
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings, perm: "settings.manage", section: "admin" },
 ];
 

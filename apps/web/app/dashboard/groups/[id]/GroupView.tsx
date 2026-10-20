@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BookOpen, Building2, CalendarClock, CalendarPlus, ClipboardCheck, DoorOpen, GraduationCap, Lock, MoreHorizontal, Pencil, PieChart,
+  BookOpen, CalendarClock, CalendarPlus, ClipboardCheck, DoorOpen, GraduationCap, Lock, MoreHorizontal, Pencil, PieChart,
   Search, Unlock, UserMinus, UserPlus, UserRound,
 } from "lucide-react";
 import {
@@ -147,7 +147,6 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
       <div className={s.meta}>
         {group.course && <span><BookOpen aria-hidden />{group.course.title}</span>}
         {group.teacher && <span><UserRound aria-hidden />{personName(group.teacher)}</span>}
-        {group.branch && <span><Building2 aria-hidden />{group.branch.name}</span>}
         {group.room && <span><DoorOpen aria-hidden />{group.room}</span>}
         {group.schedules.length > 0 && <span><CalendarClock aria-hidden />{scheduleText(group.schedules)}</span>}
       </div>

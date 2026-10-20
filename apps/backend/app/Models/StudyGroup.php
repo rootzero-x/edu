@@ -13,6 +13,14 @@ class StudyGroup extends Model
 
     protected $fillable = ['name', 'course_id', 'branch_id', 'teacher_id', 'start_date', 'end_date', 'room', 'active'];
 
+    protected static function booted(): void
+    {
+        // Filial tanlanmaydi: har bir guruh yagona filialga yoziladi.
+        static::creating(function (StudyGroup $g) {
+            $g->branch_id ??= Branch::primaryId();
+        });
+    }
+
     protected function casts(): array
     {
         return ['start_date' => 'date:Y-m-d', 'end_date' => 'date:Y-m-d', 'active' => 'boolean'];
