@@ -453,6 +453,7 @@ return [
             'reopen' => 'Yopish',
             'offline' => "Internet bilan aloqa yo'q.",
             'go_home' => 'Bosh sahifa',
+            'draft' => 'Yopiq',
             'quiz_leave_confirm' => "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
         ]],
 

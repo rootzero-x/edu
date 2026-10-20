@@ -53,6 +53,7 @@ const FALLBACK: Record<string, string> = {
   offline: "Internet bilan aloqa yo'q.",
   quiz_leave_confirm: "Test hali topshirilmagan. Chiqasizmi? Javoblar saqlanadi, keyin davom ettirishingiz mumkin.",
   go_home: "Bosh sahifa",
+  draft: "Yopiq",
   nav_attendance: "Davomat",
   nav_balance: "Balans",
   balance_title: "To'lovlar va balans",

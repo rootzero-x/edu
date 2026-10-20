@@ -42,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'Quiz' => "Test topilmadi — u o'chirilgan bo'lishi mumkin.",
                     'QuizAttempt' => 'Urinish topilmadi. Test sahifasini qayta oching.',
                     'ClassSession' => "Dars (mashg'ulot) topilmadi — u o'chirilgan bo'lishi mumkin.",
-                    'StudyGroup' => "Guruh topilmadi yoki siz endi bu guruhda emassiz.",
+                    'StudyGroup' => "Guruh topilmadi yoki u sizga tegishli emas (guruhdan chiqqan bo'lishingiz mumkin).",
                     'Announcement' => "Yangilik topilmadi — u o'chirilgan bo'lishi mumkin.",
                     'Certificate' => 'Sertifikat topilmadi yoki bekor qilingan.',
                     'User' => 'Foydalanuvchi topilmadi.',
