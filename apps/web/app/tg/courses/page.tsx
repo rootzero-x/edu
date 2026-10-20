@@ -10,13 +10,16 @@ export default function TgCourses() {
   const { t, can } = useTg();
   const groups = useApi<{ data: Group[] }>("groups");
   const all = useApi<{ data: Course[] }>(can("course.manage") ? "courses" : null);
+  // "Barcha kurslar" — yuqorida (guruhlar bo'yicha) ko'rsatilmaganlari; bir kurs ikki marta chiqmasin.
+  const mine = new Set((groups.data?.data ?? []).filter((g) => g.active && g.course).map((g) => g.course.id));
+  const otherCourses = (all.data?.data ?? []).filter((c) => !mine.has(c.id));
   return (
     <Page title={t("nav_courses")}>
       <Async q={groups}>
         {(d) => {
-          const byCourse = new Map<number, { title: string; groups: string[] }>();
+          const byCourse = new Map<number, { title: string; groups: string[]; draft: boolean }>();
           d.data.filter((g) => g.active && g.course).forEach((g) => {
-            const c = byCourse.get(g.course.id) ?? { title: g.course.title, groups: [] };
+            const c = byCourse.get(g.course.id) ?? { title: g.course.title, groups: [], draft: g.course.published === false };
             c.groups.push(g.name);
             byCourse.set(g.course.id, c);
           });
@@ -24,15 +27,16 @@ export default function TgCourses() {
           return byCourse.size > 0 ? (
             <Section>
               {[...byCourse.entries()].map(([id, c]) => (
-                <Row key={id} href={`/tg/courses/${id}`} icon="📘" title={c.title} subtitle={c.groups.join(", ")} />
+                <Row key={id} href={`/tg/courses/${id}`} icon="📘" title={c.title} subtitle={c.groups.join(", ")}
+                  right={c.draft && can("course.manage") ? <Badge tone="warn">{t("draft")}</Badge> : undefined} />
               ))}
             </Section>
           ) : null;
         }}
       </Async>
-      {all.data && all.data.data.length > 0 && (
+      {otherCourses.length > 0 && (
         <Section title={t("all_courses")}>
-          {all.data.data.map((c) => (
+          {otherCourses.map((c) => (
             <Row key={c.id} href={`/tg/courses/${c.id}`} icon="📗" title={c.title} subtitle={`${t("modules")}: ${c.modules_count}`}
               right={c.published ? undefined : <Badge tone="warn">{t("draft")}</Badge>} />
           ))}

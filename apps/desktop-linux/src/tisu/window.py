@@ -11,12 +11,15 @@ from .pages.groups import GroupsPage
 from .pages.login import LoginView
 from .pages.news import NewsDetailPage, NewsPage
 from .pages.profile import ProfilePage
+from .pages.billing import BillingPage
 from .pages.reports import ReportsPage
+from .pages.settings_admin import SettingsPage
+from .pages.users import UsersPage
 from .widgets import pill, spinner
 
 
 class Section:
-    def __init__(self, key, path, default_label, icon, factory=None, perm=None, web=None, any_perm=None):
+    def __init__(self, key, path, default_label, icon, factory=None, perm=None, any_perm=None, own=False, admin=False):
         self.key = key
         self.path = path
         self.default_label = default_label
@@ -24,7 +27,8 @@ class Section:
         self.factory = factory  # callable(win) -> Page
         self.perm = perm
         self.any_perm = any_perm
-        self.web = web  # path on the web dashboard (opens the browser)
+        self.own = own  # also visible to students (their own data)
+        self.admin = admin  # listed under the "Boshqaruv" header
 
 
 SECTIONS = [
@@ -34,11 +38,13 @@ SECTIONS = [
     Section("news", "/dashboard/news", "Yangiliklar", "tisu-bell-symbolic", NewsPage),
     Section("certificates", "/dashboard/certificates", "Sertifikatlar", "tisu-award-symbolic", CertificatesPage),
     Section("reports", "/dashboard/reports", "Hisobotlar", "tisu-chart-symbolic", ReportsPage, perm="report.view"),
+    # Managers see all balances; students see their own (when billing is enabled).
+    Section("billing", "/dashboard/billing", "To'lovlar", "tisu-wallet-symbolic", BillingPage, perm="billing.manage",
+            any_perm=None, own=True),
     Section("profile", "/dashboard/profile", "Profil", "avatar-default-symbolic", ProfilePage),
-    # Administration stays on the web dashboard (full CRUD forms live there).
-    Section("users", "/dashboard/users", "Foydalanuvchilar", "tisu-people-symbolic", perm="user.manage", web="/dashboard/users"),
-    Section("branches", "/dashboard/branches", "Filiallar", "go-home-symbolic", perm="user.manage", web="/dashboard/branches"),
-    Section("settings", "/dashboard/settings", "Sozlamalar", "preferences-system-symbolic", perm="settings.manage", web="/dashboard/settings"),
+    Section("users", "/dashboard/users", "Foydalanuvchilar", "tisu-people-symbolic", UsersPage, perm="user.manage", admin=True),
+    Section("settings", "/dashboard/settings", "Sozlamalar", "preferences-system-symbolic", SettingsPage,
+            perm="settings.manage", admin=True),
 ]
 
 
@@ -119,7 +125,6 @@ class TisuWindow(Adw.ApplicationWindow):
         if logged_in:
             s1 = Gio.Menu()
             s1.append("Yangilash", "win.refresh")
-            s1.append("Saytda ochish", "win.open-web")
             s1.append("Fonda ishlash (bildirishnomalar)", "app.run-in-background")
             menu.append_section(None, s1)
         s2 = Gio.Menu()
@@ -134,7 +139,12 @@ class TisuWindow(Adw.ApplicationWindow):
         return b
 
     def _visible_sections(self):
-        return [s for s in SECTIONS if self.has(s.perm) if not s.any_perm or any(self.has(p) for p in s.any_perm)]
+        def visible(s):
+            if s.own and self.role == "STUDENT":
+                return self.public.get("billing.enabled", True) is not False
+            return self.has(s.perm)
+
+        return [s for s in SECTIONS if visible(s)]
 
     def _build_sidebar(self):
         while (child := self.listbox.get_first_child()) is not None:
@@ -146,9 +156,9 @@ class TisuWindow(Adw.ApplicationWindow):
 
         admin_header_added = False
         for sec in self._visible_sections():
-            if sec.web and not admin_header_added:
+            if sec.admin and not admin_header_added:
                 admin_header_added = True
-                hdr = Gtk.Label(label="Boshqaruv (sayt)", xalign=0, margin_start=12, margin_top=12, margin_bottom=4)
+                hdr = Gtk.Label(label="Boshqaruv", xalign=0, margin_start=12, margin_top=12, margin_bottom=4)
                 hdr.add_css_class("caption-heading")
                 hdr.add_css_class("dim-label")
                 r = Gtk.ListBoxRow(activatable=False, selectable=False, child=hdr)
@@ -158,10 +168,6 @@ class TisuWindow(Adw.ApplicationWindow):
             lbl = Gtk.Label(label=self.public.nav_label(sec.path, sec.default_label), xalign=0, hexpand=True)
             lbl.set_ellipsize(3)
             box.append(lbl)
-            if sec.web:
-                ext = Gtk.Image.new_from_icon_name("tisu-external-link-symbolic")
-                ext.add_css_class("dim-label")
-                box.append(ext)
             badge = pill("", "accent")
             badge.add_css_class("tisu-badge")
             badge.set_visible(False)
@@ -193,17 +199,11 @@ class TisuWindow(Adw.ApplicationWindow):
         sec = getattr(row, "section", None)
         if sec is None:
             return
-        if sec.web:
-            self.open_web(sec.web)
-            # keep the previously shown section selected
-            if self._current:
-                self.listbox.select_row(self._rows[self._current])
-            return
         self.show_section(sec.key)
 
     def show_section(self, key, reset=False):
         row = self._rows.get(key)
-        if row is None or row.section.web:
+        if row is None:
             return False
         sec = row.section
         nav = self._nav_views.get(key)
@@ -228,7 +228,7 @@ class TisuWindow(Adw.ApplicationWindow):
         return nav.get_visible_page() if nav else None
 
     def section_index(self, i):
-        secs = [s for s in self._visible_sections() if not s.web]
+        secs = self._visible_sections()
         if 0 <= i < len(secs):
             self.show_section(secs[i].key)
 
@@ -349,6 +349,10 @@ class TisuWindow(Adw.ApplicationWindow):
         self.toasts.add_toast(t)
 
     def open_uri(self, uri):
+        """Only for links that must leave the app (Telegram, phone, mail). Content opens in-app."""
+        self.open_external(uri)
+
+    def open_external(self, uri):
         if not uri:
             return
         Gtk.UriLauncher.new(uri).launch(self, None, self._launched, None)
@@ -359,9 +363,6 @@ class TisuWindow(Adw.ApplicationWindow):
         except GLib.Error as e:
             if not e.matches(Gtk.dialog_error_quark(), Gtk.DialogError.DISMISSED):
                 self.toast(f"Brauzerni ochib bo'lmadi: {e.message}")
-
-    def open_web(self, path=""):
-        self.open_uri(self.public.web_url + path)
 
     def open_announcement(self, ann_id):
         """From a desktop notification."""

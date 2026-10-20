@@ -42,7 +42,7 @@ class GroupController
     public function index(Request $request): JsonResponse
     {
         $groups = self::visible($request->user())
-            ->with(['course:id,title', 'teacher:id,first_name,last_name', 'schedules'])
+            ->with(['course:id,title,published', 'teacher:id,first_name,last_name', 'schedules'])
             ->withCount('students')
             ->orderByDesc('active')->orderBy('name')
             ->get();

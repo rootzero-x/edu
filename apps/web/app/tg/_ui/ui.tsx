@@ -111,15 +111,18 @@ export function Denied({ denial }: { denial: Denial }) {
 }
 
 /** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
-export function Async<T>({ q, children }: {
+export function Async<T>({ q, children, title }: {
   q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null; status?: number };
   children: (data: T) => React.ReactNode;
+  /** Async sahifa (Page) tashqarisida bo'lsa: rad/topilmadi ekranlari shu sarlavha bilan Page ichida ko'rsatiladi. */
+  title?: string;
 }) {
+  const wrap = (node: React.ReactNode, heading?: string) => (title ? <Page title={heading || title}>{node}</Page> : node);
   if (q.loading && !q.data) return <Loading />;
   // Page ichida ham, tashqarisida ham ishlatiladi — ichma-ich <main> bo'lmasin.
-  if (q.denial) return <Denied denial={q.denial} />;
+  if (q.denial) return wrap(<Denied denial={q.denial} />, q.denial.course?.title);
   // 404/403: qayta urinish yordam bermaydi — API sababini (masalan, "Dars topilmadi — o'chirilgan bo'lishi mumkin") va bosh sahifa.
-  if ((q.status === 404 || q.status === 403) && !q.data) return <Failed text={q.error} home />;
+  if ((q.status === 404 || q.status === 403) && !q.data) return wrap(<Failed text={q.error} home />);
   if (q.error || !q.data) return <Failed onRetry={q.reload} text={q.error} />;
   return <>{children(q.data)}</>;
 }

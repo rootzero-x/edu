@@ -5,6 +5,7 @@ import re
 from gi.repository import Adw, Gdk, GLib, Gtk
 
 from .. import const
+from ..qr import QrView
 from ..widgets import label, spinner
 
 
@@ -100,11 +101,22 @@ class LoginView(Adw.Bin):
         return Gtk.ScrolledWindow(child=clamp, hscrollbar_policy=Gtk.PolicyType.NEVER)
 
     def _build_waiting(self):
-        self.wait_page = Adw.StatusPage(icon_name="tisu-telegram-symbolic")
+        # No icon: the QR code is the visual focus of this page.
+        self.wait_page = Adw.StatusPage()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, halign=Gtk.Align.CENTER)
-        box.append(spinner(32))
-        self.wait_countdown = label("", css=("dim-label", "numeric"), xalign=0.5)
-        box.append(self.wait_countdown)
+
+        self.qr = QrView(size=220)
+        self.qr.add_css_class("tisu-qr")
+        self.qr.set_overflow(Gtk.Overflow.HIDDEN)
+        box.append(self.qr)
+        self.qr_hint = label("", css=("dim-label",), xalign=0.5)
+        box.append(self.qr_hint)
+
+        status = Gtk.Box(spacing=8, halign=Gtk.Align.CENTER, margin_top=6)
+        status.append(spinner(16))
+        self.wait_countdown = label("", css=("dim-label", "numeric", "caption"), xalign=0.5, wrap=False)
+        status.append(self.wait_countdown)
+        box.append(status)
 
         buttons = Gtk.Box(spacing=12, halign=Gtk.Align.CENTER, margin_top=12)
         reopen = Gtk.Button(label="Telegram'ni qayta ochish")
@@ -138,6 +150,7 @@ class LoginView(Adw.Bin):
         self.wait_page.set_title(s.get("login.telegram_button", "Telegram orqali kirish"))
         self.wait_page.set_description(GLib.markup_escape_text(
             s.get("login.waiting_text", "Telegram'da botni oching, «Start» ni bosing va kirishni tasdiqlang.")))
+        self.qr_hint.set_text(s.get("login.qr_hint", "Telefon kamerasi bilan skanerlang"))
 
     def reset(self):
         self.cancel_telegram()
@@ -186,6 +199,7 @@ class LoginView(Adw.Bin):
                 self._set_error(err.message)
                 return
             self._tg = dict(data, left=int(data.get("expires_in") or 300))
+            self.qr.set_text(data["bot_url"])
             self.stack.set_visible_child_name("telegram")
             self.win.open_uri(data["bot_url"])
             self._update_countdown()
@@ -259,4 +273,4 @@ class LoginView(Adw.Bin):
         if bot:
             self.win.open_uri(f"https://t.me/{bot}")
         else:
-            self.win.open_uri(self.s.web_url + "/login")
+            self.win.toast("Telegram bot sozlanmagan — administratorga murojaat qiling.")

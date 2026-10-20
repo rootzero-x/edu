@@ -3,7 +3,11 @@
 from gi.repository import Adw, GLib, Gtk
 
 from .. import fmt
-from ..widgets import Page, group, label, link_row, pill, prefs_page, row
+from ..forms import confirm, form
+from ..widgets import Page, done_toast, group, label, menu_button, pill, prefs_page, row, text_button
+
+
+QUESTION_TYPES = [("SINGLE", "Bitta javob"), ("MULTIPLE", "Bir nechta javob"), ("TEXT", "Matnli javob")]
 
 
 def quiz_subtitle(s, q):
@@ -21,9 +25,15 @@ def quiz_subtitle(s, q):
 
 
 class QuizPage(Page):
-    def __init__(self, win, quiz_id, title):
+    def __init__(self, win, quiz_id, title, on_changed=None):
         super().__init__(win, title)
         self.quiz_id = quiz_id
+        self.on_changed = on_changed
+
+    def changed(self, *_):
+        self.reload()
+        if self.on_changed:
+            self.on_changed()
 
     def fetch(self, done):
         self.api.get(f"quizzes/{self.quiz_id}", done)
@@ -50,13 +60,15 @@ class QuizPage(Page):
         can_take = data.get("can_take")
         if not can_take:
             actions.add(row(s.text("quiz_not_allowed", "Bu test sizning guruhingiz uchun emas."), None, icon="dialog-information-symbolic"))
-        elif open_attempt or used < (q.get("max_attempts") or 0):
+        elif data.get("can_start", bool(open_attempt or used < (q.get("max_attempts") or 0))):
             b = Gtk.Button(label=s.text("quiz_continue", "Davom ettirish") if open_attempt else s.text("quiz_start", "Testni boshlash"),
                            halign=Gtk.Align.CENTER)
             b.add_css_class("pill")
             b.add_css_class("suggested-action")
             b.connect("clicked", lambda *_: self.start(b))
             actions.add(b)
+        elif any(a.get("passed") for a in attempts):
+            actions.add(row("Siz bu testdan o'tgansiz.", None, icon="object-select-symbolic"))
         else:
             actions.add(row("Urinishlar tugagan.", None, icon="dialog-information-symbolic"))
 
@@ -73,23 +85,150 @@ class QuizPage(Page):
 
     def _render_manager(self, q, data):
         s = self.settings
+        self.quiz = q
+        edit = bool(data.get("can_edit"))
+        questions = q.get("questions") or []
         info = group(q["title"], (q.get("course") or {}).get("title"))
-        info.add(row(quiz_subtitle(s, dict(q, questions_count=len(q.get("questions") or []))), None, icon="tisu-quiz-symbolic"))
-        info.add(row(f"Urinishlar limiti: {q.get('max_attempts')}", "Yakuniy test" if q.get("is_final") else None,
+        info.add(row(quiz_subtitle(s, dict(q, questions_count=len(questions))), None, icon="tisu-quiz-symbolic"))
+        info.add(row(f"Urinishlar limiti: {q.get('max_attempts')}",
+                     " · ".join(x for x in ["Yakuniy test" if q.get("is_final") else None,
+                                            "Savollar aralashtiriladi" if q.get("shuffle") else None] if x) or None,
                      icon="view-list-bullet-symbolic"))
-        if not q.get("published"):
-            info.add(row("Yashirin (o'quvchilarga ko'rinmaydi)", None, icon="dialog-information-symbolic"))
         acts = group()
+        if edit:
+            pub = Adw.SwitchRow(title="E'lon qilingan", subtitle="O'chirilsa, test o'quvchilarga ko'rinmaydi",
+                                active=bool(q.get("published")))
+            pub.connect("notify::active", lambda w, *_: self.api.patch(
+                f"quizzes/{q['id']}", {"published": w.get_active()},
+                done_toast(self.win, "Test e'lon qilindi" if w.get_active() else "Test yashirildi", self.changed)))
+            acts.add(pub)
+            acts.add(row("Test sozlamalari", "Nomi, o'tish bali, urinishlar, vaqt", icon="document-edit-symbolic",
+                         on_activate=self.edit_settings))
+        elif not q.get("published"):
+            info.add(row("Yashirin (o'quvchilarga ko'rinmaydi)", None, icon="dialog-information-symbolic"))
         acts.add(row("Natijalar", "Topshirgan o'quvchilar", icon="tisu-chart-symbolic",
                      on_activate=lambda: self.push(QuizResultsPage(self.win, q))))
-        acts.add(link_row(s.text("open_on_web", "Saytda ochish"), s.text("quiz_manage_on_web", "Testni tahrirlash — saytda."),
-                          lambda: self.win.open_web(f"/dashboard/quizzes/{q['id']}/edit"), icon="document-edit-symbolic"))
-        qs = group(f"Savollar ({len(q.get('questions') or [])})")
-        for i, question in enumerate(q.get("questions") or [], 1):
+        if edit:
+            acts.add(row("Testni o'chirish", "Topshirganlar bo'lsa o'chirilmaydi — yashiring", icon="edit-delete-symbolic",
+                         on_activate=self.delete_quiz))
+
+        total = sum(int(x.get("points") or 1) for x in questions)
+        add = text_button("Savol qo'shish", self.add_question, css=("flat",), icon="list-add-symbolic") if edit else None
+        qs = group(f"Savollar ({len(questions)})", f"Jami ball: {total}" if questions else None, suffix=add)
+        types = dict(QUESTION_TYPES)
+        for i, question in enumerate(questions, 1):
             opts = question.get("options") or []
             correct = [o["text"] for o in opts if o.get("is_correct")] or question.get("accepted_answers") or []
-            qs.add(row(f"{i}. {question['text']}", "To'g'ri: " + ", ".join(map(str, correct)) if correct else None))
+            sub = f"{types.get(question['type'], question['type'])} · {question.get('points', 1)} ball"
+            if correct:
+                sub += " · To'g'ri: " + ", ".join(map(str, correct))
+            suffix = menu_button([
+                ("Tahrirlash", lambda qq=question: self.question_form(qq)),
+                ("O'chirish", lambda qq=question: self.delete_question(qq), True),
+            ]) if edit else None
+            r = row(f"{i}. {question['text']}", sub, suffix=suffix)
+            r.set_title_lines(3)
+            qs.add(r)
+        if not questions:
+            qs.add(row("Savollar hali qo'shilmagan.", icon="dialog-information-symbolic"))
         return prefs_page(info, acts, qs)
+
+    # ── Editing (author / admin) ─────────────────────────────
+    def edit_settings(self):
+        q = self.quiz
+
+        def submit(v, done):
+            self.api.patch(f"quizzes/{q['id']}", {
+                "title": v["title"], "pass_percent": v["pass_percent"], "max_attempts": v["max_attempts"],
+                "time_limit_sec": v["minutes"] * 60 if v["minutes"] else None,
+                "is_final": v["is_final"], "shuffle": v["shuffle"]}, lambda _d, err: (done(err), err is None and self.changed()))
+
+        form(self.win, "Test sozlamalari", [
+            {"name": "title", "label": "Test nomi", "value": q.get("title"), "required": True},
+            {"name": "pass_percent", "label": "O'tish bali (%)", "type": "int", "min": 1, "max": 100, "value": q.get("pass_percent") or 60},
+            {"name": "max_attempts", "label": "Urinishlar soni", "type": "int", "min": 1, "max": 100, "value": q.get("max_attempts") or 1},
+            {"name": "minutes", "label": "Vaqt chegarasi (daqiqa, 0 — cheklanmagan)", "type": "int", "min": 0, "max": 1440,
+             "value": round((q.get("time_limit_sec") or 0) / 60)},
+            {"name": "is_final", "label": "Yakuniy test (sertifikat sharti)", "type": "switch", "value": q.get("is_final")},
+            {"name": "shuffle", "label": "Savol va variantlarni aralashtirish", "type": "switch", "value": q.get("shuffle")},
+        ], submit)
+
+    def delete_quiz(self):
+        q = self.quiz
+
+        def ok(_d, err):
+            if err:
+                self.win.toast(err.message, timeout=6)
+                return
+            self.win.toast("Test o'chirildi")
+            if self.on_changed:
+                self.on_changed()
+            self.get_ancestor(Adw.NavigationView).pop()
+
+        confirm(self.win, "Test o'chirilsinmi?", f"«{q['title']}» va uning savollari o'chiriladi.", "O'chirish",
+                lambda: self.api.delete(f"quizzes/{q['id']}", ok))
+
+    def add_question(self):
+        self.question_form(None)
+
+    def question_form(self, question):
+        existing = question or {}
+        qtype = existing.get("type")
+        if question:
+            if qtype == "TEXT":
+                answers = "\n".join(existing.get("accepted_answers") or [])
+            else:
+                answers = "\n".join(("*" if o.get("is_correct") else "") + o["text"] for o in existing.get("options") or [])
+        else:
+            answers = "*\n"
+
+        def submit(v, done):
+            t = qtype or v["type"]
+            lines = [ln.strip() for ln in v["answers"].splitlines() if ln.strip()]
+            body = {"text": v["text"].strip(), "points": v["points"]}
+            if not question:
+                body["type"] = t
+            if t == "TEXT":
+                if not lines:
+                    done(ValueError("Kamida bitta qabul qilinadigan javob yozing."))
+                    return
+                body["accepted_answers"] = lines
+            else:
+                opts = [{"text": ln.lstrip("*").strip(), "is_correct": ln.startswith("*")} for ln in lines if ln.lstrip("*").strip()]
+                correct = sum(o["is_correct"] for o in opts)
+                if not 2 <= len(opts) <= 12:
+                    done(ValueError("Variantlar soni 2 dan 12 gacha bo'lishi kerak."))
+                    return
+                if correct == 0:
+                    done(ValueError("To'g'ri variant oldiga * qo'ying."))
+                    return
+                if t == "SINGLE" and correct != 1:
+                    done(ValueError("Bitta javobli savolda faqat bitta to'g'ri variant bo'ladi."))
+                    return
+                body["options"] = opts
+            cb = lambda _d, err: (done(err), err is None and self.changed())  # noqa: E731
+            if question:
+                self.api.patch(f"questions/{existing['id']}", body, cb)
+            else:
+                self.api.post(f"quizzes/{self.quiz['id']}/questions", body, cb)
+
+        fields = []
+        if question:
+            fields.append({"name": "_t", "label": "Turi", "type": "info", "value": dict(QUESTION_TYPES).get(qtype, qtype)})
+        else:
+            fields.append({"name": "type", "label": "Turi", "type": "choice", "options": QUESTION_TYPES, "value": "SINGLE"})
+        fields += [
+            {"name": "text", "label": "Savol matni", "type": "text", "value": existing.get("text"), "required": True, "height": 100},
+            {"name": "points", "label": "Ball", "type": "int", "min": 1, "max": 100, "value": existing.get("points") or 1},
+            {"name": "answers", "label": "Variantlar: har biri alohida qatorda, to'g'risi oldiga * (matnli savolda — "
+                                         "qabul qilinadigan javoblar)", "type": "text", "value": answers, "height": 160},
+        ]
+        form(self.win, "Savolni tahrirlash" if question else "Savol qo'shish", fields, submit,
+             submit_label="Saqlash" if question else "Qo'shish", width=600)
+
+    def delete_question(self, question):
+        confirm(self.win, "Savol o'chirilsinmi?", question["text"][:200], "O'chirish",
+                lambda: self.api.delete(f"questions/{question['id']}", done_toast(self.win, "Savol o'chirildi", self.changed)))
 
     def start(self, button):
         button.set_sensitive(False)
