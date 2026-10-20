@@ -4,7 +4,9 @@ import os
 
 APP_ID = "uz.uzstudents.tisu"
 APP_NAME = "TISU Edu"
-VERSION = "1.0.0"
+VERSION = "@VERSION@"
+if VERSION.startswith("@"):
+    VERSION = "1.0.0"
 # Directory with data files (ui icons, css). meson replaces this; when running
 # from the source tree it points at apps/desktop-linux/data.
 PKGDATADIR = "@PKGDATADIR@"

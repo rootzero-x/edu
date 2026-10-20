@@ -246,7 +246,6 @@ class AttemptPage(Page):
         if res.get("time_expired"):
             desc = s.text("quiz_time_expired", "Vaqt tugagan edi — javoblar hisobga olinmadi.")
         status.set_description(GLib.markup_escape_text(desc))
-        status.add_css_class("success" if passed else "warning")
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         back = Gtk.Button(label=s.text("quiz_back", "Test sahifasiga qaytish"), halign=Gtk.Align.CENTER)

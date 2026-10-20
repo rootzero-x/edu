@@ -224,7 +224,7 @@ class TisuApplication(Adw.Application):
                 body = (a.get("body") or "").strip().replace("\n", " ")
                 n.set_body(body[:200] + ("…" if len(body) > 200 else ""))
                 n.set_icon(Gio.ThemedIcon.new(const.APP_ID))
-                n.set_default_action_and_target_value("app.open-announcement", GLib.Variant("x", int(a["id"])))
+                n.set_default_action(f"app.open-announcement({int(a['id'])})")
                 self.send_notification(f"announcement-{a['id']}", n)
             if len(fresh) > 3:
                 n = Gio.Notification.new(self.public.get("news.title", "Yangiliklar"))

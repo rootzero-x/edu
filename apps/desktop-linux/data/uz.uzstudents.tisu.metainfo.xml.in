@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>uz.uzstudents.tisu</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>TISU Edu</name>
+  <summary>Education center: courses, attendance and quizzes</summary>
+  <summary xml:lang="uz">O'quv markazi: kurslar, davomat va testlar</summary>
+  <description>
+    <p>
+      The desktop app of the TISU Edu education center platform. Students, parents,
+      teachers and administrators sign in with Telegram or their phone number and password.
+    </p>
+    <ul>
+      <li>Courses with modules, lessons and materials</li>
+      <li>Quizzes with time limits and instant results</li>
+      <li>Groups, lesson schedule and attendance marking for teachers</li>
+      <li>News and announcements with desktop notifications</li>
+      <li>Certificates, attendance and quiz reports with CSV export</li>
+    </ul>
+    <p xml:lang="uz">
+      TISU Edu o'quv markazi platformasining kompyuter ilovasi. O'quvchilar, ota-onalar,
+      o'qituvchilar va administratorlar Telegram yoki telefon raqami va parol bilan kiradi.
+    </p>
+  </description>
+  <launchable type="desktop-id">uz.uzstudents.tisu.desktop</launchable>
+  <developer id="uz.uzstudents">
+    <name>TISU Edu</name>
+  </developer>
+  <url type="homepage">https://tisu.uzstudents.uz</url>
+  <url type="bugtracker">https://github.com/rootzero-x/edu/issues</url>
+  <url type="vcs-browser">https://github.com/rootzero-x/edu</url>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <categories>
+    <category>Education</category>
+  </categories>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Overview</caption>
+      <image>https://raw.githubusercontent.com/rootzero-x/edu/main/apps/desktop-linux/docs/screenshots/dashboard.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Attendance sheet</caption>
+      <image>https://raw.githubusercontent.com/rootzero-x/edu/main/apps/desktop-linux/docs/screenshots/attendance.png</image>
+    </screenshot>
+  </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#93c5fd</color>
+    <color type="primary" scheme_preference="dark">#1e3a8a</color>
+  </branding>
+  <releases>
+    <release version="1.0.0" date="2026-10-20">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

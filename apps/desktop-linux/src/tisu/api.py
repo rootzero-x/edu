@@ -7,9 +7,12 @@ The returned ``Gio.Cancellable`` lets a page drop a request it no longer needs.
 import json
 from urllib.parse import urlencode
 
-from gi.repository import Gio, GLib, Soup
+import gi
 
-from . import const
+gi.require_version("Soup", "3.0")
+from gi.repository import Gio, GLib, Soup  # noqa: E402
+
+from . import const  # noqa: E402
 
 
 class ApiError(Exception):
