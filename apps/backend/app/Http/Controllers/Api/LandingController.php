@@ -14,7 +14,7 @@ class LandingController
     {
         $limit = $settings->int('site.courses_limit');
         $courses = $limit > 0
-            ? Course::query()->select(['id', 'title', 'description', 'cover_url', 'monthly_fee', 'duration_months'])
+            ? Course::query()->select(['id', 'title', 'description', 'cover_url', 'duration_months'])
                 ->where('published', true)->withCount('modules')->orderByDesc('id')->limit($limit)->get()
             : collect();
 
