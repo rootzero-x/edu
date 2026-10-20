@@ -24,6 +24,7 @@ export default function TgHome() {
     tiles.push({ href: "/tg/quizzes", icon: "📝", label: t("nav_quizzes") });
   }
   if (parent) tiles.push({ href: "/tg/attendance", icon: "👨‍👩‍👧", label: t("nav_children") });
+  if ((me.role === "STUDENT" || parent) && settings["billing.enabled"] !== false) tiles.push({ href: "/tg/balance", icon: "💰", label: t("nav_balance") });
   tiles.push({ href: "/tg/certificates", icon: "🎓", label: t("nav_certificates") });
   tiles.push({ href: "/tg/news", icon: "📢", label: t("nav_news") });
 
