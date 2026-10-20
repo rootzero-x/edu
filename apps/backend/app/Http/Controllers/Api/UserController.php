@@ -38,12 +38,7 @@ class UserController
             ->when(($data['telegram'] ?? null) === 'none', fn ($q) => $q->whereNotIn('id', $links))
             ->when(($data['telegram'] ?? null) === 'blocked', fn ($q) => $q->whereIn('id', (clone $links)->whereNotNull('blocked_at')))
             ->when(($data['telegram'] ?? null) === 'linked', fn ($q) => $q->whereIn('id', (clone $links)->whereNull('blocked_at')))
-            ->when($data['q'] ?? null, function ($q, $s) {
-                // Telefon har qanday yozuvda: "90 123", "+998 90…" → raqamlar bo'yicha.
-                $digits = Phone::searchDigits($s);
-                $q->where(fn ($w) => $w->where('phone', 'like', '%'.($digits ?? $s).'%')
-                    ->orWhere('first_name', 'like', "%$s%")->orWhere('last_name', 'like', "%$s%"));
-            })
+            ->when($data['q'] ?? null, fn ($q, $s) => self::search($q, $s))
             ->orderByDesc('id')
             ->paginate($data['per_page'] ?? app(Settings::class)->int('ui.page_size'));
         $tg = DB::table('telegram_links')->whereIn('user_id', $users->getCollection()->pluck('id'))
@@ -141,14 +136,10 @@ class UserController
             && \App\Models\StudyGroup::where('teacher_id', $user->id)->where('active', true)->exists()) {
             throw ValidationException::withMessages(['role' => 'Bu foydalanuvchi faol guruh o\'qituvchisi. Avval guruhlarga boshqa o\'qituvchi tayinlang.']);
         }
-        // O'quvchi guruh a'zosi yoki ota-onaga bog'langan farzand bo'lsa — boshqa rolga o'tkazilmaydi (davomat, testlar, xabarlar shunga bog'liq).
-        if ($roleChanged && $user->role === Role::Student) {
-            if (\Illuminate\Support\Facades\DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->exists()) {
-                throw ValidationException::withMessages(['role' => 'Bu o\'quvchi guruh a\'zosi. Avval uni guruhlardan chiqaring.']);
-            }
-            if (\Illuminate\Support\Facades\DB::table('parent_child')->where('child_id', $user->id)->exists()) {
-                throw ValidationException::withMessages(['role' => 'Bu o\'quvchi ota-onaga farzand sifatida bog\'langan. Avval bog\'lanishni olib tashlang.']);
-            }
+        // Guruh a'zosi bo'lgan o'quvchi boshqa rolga o'tkazilmaydi (davomat, testlar, xabarlar shunga bog'liq).
+        if ($roleChanged && $user->role === Role::Student
+            && \Illuminate\Support\Facades\DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->exists()) {
+            throw ValidationException::withMessages(['role' => 'Bu o\'quvchi guruh a\'zosi. Avval uni guruhlardan chiqaring.']);
         }
 
         $user->update($data);
@@ -161,32 +152,20 @@ class UserController
         return response()->json(['user' => $user->fresh()->toApi()]);
     }
 
-    /** Ota-onaning bog'langan farzandlari. */
-    public function children(User $parent): JsonResponse
+    /** Ism, familiya ("Ali Valiyev" ham) yoki telefon (istalgan yozuvda: "90 123", "+998 90…") bo'yicha qidiruv. */
+    public static function search(\Illuminate\Database\Eloquent\Builder $q, string $s): \Illuminate\Database\Eloquent\Builder
     {
-        $ids = \Illuminate\Support\Facades\DB::table('parent_child')->where('parent_id', $parent->id)->pluck('child_id');
+        $s = trim($s);
+        $digits = Phone::searchDigits($s);
+        if ($digits) {
+            return $q->where('phone', 'like', '%'.$digits.'%');
+        }
+        foreach (array_slice(preg_split('/\s+/u', $s) ?: [], 0, 3) as $word) {
+            $like = '%'.addcslashes($word, '%_\\').'%';
+            $q->where(fn ($w) => $w->where('first_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('phone', 'like', $like));
+        }
 
-        return response()->json(['data' => User::whereIn('id', $ids)->orderBy('first_name')->get()->map->toApi()]);
-    }
-
-    /** Ota-onani farzandga bog'lash (davomat xabarlari va ko'rish huquqi uchun). */
-    public function linkChild(Request $request, User $parent): JsonResponse
-    {
-        $data = $request->validate(['child_id' => ['required', 'integer', 'exists:users,id']]);
-        abort_unless($parent->role === Role::Parent, 422, 'Foydalanuvchi ota-ona roliga ega emas.');
-        abort_unless(User::find($data['child_id'])->role === Role::Student, 422, 'Farzand o\'quvchi bo\'lishi kerak.');
-        \Illuminate\Support\Facades\DB::table('parent_child')->insertOrIgnore(['parent_id' => $parent->id, 'child_id' => $data['child_id']]);
-        Audit::log('user.link_child', 'user', $parent->id, $data);
-
-        return response()->json(['ok' => true], 201);
-    }
-
-    public function unlinkChild(User $parent, User $child): JsonResponse
-    {
-        \Illuminate\Support\Facades\DB::table('parent_child')->where(['parent_id' => $parent->id, 'child_id' => $child->id])->delete();
-        Audit::log('user.unlink_child', 'user', $parent->id, ['child_id' => $child->id]);
-
-        return response()->json(['ok' => true]);
+        return $q;
     }
 
     /** Telefon har qanday yozuvda kelishi mumkin — validatsiya va unique tekshiruvi normal shaklda (takrorlar bo'lmasin). */

@@ -220,14 +220,12 @@ public sealed partial class SheetViewModel(AppServices services, int sessionId) 
         }
         var ok = await ActAsync(async () =>
         {
-            var r = await S.Api.MarkAsync(sessionId, request);
+            await S.Api.MarkAsync(sessionId, request);
             if (Topic.Trim() != _savedTopic)
             {
                 await S.Api.UpdateSessionTopicAsync(sessionId, Topic.Trim().Length > 0 ? Topic.Trim() : null);
             }
-            Notice = r.Notified > 0
-                ? Settings.Text("sheet_saved_notified", "Saqlandi. Ota-onaga {n} ta xabar yuborildi.", ("n", r.Notified))
-                : Settings.Text("sheet_saved", "Saqlandi");
+            Notice = Settings.Text("sheet_saved", "Saqlandi");
         });
         if (ok)
         {

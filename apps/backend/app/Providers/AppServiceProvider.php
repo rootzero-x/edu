@@ -58,6 +58,17 @@ class AppServiceProvider extends ServiceProvider
 
             return $limits;
         });
+        // Ochiq ariza formasi: IP bo'yicha soatiga va telefon bo'yicha kuniga (IP almashtirib spam qilishdan himoya).
+        RateLimiter::for('leads', function (Request $r) {
+            $s = app(Settings::class);
+            $limits = [Limit::perHour($s->int('leads.public_per_hour'))->by('lead-ip:'.$r->ip())];
+            $digits = preg_replace('/\D+/', '', (string) $r->input('phone'));
+            if ($digits !== '') {
+                $limits[] = Limit::perDay($s->int('leads.public_per_phone_per_day'))->by('lead-phone:'.substr($digits, -9));
+            }
+
+            return $limits;
+        });
         // Mini App kirishi: barcha so'rovlar Next (Vercel) serveridan keladi — IP bo'yicha cheklansa, dars boshida
         // hamma o'quvchi bitta limitga tushib qoladi. Hisoblagich Telegram user id bo'yicha; IP bo'yicha — keng zaxira.
         RateLimiter::for('miniapp', function (Request $r) {

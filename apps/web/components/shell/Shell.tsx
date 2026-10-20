@@ -11,6 +11,7 @@ import { NAV, ROLE_LABELS } from "./nav";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { obj } from "@/lib/settings";
 import { call } from "@/lib/client";
+import CommandPalette from "./CommandPalette";
 import s from "./Shell.module.css";
 
 type User = { first_name: string; last_name: string | null; role: string; phone: string; permissions: string[] };
@@ -51,7 +52,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const items = NAV.filter((n) => !n.perm || user.permissions.includes(n.perm));
+  const items = NAV.filter((n) => (!n.perm || user.permissions.includes(n.perm)) && (!n.roles || n.roles.includes(user.role)));
   const isActive = (href: string, exact?: boolean) => (exact ? path === href : path === href || path.startsWith(`${href}/`));
   const inSection = (n: (typeof items)[number]) => isActive(n.href, n.exact) || Boolean(n.also?.some((h) => isActive(h)));
   const current = items.filter(inSection).sort((a, b) => b.href.length - a.href.length)[0];
@@ -118,6 +119,7 @@ export default function Shell({ user, siteName, logoUrl, children }: { user: Use
         <header className={s.topbar}>
           <Button variant="ghost" iconOnly icon={<Menu />} aria-label="Menyuni ochish" aria-expanded={open} className={s.menuBtn} onClick={() => setOpen(true)} />
           <div className={s.crumb}>{current ? labels[current.href] || current.label : siteName}</div>
+          <CommandPalette nav={items.map((n) => ({ href: n.href, label: labels[n.href] || n.label }))} />
           <ThemeToggle />
           <Dropdown
             trigger={(p) => <Button variant="ghost" iconOnly aria-label="Profil" icon={<UserRound />} {...p} />}

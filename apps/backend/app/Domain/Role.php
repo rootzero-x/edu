@@ -9,5 +9,4 @@ enum Role: string
     case Admin = 'ADMIN';
     case Teacher = 'TEACHER';
     case Student = 'STUDENT';
-    case Parent = 'PARENT';
 }

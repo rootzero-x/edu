@@ -10,8 +10,8 @@ export const metadata: Metadata = { title: "Bosh sahifa" };
 
 export default async function DashboardHome() {
   const [user, res] = await Promise.all([me(), api<Summary>("/v1/dashboard/summary")]);
-  // Balans — faqat o'quvchi (o'zi) va ota-ona (farzandlari) uchun.
-  const billing = user && ["STUDENT", "PARENT"].includes(user.role) ? await api<BillingMe>("/v1/billing/me") : null;
+  // Balans — faqat o'quvchi (o'zi) uchun.
+  const billing = user?.role === "STUDENT" ? await api<BillingMe>("/v1/billing/me") : null;
   // Tizim holati (cron, zaxira, Telegram, arizalar) — foydalanuvchilarni boshqaradigan adminlar uchun.
   const system = user?.permissions.includes("user.manage") ? await api<SystemStatus>("/v1/system/status") : null;
   return (
