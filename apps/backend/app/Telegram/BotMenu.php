@@ -129,7 +129,7 @@ class BotMenu
         }
         $user = $this->linkedUser((int) $cq['from']['id']);
         if (! $user) {
-            $this->tg->answerCallback($cq['id'], $this->t->get('telegram.text.not_own_contact'), true);
+            $this->tg->answerCallback($cq['id'], $this->t->get('telegram.text.need_phone'), true);
 
             return;
         }

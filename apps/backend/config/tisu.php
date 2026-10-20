@@ -145,6 +145,8 @@ return [
         'telegram.text.share_phone_button' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: telefon tugmasi', 'default' => '📱 Telefon raqamni yuborish'],
         'telegram.text.registered' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxatdan o'tdi", 'default' => "Rahmat, {name}! Siz ro'yxatdan o'tdingiz."],
         'telegram.text.linked' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: akkaunt bog\'landi', 'default' => "Rahmat, {name}! Telegram akkauntingiz bog'landi."],
+        'telegram.text.welcome_back' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: bog'langan foydalanuvchi /start bosganda ({name})", 'default' => "Assalomu alaykum, {name}! 👋\nKerakli bo'limni pastdagi menyudan tanlang."],
+        'telegram.text.need_phone' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: bog'lanmagan foydalanuvchiga eslatma", 'default' => "Davom etish uchun avval pastdagi tugma orqali telefon raqamingizni yuboring 👇"],
         'telegram.text.registration_closed' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxat yopiq", 'default' => "Bu raqam tizimda topilmadi. Ro'yxatdan o'tish uchun administratorga murojaat qiling."],
         'telegram.text.not_own_contact' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: begona kontakt", 'default' => "Iltimos, pastdagi tugma orqali o'z raqamingizni yuboring."],
         'telegram.text.login_confirm' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: saytga kirishni tasdiqlash so'rovi ({name}, {ip}, {time})", 'default' => "🔐 {name}, saytga kirish so'rovi.\nIP: {ip}\nVaqt: {time}\n\nAgar bu siz bo'lsangiz — tasdiqlang. Siz bo'lmasangiz — rad eting va havolani hech kimga bermang."],

@@ -45,7 +45,7 @@ class BotHandler
             return;
         }
         if ($text !== '' && ! $this->menu->onText($chatId, $from, $text)) {
-            $this->askPhone($chatId);
+            $this->askPhone($chatId, 'telegram.text.need_phone');
         }
     }
 
@@ -69,7 +69,7 @@ class BotHandler
         }
 
         if ($user && $user->active) {
-            $this->menu->sendMenu($user, $chatId, 'telegram.text.linked', ['name' => $user->first_name]);
+            $this->menu->sendMenu($user, $chatId, 'telegram.text.welcome_back', ['name' => $user->first_name]);
 
             return;
         }
@@ -94,6 +94,14 @@ class BotHandler
 
         if ($user && ! $user->active) {
             $this->say($chatId, 'telegram.text.account_blocked', [], $remove);
+
+            return;
+        }
+        // Shu Telegram allaqachon shu akkauntga bog'langan — qayta bog'lamaymiz, "bog'landi" demaymiz.
+        if ($user && (int) DB::table('telegram_links')->where('user_id', $user->id)->value('telegram_id') === (int) $from['id']) {
+            DB::table('telegram_links')->where('user_id', $user->id)->update(['chat_id' => $chatId, 'username' => $from['username'] ?? null]);
+            $this->menu->sendMenu($user, $chatId, 'telegram.text.welcome_back', ['name' => $user->first_name]);
+            $this->confirmPendingLogin((int) $from['id'], $user, $chatId);
 
             return;
         }
@@ -131,7 +139,13 @@ class BotHandler
             $this->admin->notifyNewUser($user, $from['username'] ?? null);
         }
 
-        $code = Cache::pull($this->pendingKey((int) $from['id']));
+        $this->confirmPendingLogin((int) $from['id'], $user, $chatId);
+    }
+
+    /** Telefon so'ralishidan oldin saytdan kirish havolasi bosilgan bo'lsa — endi tasdiq so'raymiz. */
+    private function confirmPendingLogin(int $telegramId, User $user, int $chatId): void
+    {
+        $code = Cache::pull($this->pendingKey($telegramId));
         if ($code && $this->pendingRequest($code)) {
             $this->askLoginConfirm($code, $user, $chatId);
         }
