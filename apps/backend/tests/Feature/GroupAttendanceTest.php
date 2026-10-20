@@ -53,7 +53,7 @@ class GroupAttendanceTest extends TestCase
         $this->postJson("/v1/users/{$this->parent->id}/children", ['child_id' => $this->student->id])->assertCreated();
     }
 
-    private function session(string $startsAt): int
+    private function sessionAt(string $startsAt): int
     {
         return (int) DB::table('class_sessions')->where('group_id', $this->groupId)->where('starts_at', $startsAt)->value('id');
     }
@@ -69,7 +69,7 @@ class GroupAttendanceTest extends TestCase
     public function test_teacher_marks_attendance_with_auto_status_and_parent_is_notified(): void
     {
         $this->postJson("/v1/groups/{$this->groupId}/sessions/generate", ['from' => '2026-10-19', 'to' => '2026-10-25']);
-        $today = $this->session('2026-10-21 14:00:00');
+        $today = $this->sessionAt('2026-10-21 14:00:00');
 
         Sanctum::actingAs($this->teacher);
         $this->getJson("/v1/sessions/$today/attendance")->assertOk()->assertJsonPath('rows.0.status', null);
@@ -96,8 +96,8 @@ class GroupAttendanceTest extends TestCase
     public function test_marking_rules(): void
     {
         $this->postJson("/v1/groups/{$this->groupId}/sessions/generate", ['from' => '2026-10-01', 'to' => '2026-10-31']);
-        $future = $this->session('2026-10-26 14:00:00');
-        $old = $this->session('2026-10-19 14:00:00');
+        $future = $this->sessionAt('2026-10-26 14:00:00');
+        $old = $this->sessionAt('2026-10-19 14:00:00');
         $item = ['items' => [['student_id' => $this->student->id, 'status' => 'PRESENT']]];
 
         Sanctum::actingAs($this->teacher);
