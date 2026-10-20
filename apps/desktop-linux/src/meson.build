@@ -29,6 +29,7 @@ install_data(
   'tisu/main.py',
   'tisu/prefs.py',
   'tisu/public_settings.py',
+  'tisu/qr.py',
   'tisu/secret_store.py',
   'tisu/widgets.py',
   'tisu/window.py',

@@ -11,6 +11,7 @@ os.environ.setdefault("XDG_CACHE_HOME", tempfile.mkdtemp())
 from tisu import fmt  # noqa: E402
 from tisu.api import ApiClient, ApiError, _message_from  # noqa: E402
 from tisu.public_settings import PublicSettings  # noqa: E402
+from tisu.qr import QrCode  # noqa: E402
 
 
 class FakeApi:
@@ -101,6 +102,41 @@ class ApiTest(unittest.TestCase):
         while ctx.iteration(False):
             pass
         self.assertEqual(calls, [])  # wrong password on login must not "log out"
+
+
+class QrTest(unittest.TestCase):
+    URL = "https://t.me/edu_tisu_bot?start=login_iCjFvTk7XR25o41HnNe7US1IiCb1HFZX"
+
+    def test_structure(self):
+        q = QrCode(self.URL)
+        self.assertEqual(q.version, 5)  # 71 bytes, level M
+        self.assertEqual(q.size, 37)
+        m = q.modules
+        # finder pattern corners and the always-dark module
+        for x, y in ((0, 0), (36, 0), (0, 36), (6, 6), (30, 6), (6, 30)):
+            self.assertTrue(m[y][x])
+        self.assertTrue(m[q.size - 8][8])
+        # timing pattern alternates
+        self.assertEqual([m[6][x] for x in range(8, 29)], [x % 2 == 0 for x in range(8, 29)])
+
+    def test_too_long_is_rejected(self):
+        with self.assertRaises(ValueError):
+            QrCode("x" * 300)
+
+    def test_matches_reference_encoder_when_available(self):
+        try:
+            import qrcode
+            import qrcode.util as qu
+        except ImportError:
+            self.skipTest("python3-qrcode not installed")
+        for text in (self.URL, "a", "TISU-26-ABCDEFGH", "x" * 150):
+            for mask in range(8):
+                mine = QrCode(text, mask=mask)
+                ref = qrcode.QRCode(version=mine.version, error_correction=qrcode.constants.ERROR_CORRECT_M,
+                                    mask_pattern=mask, border=0)
+                ref.add_data(qu.QRData(text.encode(), mode=qu.MODE_8BIT_BYTE))
+                ref.make(fit=False)
+                self.assertEqual([[bool(v) for v in r] for r in ref.get_matrix()], mine.modules, (text, mask))
 
 
 if __name__ == "__main__":

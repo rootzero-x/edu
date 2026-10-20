@@ -32,3 +32,6 @@ button.tisu-status.success:checked { background: @success_bg_color; color: @succ
 button.tisu-status.warning:checked { background: @warning_bg_color; color: @warning_fg_color; }
 button.tisu-status.error:checked   { background: @error_bg_color; color: @error_fg_color; }
 button.tisu-status.accent:checked  { background: @accent_bg_color; color: @accent_fg_color; }
+
+/* Telegram sign-in QR: rounded white tile, readable in dark mode too. */
+.tisu-qr { border-radius: 12px; box-shadow: 0 0 0 1px alpha(@window_fg_color, 0.1); }

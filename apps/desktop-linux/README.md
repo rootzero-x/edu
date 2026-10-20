@@ -9,6 +9,8 @@ App ID: `uz.uzstudents.tisu` · API: `https://api.tisu.uzstudents.uz/v1`
 
 ![Overview](docs/screenshots/dashboard.png)
 
+![Telegram sign-in with QR code](docs/screenshots/login-qr.png)
+
 ## Why Python + PyGObject
 
 Rust (gtk4-rs) was the other option, but no Rust toolchain is available on the build
@@ -21,7 +23,7 @@ asynchronous without threads and the UI never blocks.
 
 | Area | What it does | Who sees it |
 | --- | --- | --- |
-| Sign-in | Telegram deep link (opens the bot, polls `/auth/telegram/poll`, shows the countdown) or phone + password | everyone |
+| Sign-in | Telegram deep link (opens the bot and shows a QR code to scan with the phone, polls `/auth/telegram/poll`, countdown) or phone + password | everyone |
 | Session | Token stored in the Secret Service (GNOME Keyring / KWallet / Flatpak secret portal); any `401` returns to the login screen | everyone |
 | Overview | Greeting, stats, today's lessons, lessons with missing attendance; refreshes every `ui.refresh_seconds` while visible | everyone (stats by role) |
 | Courses | Courses → modules → lessons → materials; prev/next lesson; locked courses show the API's `COURSE_ACCESS_DENIED` title, text and contact button | `course.view` |
@@ -125,7 +127,6 @@ tools/run-dev.sh     run from the source tree
 
 ## Not included yet
 
-- QR code on the Telegram sign-in screen (the link opens Telegram Desktop / the browser and can be copied).
 - Admin CRUD screens (users, branches, settings, course/quiz editors, issuing certificates) —
   these open the web dashboard.
 - Linking a parent's children (needs `user.manage` on the API).
