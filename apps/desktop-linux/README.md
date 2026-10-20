@@ -36,9 +36,19 @@ asynchronous without threads and the UI never blocks.
 | Reports | Period + group filter, overview, attendance by group, students at risk, quizzes; **CSV export** to a file | `report.view` |
 | Profile | Name editing, Telegram link status, change / set password, sign out | everyone |
 | Billing | Balances / debtors with filters, payment and adjustment entry (de-duplicated), voiding with reason, per-student ledger and monthly summary, income report, CSV exports; students see their own balance | `billing.manage` / own |
-| Users | Search, role filter, create, edit (name, phone, role), set password, block / unblock | `user.manage` |
+| Users | Search, role and view filters (registration requests, no Telegram, bot blocked), create, edit, set password, block / unblock, approve / reject registrations, duplicates & merge, Excel/CSV student import (template, preview with per-row validation, commit), 360° profile (groups, enrollment history, attendance, quizzes, certificates, balance, leads) | `user.manage` |
+| Calendar | Week / month views of all visible lessons, teacher / room / group filters, homework and attendance badges; rooms management (capacity, active, clash-free schedules) | everyone (rooms: `group.manage`) |
+| Homework | Assignments with files and due dates, per-student grading with feedback, student submissions (text, link, files), "my marks", homework per lesson and per group, homework report | teachers / students |
+| Lesson marks | Per-lesson scores on the configured scale with notes, inside the attendance sheet | `attendance.mark` |
+| Files | Upload lesson materials and homework files (checked against the server's limits); files open with the local viewer or can be saved — no browser | by role |
+| Notifications | Inbox of everything the platform sent you (homework, marks, attendance, billing…), unread badge, desktop notifications, Telegram delivery report and unreachable users with CSV for admins | everyone / `user.manage` |
+| Audit log | Who changed what and when, with per-field before/after, filters by person, action, object and dates; per-setting history | `audit.view` / `settings.manage` |
+| KPI | Monthly trends (active / new / left students, attendance, quiz pass, homework, teacher hours, income, debt) with drill-down to students | `report.view` |
+| Leads (CRM) | Open/status/source/due-today filters, new lead (duplicate detection), lead card with calls and notes, trial lesson booking, conversion to a student (account + group), lost reason, reopen, history, funnel by source / course / lost reasons | `lead.manage` |
+| Search | Global search (Ctrl+K) across students, users, groups, courses, leads and certificates, plus sections | everyone (scoped by API) |
+| Overview for admins | Setup checklist (each step opens the right screen) and system status: cron, backups, Telegram queue, registration requests | `user.manage` |
 | Settings | All platform settings by group with search, typed editors (switch, number, text, colour, list, key/value, JSON), role × permission matrix, unsaved draft, reset to default | `settings.manage` |
-| Content editing | Courses (create, edit, publish, delete), modules, lessons, materials (video / file / link / text), quizzes and questions, announcements (drafts, audience, publish / hide), groups (create, edit, weekly schedule, lessons generation, members, close), certificates (eligibility, issue, revoke), cancelling a lesson | authors / `course.manage`, `quiz.manage`, `announcement.manage`, `group.manage`, `attendance.mark` |
+| Content editing | Courses (create, edit, publish, delete), modules, lessons, materials (video / file / link / text), quizzes and questions, announcements (drafts, audience, publish / hide), groups (create, edit, weekly schedule, lessons generation, members: add, freeze / unfreeze, transfer, graduate, leave with reason, history; graduate all; close), certificates (eligibility, issue, revoke), cancelling a lesson | authors / `course.manage`, `quiz.manage`, `announcement.manage`, `group.manage`, `attendance.mark` |
 
 Lesson materials (YouTube videos, links, files) open **inside the app** with WebKitGTK 6
 (`gir1.2-webkit-6.0`, pulled in by the .deb as a recommended package and included in the GNOME Flatpak runtime);
@@ -53,6 +63,7 @@ only fallbacks.
 
 | Keys | Action |
 | --- | --- |
+| `Ctrl+K` | Search |
 | `Ctrl+R`, `F5` | Refresh the current page |
 | `Ctrl+1` … `Ctrl+7` | Switch section |
 | `Alt+←`, `Esc` | Back |

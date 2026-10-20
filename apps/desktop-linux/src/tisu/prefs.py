@@ -16,6 +16,8 @@ class _MemorySettings:
         "run-in-background": False,
         "notified-announcements": [],
         "last-phone": "",
+        "setup-dismissed": False,
+        "last-notification-id": 0,
     }
 
     def __init__(self):
@@ -37,6 +39,12 @@ class _MemorySettings:
         return self._values[k]
 
     def set_string(self, k, v):
+        self._values[k] = v
+
+    def get_int64(self, k):
+        return self._values[k]
+
+    def set_int64(self, k, v):
         self._values[k] = v
 
     def get_value(self, k):

@@ -8,10 +8,15 @@ from .pages.certificates import CertificatesPage
 from .pages.courses import CoursesPage
 from .pages.dashboard import DashboardPage
 from .pages.groups import GroupsPage
+from .pages.leads import LeadsPage
 from .pages.login import LoginView
 from .pages.news import NewsDetailPage, NewsPage
 from .pages.profile import ProfilePage
+from .pages.audit import AuditPage
 from .pages.billing import BillingPage
+from .pages.calendar import CalendarPage
+from .pages.homework import HomeworkPage
+from .pages.notifications import NotificationsPage
 from .pages.reports import ReportsPage
 from .pages.settings_admin import SettingsPage
 from .pages.users import UsersPage
@@ -19,7 +24,7 @@ from .widgets import pill, spinner
 
 
 class Section:
-    def __init__(self, key, path, default_label, icon, factory=None, perm=None, any_perm=None, own=False, admin=False):
+    def __init__(self, key, path, default_label, icon, factory=None, perm=None, any_perm=None, own=False, admin=False, setting=None):
         self.key = key
         self.path = path
         self.default_label = default_label
@@ -29,10 +34,13 @@ class Section:
         self.any_perm = any_perm
         self.own = own  # also visible to students (their own data)
         self.admin = admin  # listed under the "Boshqaruv" header
+        self.setting = setting  # public boolean setting that switches the section off
 
 
 SECTIONS = [
     Section("dashboard", "/dashboard", "Bosh sahifa", "go-home-symbolic", DashboardPage),
+    Section("calendar", "/dashboard/calendar", "Taqvim", "x-office-calendar-symbolic", CalendarPage),
+    Section("homework", "/dashboard/homework", "Uyga vazifa", "tisu-quiz-symbolic", HomeworkPage, setting="homework.enabled"),
     Section("courses", "/dashboard/courses", "Kurslar", "tisu-book-symbolic", CoursesPage, perm="course.view"),
     Section("groups", "/dashboard/groups", "Guruhlar", "tisu-people-symbolic", GroupsPage),
     Section("news", "/dashboard/news", "Yangiliklar", "tisu-bell-symbolic", NewsPage),
@@ -41,8 +49,12 @@ SECTIONS = [
     # Managers see all balances; students see their own (when billing is enabled).
     Section("billing", "/dashboard/billing", "To'lovlar", "tisu-wallet-symbolic", BillingPage, perm="billing.manage",
             any_perm=None, own=True),
+    Section("leads", "/dashboard/leads", "Arizalar", "send-to-symbolic", LeadsPage, perm="lead.manage"),
+    Section("notifications", "/dashboard/notifications", "Bildirishnomalar", "mail-unread-symbolic", NotificationsPage,
+            setting="notifications.inbox_enabled"),
     Section("profile", "/dashboard/profile", "Profil", "avatar-default-symbolic", ProfilePage),
     Section("users", "/dashboard/users", "Foydalanuvchilar", "tisu-people-symbolic", UsersPage, perm="user.manage", admin=True),
+    Section("audit", "/dashboard/audit", "Audit jurnali", "document-open-recent-symbolic", AuditPage, perm="audit.view", admin=True),
     Section("settings", "/dashboard/settings", "Sozlamalar", "preferences-system-symbolic", SettingsPage,
             perm="settings.manage", admin=True),
 ]
@@ -97,6 +109,7 @@ class TisuWindow(Adw.ApplicationWindow):
         self._on_network(monitor)
 
         self.bus.connect("unread-changed", lambda _b, n: self._set_badge("news", n))
+        self.bus.connect("inbox-changed", lambda _b, n: self._set_badge("notifications", n))
         self.public.connect_changed(self._apply_labels)
 
     # ── Layout ───────────────────────────────────────────────
@@ -108,6 +121,9 @@ class TisuWindow(Adw.ApplicationWindow):
         self.sidebar_title = Adw.WindowTitle(title=const.APP_NAME)
         sb_header.set_title_widget(self.sidebar_title)
         sb_header.pack_end(self.make_primary_menu_button(logged_in=True))
+        search = Gtk.Button(icon_name="edit-find-symbolic", tooltip_text="Qidirish (Ctrl+K)")
+        search.connect("clicked", lambda *_: self.open_search())
+        sb_header.pack_start(search)
         sidebar_tb.add_top_bar(sb_header)
         self.listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
         self.listbox.add_css_class("navigation-sidebar")
@@ -140,6 +156,8 @@ class TisuWindow(Adw.ApplicationWindow):
 
     def _visible_sections(self):
         def visible(s):
+            if s.setting and self.public.get(s.setting, True) is False:
+                return False
             if s.own and self.role == "STUDENT":
                 return self.public.get("billing.enabled", True) is not False
             return self.has(s.perm)
@@ -370,6 +388,121 @@ class TisuWindow(Adw.ApplicationWindow):
         if self.user and self.show_section("news"):
             nav = self._nav_views["news"]
             nav.push(NewsDetailPage(self, {"id": ann_id}))
+
+    # ── Navigation by web-style paths (setup checklist, system status) ───
+    def navigate(self, href):
+        from urllib.parse import parse_qs, urlparse
+
+        u = urlparse(href or "")
+        q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        parts = u.path.rstrip("/").split("/")
+        if len(parts) == 4 and parts[2] in ("homework", "sessions", "groups", "users", "courses", "lessons") and parts[3].isdigit():
+            ident = int(parts[3])
+            sect = {"homework": "homework", "sessions": "calendar", "groups": "groups", "users": "users", "courses": "courses",
+                    "lessons": "courses"}[parts[2]]
+            if not self.show_section(sect, reset=True) and not self.show_section("dashboard", reset=True):
+                return
+            root = self.current_page()
+            from .pages.courses import CoursePage, LessonPage
+            from .pages.groups import GroupPage, SessionSheetPage
+            from .pages.homework import AssignmentPage
+            from .pages.users import UserPage
+
+            page = {"homework": lambda: AssignmentPage(self, ident), "sessions": lambda: SessionSheetPage(self, ident, "Dars"),
+                    "groups": lambda: GroupPage(self, ident, "Guruh"), "users": lambda: UserPage(self, {"id": ident, "first_name": ""}),
+                    "courses": lambda: CoursePage(self, ident, "Kurs"), "lessons": lambda: LessonPage(self, ident, "Dars")}[parts[2]]()
+            root.get_ancestor(Adw.NavigationView).push(page)
+            return
+        if u.path.startswith("/c/"):
+            from .pages.certificates import CertificateDetailPage
+
+            self.show_section("certificates", reset=True)
+            self.current_page().get_ancestor(Adw.NavigationView).push(CertificateDetailPage(self, u.path[3:]))
+            return
+        key = next((s.key for s in SECTIONS if s.path == u.path), None)
+        if u.path == "/dashboard":
+            key = "dashboard"
+        if not key or not self.show_section(key, reset=True):
+            return
+        root = self._nav_views[key].find_page("root")
+        if key == "settings" and q.get("group"):
+            root.open_group(q["group"])
+        elif key == "users":
+            if q.get("view") or q.get("role"):
+                root.show_view(q.get("view", "all"), q.get("role"))
+            if q.get("import"):
+                from .pages.users import ImportPage
+
+                root.push(ImportPage(self, on_done=root.reload, group_id=int(q["group"]) if q.get("group") else None))
+        elif key == "homework" and q.get("tab") == "marks":
+            root.tab_dd.set_selected(2)
+        elif key == "leads" and q.get("id"):
+            from .pages.leads import LeadPage
+
+            root.push(LeadPage(self, int(q["id"]), on_changed=root.reload))
+
+    # ── Global search (Ctrl+K) ───────────────────────────────
+    def open_search(self):
+        if not self.user:
+            return
+        from .forms import pick
+
+        def search(query, done):
+            sections = [s for s in self._visible_sections()
+                        if query and query.lower() in self.public.nav_label(s.path, s.default_label).lower()]
+            nav = [(("section", s.key, None), self.public.nav_label(s.path, s.default_label), "Bo'lim") for s in sections[:4]]
+            if len(query) < 2:
+                done(nav or [(("section", s.key, None), self.public.nav_label(s.path, s.default_label), "Bo'lim")
+                             for s in self._visible_sections()])
+                return
+
+            def got(data, err):
+                if err:
+                    done(nav, err if not nav else None)
+                    return
+                labels = {"student": "O'quvchi", "user": "Foydalanuvchi", "group": "Guruh", "course": "Kurs",
+                          "lead": "Ariza", "certificate": "Sertifikat"}
+                order = ["student", "user", "group", "course", "lead", "certificate"]
+                hits = sorted(data.get("data") or [], key=lambda h: order.index(h["type"]) if h["type"] in order else 99)
+                done([((h["type"], h["id"], h.get("href")), h["title"],
+                       h.get("subtitle") if h["type"] in ("student", "user") else
+                       " · ".join(x for x in [labels.get(h["type"]), h.get("subtitle")] if x)) for h in hits] + nav)
+
+            self.api.get("search", got, query={"q": query})
+
+        pick(self, "Qidirish", search, lambda item, title: self.open_hit(item, title),
+             placeholder="O'quvchi, guruh, kurs, ariza, sertifikat…", suffix_icon="go-next-symbolic")
+
+    def open_hit(self, item, title):
+        kind, ident, href = item
+        if kind == "section":
+            self.show_section(ident)
+            return
+        page = self.current_page()
+        if page is None:
+            self.show_section("dashboard")
+            page = self.current_page()
+        from .pages.certificates import CertificateDetailPage
+        from .pages.courses import CoursePage
+        from .pages.groups import GroupPage
+        from .pages.leads import LeadPage
+        from .pages.users import UserPage
+
+        if kind in ("student", "user"):
+            new = UserPage(self, {"id": ident, "first_name": title, "role": "STUDENT" if kind == "student" else ""})
+        elif kind == "group":
+            new = GroupPage(self, ident, title)
+        elif kind == "course":
+            new = CoursePage(self, ident, title)
+        elif kind == "lead":
+            new = LeadPage(self, ident)
+        elif kind == "certificate":
+            code = (href or "").rstrip("/").rsplit("/", 1)[-1] or str(ident)
+            new = CertificateDetailPage(self, code)
+        else:
+            return
+        page.get_ancestor(Adw.NavigationView).push(new)
+        self.split.set_show_content(True)
 
     def refresh(self):
         page = self.current_page()

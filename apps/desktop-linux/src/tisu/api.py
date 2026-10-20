@@ -38,6 +38,8 @@ class ApiError(Exception):
 
 
 def _message_from(status, data):
+    if status == 429:
+        return "Juda ko'p so'rov. Birozdan keyin urinib ko'ring."
     if isinstance(data, dict):
         errors = data.get("errors")
         if isinstance(errors, dict):
@@ -50,8 +52,6 @@ def _message_from(status, data):
         return "Ruxsat yo'q."
     if status == 404:
         return "Topilmadi."
-    if status == 429:
-        return "Juda ko'p so'rov. Birozdan keyin urinib ko'ring."
     if status >= 500:
         return "Serverda xatolik. Birozdan keyin urinib ko'ring."
     return f"Xatolik ({status})."
@@ -82,6 +82,37 @@ class ApiClient:
     def delete(self, path, callback, body=None):
         return self.request("DELETE", path, callback, body=body)
 
+    def upload(self, path, filename, content, callback, fields=None, mime="application/octet-stream"):
+        """multipart/form-data POST with the file in field ``file`` (homework, lesson materials)."""
+        mp = Soup.Multipart.new("multipart/form-data")
+        for k, v in (fields or {}).items():
+            if v is not None:
+                mp.append_form_string(k, str(v))
+        mp.append_form_file("file", filename, mime, GLib.Bytes.new(content))
+        msg = Soup.Message.new_from_multipart(self.url(path), mp)
+        headers = msg.get_request_headers()
+        headers.append("Accept", "application/json")
+        if self.token:
+            headers.append("Authorization", f"Bearer {self.token}")
+
+        def done(session, result, _d):
+            try:
+                gbytes = session.send_and_read_finish(result)
+            except GLib.Error:
+                callback(None, ApiError(ApiError.NETWORK, "Server bilan aloqa yo'q. Internetni tekshiring."))
+                return
+            status = msg.get_status()
+            try:
+                data = json.loads(gbytes.get_data().decode("utf-8")) if gbytes and gbytes.get_size() else {}
+            except (ValueError, UnicodeDecodeError):
+                data = {}
+            if 200 <= status < 300:
+                callback(data, None)
+            else:
+                callback(None, self._error(status, data))
+
+        self.session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, None, done, None)
+
     def fetch_bytes(self, absolute_url, callback, max_bytes=15 * 1024 * 1024):
         """GET any https URL (e.g. an announcement image) → callback(bytes|None). No auth header is sent."""
         msg = Soup.Message.new("GET", absolute_url) if absolute_url else None
@@ -109,7 +140,7 @@ class ApiClient:
         return url
 
     # ── Core ─────────────────────────────────────────────────
-    def request(self, method, path, callback, body=None, query=None, raw=False):
+    def request(self, method, path, callback, body=None, query=None, raw=False, retried=False):
         msg = Soup.Message.new(method, self.url(path, query))
         if msg is None:
             GLib.idle_add(lambda: callback(None, ApiError(ApiError.NETWORK, "Noto'g'ri manzil.")) and False)
@@ -145,6 +176,15 @@ class ApiClient:
                 data = {}
             if 200 <= status < 300:
                 callback(data, None)
+                return
+            if status == 429 and method == "GET" and not retried:
+                # Rate limited: retry a read once after the server's Retry-After (capped), silently.
+                try:
+                    wait = int(msg.get_response_headers().get_one("Retry-After") or 5)
+                except ValueError:
+                    wait = 5
+                GLib.timeout_add_seconds(min(max(wait, 1), 15), lambda: self.request(
+                    method, path, callback, body=body, query=query, raw=raw, retried=True) and False)
                 return
             callback(None, self._error(status, data))
 
