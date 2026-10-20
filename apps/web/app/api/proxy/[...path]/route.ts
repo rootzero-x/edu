@@ -7,7 +7,7 @@ async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }
   const url = new URL(req.url);
   const body = req.method === "GET" || req.method === "HEAD" ? undefined : await req.text();
   const { status, data } = await api(`/v1/${path.join("/")}${url.search}`, { method: req.method, body });
-  return NextResponse.json(data, { status });
+  return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };

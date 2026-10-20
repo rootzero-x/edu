@@ -1,0 +1,101 @@
+/* Dialog */
+.dialog {
+  padding: 0; border: 0; background: transparent; color: var(--fg);
+  width: min(100% - 32px, var(--w, 480px)); max-width: none; max-height: min(100dvh - 32px, 860px);
+  margin: auto; overflow: visible;
+}
+.dialog::backdrop { background: var(--overlay); backdrop-filter: blur(2px); animation: fade-in var(--dur) var(--ease); }
+.dialog[open] .panel { animation: pop var(--dur) var(--ease); }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+.panel {
+  display: flex; flex-direction: column; max-height: inherit;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+}
+.dHead { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3); }
+.dHead h2 { margin: 0; font-size: var(--text-lg); }
+.dDesc { margin: 4px 0 0; color: var(--fg-muted); font-size: var(--text-base); }
+.dIcon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); }
+.dIcon.danger { background: var(--danger-soft); color: var(--danger); }
+.dIcon svg { width: 20px; height: 20px; }
+.dTitle { flex: 1; min-width: 0; }
+.dClose { margin: -6px -8px 0 0; }
+.dBody { padding: var(--space-2) var(--space-5) var(--space-5); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-4); }
+.dFoot {
+  display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap-reverse;
+  padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border); background: var(--surface-2);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+@media (max-width: 560px) {
+  .dialog { width: 100%; margin: auto 0 0; max-height: 92dvh; }
+  .panel { border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+  .dFoot { border-radius: 0; padding-bottom: max(var(--space-4), env(safe-area-inset-bottom)); }
+  .dFoot > * { flex: 1 1 auto; }
+  .dialog[open] .panel { animation: sheet var(--dur) var(--ease); }
+  @keyframes sheet { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+}
+
+/* Toast */
+.toasts {
+  position: fixed; z-index: 2000; right: var(--space-4); bottom: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-2); width: min(380px, calc(100% - 32px)); pointer-events: none;
+}
+@media (max-width: 560px) { .toasts { left: 16px; right: 16px; width: auto; bottom: max(16px, env(safe-area-inset-bottom)); } }
+.toast {
+  pointer-events: auto; display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  animation: toast-in 260ms var(--ease);
+}
+.toast.leaving { animation: toast-out 180ms var(--ease) forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(16px); } }
+.tIcon { flex: none; margin-top: 1px; }
+.tIcon svg { width: 18px; height: 18px; }
+.success .tIcon { color: var(--success); }
+.error .tIcon { color: var(--danger); }
+.info .tIcon { color: var(--info); }
+.tText { flex: 1; min-width: 0; font-size: var(--text-base); }
+.tTitle { font-weight: 600; }
+.tDesc { color: var(--fg-muted); font-size: var(--text-sm); margin-top: 2px; }
+.tClose { flex: none; border: 0; background: none; color: var(--fg-subtle); cursor: pointer; padding: 2px; border-radius: var(--radius-sm); display: inline-flex; }
+.tClose:hover { color: var(--fg); background: var(--surface-2); }
+.tClose svg { width: 16px; height: 16px; }
+
+/* Dropdown */
+.dd { position: relative; display: inline-flex; }
+.menu {
+  position: absolute; z-index: 100; top: calc(100% + 6px); min-width: 200px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  animation: rise-in 140ms var(--ease);
+}
+.menu.right { right: 0; }
+.menu.left { left: 0; }
+.menu.up { top: auto; bottom: calc(100% + 6px); }
+.item {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: 8px 10px; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--fg); text-align: left; cursor: pointer; font-size: var(--text-base); text-decoration: none;
+}
+.item svg { width: 16px; height: 16px; color: var(--fg-subtle); flex: none; }
+.item:hover, .item:focus-visible { background: var(--surface-2); outline: none; }
+.item.danger { color: var(--danger); }
+.item.danger svg { color: var(--danger); }
+.item:disabled { opacity: 0.5; cursor: not-allowed; }
+.menuLabel { padding: 8px 10px 6px; font-size: var(--text-xs); color: var(--fg-subtle); }
+.sep { height: 1px; margin: 6px -6px; background: var(--border); }
+
+/* Tabs */
+.tablist { display: flex; gap: 2px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; margin-bottom: var(--space-5); }
+.tablist::-webkit-scrollbar { display: none; }
+.tab {
+  position: relative; display: inline-flex; align-items: center; gap: var(--space-2); padding: 10px 14px; border: 0; background: none;
+  color: var(--fg-muted); font-weight: 550; cursor: pointer; white-space: nowrap; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { color: var(--accent-text); }
+.tab[aria-selected="true"]::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+.tab svg { width: 16px; height: 16px; }
+.count { font-size: var(--text-xs); padding: 1px 7px; border-radius: var(--radius-full); background: var(--neutral-soft); color: var(--fg-muted); }
+.pills { border: 0; background: var(--surface-2); padding: 4px; border-radius: var(--radius); display: inline-flex; gap: 4px; max-width: 100%; }
+.pills .tab { border-radius: var(--radius-sm); padding: 6px 12px; }
+.pills .tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--shadow-sm); }
+.pills .tab[aria-selected="true"]::after { display: none; }

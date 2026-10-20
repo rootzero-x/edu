@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\CurriculumController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TelegramAuthController;
@@ -24,11 +26,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/telegram/webhook', [TelegramAuthController::class, 'webhook']);
     Route::get('/public/certificates/{code}', [CertificateController::class, 'verify'])->middleware('throttle:api');
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
+    Route::get('/public/courses', [LandingController::class, 'courses'])->middleware('throttle:api');
 
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/password', [AuthController::class, 'changePassword']);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
         // Sozlamalar (faqat settings.manage — standart: SUPER_ADMIN)
         Route::middleware('perm:settings.manage')->group(function () {

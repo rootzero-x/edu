@@ -1,0 +1,31 @@
+import { Award, BookOpen, Building2, ClipboardCheck, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
+
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Ko'rinishi uchun kerakli huquq (permissions ro'yxatidan). */
+  perm?: string;
+  exact?: boolean;
+  section?: "main" | "admin";
+};
+
+/**
+ * Panel menyusi. Yangi bo'lim qo'shish uchun shu ro'yxatga bitta qator yetarli
+ * (masalan, testlar: { href: "/dashboard/quizzes", label: "Testlar", icon: ClipboardCheck, perm: "course.view" }).
+ */
+export const NAV: NavItem[] = [
+  { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view" },
+  { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound },
+  { href: "/dashboard/users", label: "Foydalanuvchilar", icon: Users, perm: "user.manage", section: "admin" },
+  { href: "/dashboard/branches", label: "Filiallar", icon: Building2, perm: "user.manage", section: "admin" },
+  { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings, perm: "settings.manage", section: "admin" },
+];
+
+// Boshqa bo'limlar ishlatishi uchun eksport qilingan ikonkalar.
+export const NAV_ICONS = { Award, ClipboardCheck };
+
+export const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Super-admin", ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi", PARENT: "Ota-ona",
+};
