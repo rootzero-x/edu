@@ -43,5 +43,7 @@ class AuthTest extends TestCase
     public function test_me_requires_token(): void
     {
         $this->getJson('/v1/auth/me')->assertUnauthorized();
+        // Accept: application/json yuborilmasa ham 401 JSON (redirect emas).
+        $this->get('/v1/auth/me')->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
     }
 }

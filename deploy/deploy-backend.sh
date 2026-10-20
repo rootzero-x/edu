@@ -13,7 +13,9 @@ DOMAIN="${DEPLOY_DOMAIN:-api.tisu.uzstudents.uz}"
 REMOTE_DIR="${REMOTE_DIR:-www/$DOMAIN}"  # uy katalogiga nisbatan
 PHP_BIN="${PHP_BIN:-/opt/alt/php83/usr/bin/php}"
 
-SSH=(ssh -i "$KEY" -o StrictHostKeyChecking=accept-new "$USER_@$HOST")
+# Bitta umumiy ulanish: hosting ketma-ket ko'p SSH ulanishlarni uzib qo'yadi.
+SSH=(ssh -i "$KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15
+  -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-tisu-%C" -o ControlPersist=120 "$USER_@$HOST")
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SRC="$ROOT/apps/backend"
 
