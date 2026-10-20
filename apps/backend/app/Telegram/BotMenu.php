@@ -500,7 +500,7 @@ class BotMenu
             case 'all':
                 $rows = $this->sheet($user, $session)['rows'] ?? [];
                 $items = array_values(array_map(fn ($r) => ['student_id' => $r['student_id'], 'status' => 'PRESENT'],
-                    array_filter($rows, fn ($r) => $r['status'] === null && empty($r['left']))));
+                    array_filter($rows, fn ($r) => $r['status'] === null)));
                 if (! $items) {
                     return $this->t->get('telegram.text.nothing_to_mark');
                 }
