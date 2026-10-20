@@ -148,11 +148,15 @@ class QaRolePassTest extends TestCase
         $this->postJson("/v1/quizzes/$quizId/attempts")->assertOk();
 
         Sanctum::actingAs($this->teacher);
-        $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'a', 'is_correct' => false], ['text' => 'b', 'is_correct' => true]]])
-            ->assertStatus(409);
-        $this->assertTrue((bool) DB::table('question_options')->where('question_id', $q['id'])->where('text', 'a')->value('is_correct'));
+        // Matn tahriri — o'rnida (id'lar o'zgarmaydi).
         $this->patchJson("/v1/questions/{$q['id']}", ['text' => 'Savol?', 'options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false]]])
-            ->assertOk()->assertJsonPath('question.options.1.text', 'B');
+            ->assertOk()->assertJsonPath('versioned', false)->assertJsonPath('question.options.1.text', 'B');
+        // To'g'ri javobni almashtirish: eski savol (va topshirilgan javoblar bog'langan variantlar) o'zgarmaydi — yangi versiya.
+        $new = $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'a', 'is_correct' => false], ['text' => 'b', 'is_correct' => true]]])
+            ->assertOk()->assertJsonPath('versioned', true)->json('question');
+        $this->assertTrue((bool) DB::table('question_options')->where('question_id', $q['id'])->where('text', 'A')->value('is_correct'));
+        $this->assertNotSame($q['id'], $new['id']);
+        $this->assertTrue((bool) $new['options'][1]['is_correct']);
     }
 
     /** #10: ota-ona test topshira olmaydi — boshlash imkoni ko'rsatilmaydi. */

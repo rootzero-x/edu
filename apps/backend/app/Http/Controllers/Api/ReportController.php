@@ -103,7 +103,7 @@ class ReportController
             'courses' => DB::table('study_groups')->whereIn('id', $groupIds)->distinct()->count('course_id'),
             'sessions' => DB::table('class_sessions')->whereIn('group_id', $groupIds)->where('cancelled', false)->whereBetween('starts_at', [$from, $to])->count(),
             'new_students' => DB::table('group_members')->whereIn('group_id', $groupIds)->whereBetween('joined_at', [$from, $to])->distinct()->count('student_id'),
-            'certificates' => DB::table('certificates')->whereIn('group_id', $groupIds)->whereBetween('issued_at', [$from, $to])->count(),
+            'certificates' => DB::table('certificates')->whereIn('group_id', $groupIds)->whereNull('revoked_at')->whereBetween('issued_at', [$from, $to])->count(),
         ]);
     }
 
@@ -115,6 +115,7 @@ class ReportController
         $labels = (array) $settings->get('attendance.status_labels');
         $name = 'davomat_'.$from->format('Ymd').'_'.$to->format('Ymd').'.csv';
         $locale = (string) $settings->get('site.default_locale');
+        \App\Support\Audit::log('report.attendance_csv', 'report', null, ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'), 'groups' => count($groupIds)]);
 
         return response()->streamDownload(function () use ($rows, $labels, $locale) {
             $out = fopen('php://output', 'w');

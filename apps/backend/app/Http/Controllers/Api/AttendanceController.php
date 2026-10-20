@@ -20,7 +20,7 @@ class AttendanceController
     {
         $group = GroupController::findVisible($request->user(), $session->group_id);
         $records = DB::table('attendances')->where('session_id', $session->id)->get()->keyBy('student_id');
-        $students = $group->students()->select('users.id', 'first_name', 'last_name')->orderBy('first_name')->get();
+        $students = self::roster($group->id, $session, $records->keys()->all());
         $canSeeAll = $request->user()->hasPermission('attendance.mark');
 
         $rows = $students->filter(fn ($s) => $canSeeAll || $this->isSelfOrChild($request->user()->id, $s->id))
@@ -30,6 +30,9 @@ class AttendanceController
                 'status' => $records[$s->id]->status ?? null,
                 'arrived_at' => $records[$s->id]->arrived_at ?? null,
                 'note' => $records[$s->id]->note ?? null,
+                // Guruhdan chiqib ketgan, lekin dars paytida a'zo bo'lgan (davomatini tuzatish mumkin).
+                'left' => $s->left_at !== null,
+                'left_at' => $s->left_at,
             ])->values();
 
         $admin = $request->user()->hasPermission('group.manage');
@@ -62,7 +65,8 @@ class AttendanceController
             'items.*.note' => ['nullable', 'string', 'max:255'],
             'reason' => [$window['reason_required'] ? 'required' : 'nullable', 'string', 'max:255'],
         ]);
-        $memberIds = $group->students()->pluck('users.id')->map(fn ($id) => (int) $id)->all();
+        $memberIds = self::roster($group->id, $session, DB::table('attendances')->where('session_id', $session->id)->pluck('student_id')->all())
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
         $before = DB::table('attendances')->where('session_id', $session->id)->pluck('status', 'student_id')
             ->mapWithKeys(fn ($v, $k) => [(int) $k => $v]);
         $grace = $settings->int('attendance.grace_minutes');
@@ -138,7 +142,11 @@ class AttendanceController
             ->where('class_sessions.group_id', $g->id)->where('class_sessions.cancelled', false)
             ->get(['attendances.student_id', 'attendances.status'])
             ->groupBy('student_id');
-        $students = $g->students()->select('users.id', 'first_name', 'last_name')->orderBy('first_name')->get();
+        // Hozirgi a'zolar + davomati bor chiqib ketganlar (tarix yo'qolmasin, belgi bilan).
+        $students = DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
+            ->where('group_members.group_id', $g->id)
+            ->where(fn ($w) => $w->whereNull('group_members.left_at')->orWhereIn('group_members.student_id', $rows->keys()->all()))
+            ->orderBy('users.first_name')->get(['users.id', 'users.first_name', 'users.last_name', 'group_members.left_at']);
         $canSeeAll = $request->user()->hasPermission('attendance.mark');
 
         $data = $students->filter(fn ($s) => $canSeeAll || $this->isSelfOrChild($request->user()->id, $s->id))->map(function ($s) use ($rows) {
@@ -149,6 +157,8 @@ class AttendanceController
                 'name' => trim($s->first_name.' '.$s->last_name),
                 'counts' => array_count_values($statuses) + ['PRESENT' => 0, 'LATE' => 0, 'ABSENT' => 0, 'EXCUSED' => 0],
                 'rate' => Attendance::rate($statuses),
+                'left' => $s->left_at !== null,
+                'left_at' => $s->left_at,
             ];
         })->values();
 
@@ -235,6 +245,21 @@ class AttendanceController
 
         return ['can_edit' => true, 'reason_required' => $reason,
             'deadline' => ! $admin && $days > 0 ? $session->starts_at->copy()->addDays($days)->toIso8601String() : null];
+    }
+
+    /**
+     * Dars varaqasidagi o'quvchilar: hozirgi a'zolar, dars paytida a'zo bo'lib keyin chiqib ketganlar
+     * va shu darsda yozuvi borlar. Chiqib ketganlar ham ko'rinadi — o'tgan davomatini tuzatish mumkin.
+     */
+    public static function roster(int $groupId, ClassSession $session, array $markedIds = []): \Illuminate\Support\Collection
+    {
+        return DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
+            ->where('group_members.group_id', $groupId)
+            ->where(fn ($w) => $w->whereNull('group_members.left_at')
+                ->orWhere('group_members.left_at', '>', $session->starts_at)
+                ->orWhereIn('group_members.student_id', $markedIds))
+            ->orderBy('users.first_name')
+            ->get(['users.id', 'users.first_name', 'users.last_name', 'group_members.left_at']);
     }
 
     private function isSelfOrChild(int $userId, int $studentId): bool

@@ -13,11 +13,11 @@ use Illuminate\Support\Facades\DB;
 
 class CourseController
 {
-    /** Kursni tahrirlash: admin — hammasi, o'qituvchi — faqat o'zi yaratgani. */
     /** Kurs tarkibini (modul, dars, test) faqat muallif yoki admin o'zgartiradi. */
     public static function canEdit(User $user, Course $course): bool
     {
-        return $user->hasPermission('course.manage') && ($user->isAdmin() || (int) $course->created_by === (int) $user->id);
+        return ($user->hasPermission('course.manage') || $user->hasPermission('course.author'))
+            && ($user->isAdmin() || (int) $course->created_by === (int) $user->id);
     }
 
     public static function authorizeEdit(User $user, Course $course): void
@@ -27,29 +27,43 @@ class CourseController
         }
     }
 
+    /** Barcha kurslarni (yashirinlari bilan) ko'radi. */
     private static function canManage(User $user): bool
     {
         return $user->hasPermission('course.manage');
+    }
+
+    /** Kurs muallifi yoki shu kurs guruhining o'qituvchisi (course.author huquqi bilan yashirin kurslarini ham ko'radi). */
+    public static function isOwnOrTaught(User $user, Course $course): bool
+    {
+        return (int) $course->created_by === (int) $user->id
+            || DB::table('study_groups')->where(['course_id' => $course->id, 'teacher_id' => $user->id])->exists();
     }
 
     public function index(Request $request, CourseAccess $access): JsonResponse
     {
         $user = $request->user();
         $manage = self::canManage($user);
+        $author = ! $manage && $user->hasPermission('course.author');
         $courses = Course::query()
-            ->when(! $manage, fn ($q) => $q->where('published', true))
+            ->when(! $manage, fn ($q) => $q->where(fn ($w) => $w->where('published', true)
+                ->when($author, fn ($a) => $a->orWhere('created_by', $user->id)
+                    ->orWhereIn('id', DB::table('study_groups')->where('teacher_id', $user->id)->select('course_id')))))
             ->withCount('modules')
             ->orderByDesc('id')
             ->get();
         $granted = $manage ? null : array_flip($access->grantedCourseIds($user));
-        $courses->each(fn ($c) => $c->setAttribute('access', ['granted' => $manage || isset($granted[$c->id])]));
+        $courses->each(fn ($c) => $c->setAttribute('access', ['granted' => $manage || isset($granted[$c->id])])
+            ->setAttribute('can_edit', self::canEdit($user, $c)));
 
         return response()->json(['data' => $courses]);
     }
 
     public function show(Request $request, CourseAccess $access, Settings $settings, Course $course): JsonResponse
     {
-        $manage = self::canManage($request->user());
+        $user = $request->user();
+        // Yashirin kursni muallif va uning o'qituvchilari ham ko'radi (tahrirlash/tayyorlanish uchun).
+        $manage = self::canManage($user) || ($user->hasPermission('course.author') && self::isOwnOrTaught($user, $course));
         if (! $manage && ! $course->published) {
             abort(404);
         }

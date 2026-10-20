@@ -34,7 +34,11 @@ class SettingsController
             ];
         }
 
-        return response()->json(['data' => $items, 'permissions' => config('tisu.permissions'), 'groups' => config('tisu.groups')]);
+        // O'qituvchida hamma kurslarni boshqarish huquqi qolgan (eski standart) — sahifa ogohlantiradi.
+        $warnings = in_array('course.manage', (array) ($settings->get('roles.permissions')['TEACHER'] ?? []), true) ? ['teacher_course_manage'] : [];
+
+        return response()->json(['data' => $items, 'permissions' => config('tisu.permissions'), 'permission_labels' => config('tisu.permission_labels'),
+            'groups' => config('tisu.groups'), 'warnings' => $warnings]);
     }
 
     public function update(Request $request, Settings $settings): JsonResponse

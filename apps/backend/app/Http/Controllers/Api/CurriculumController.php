@@ -53,7 +53,9 @@ class CurriculumController
     {
         $lesson->load('module.course', 'materials');
         $course = $lesson->module->course;
-        $manage = $request->user()->hasPermission('course.manage');
+        $user = $request->user();
+        // Yashirin darslarni: course.manage, yoki course.author huquqli muallif/kurs o'qituvchisi.
+        $manage = $user->hasPermission('course.manage') || ($user->hasPermission('course.author') && CourseController::isOwnOrTaught($user, $course));
         if (! $manage && (! $lesson->published || ! $course->published)) {
             abort(404);
         }
