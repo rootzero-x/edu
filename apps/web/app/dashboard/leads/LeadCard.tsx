@@ -151,6 +151,7 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
           </div>
           <dl className={s.facts}>
             <div><dt>Kurs</dt><dd>{lead.course?.title ?? "—"}</dd></div>
+            {lead.group && <div><dt>Guruh</dt><dd><Link href={`/dashboard/groups/${lead.group.id}`} className="a">{lead.group.name}</Link></dd></div>}
             <div><dt>Mas&apos;ul</dt><dd>{lead.owner?.name ?? "—"}</dd></div>
             <div><dt>Keyingi bog&apos;lanish</dt><dd>{lead.next_contact_on ? fmtDay(lead.next_contact_on) : "—"}</dd></div>
             {lead.trial && <div><dt>Sinov darsi</dt><dd>{fmtDateTime(lead.trial.starts_at, tz)} · <Link href={`/dashboard/groups/${lead.trial.group_id}`} className="a">{lead.trial.group_name}</Link>{lead.trial.cancelled && " (bekor)"}</dd></div>}

@@ -55,3 +55,8 @@
 .pick:hover { background: var(--surface-2); }
 .pick[data-disabled] { opacity: 0.6; cursor: default; }
 .pick input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+@media (max-width: 600px) {
+  .member { flex-wrap: wrap; row-gap: 6px; }
+  .memberText { flex: 1 1 calc(100% - 100px); }
+  .member .rate { order: 3; flex: 1 1 100%; width: auto; padding-left: calc(32px + var(--space-3)); }
+}

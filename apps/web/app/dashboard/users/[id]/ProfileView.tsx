@@ -73,7 +73,7 @@ export default function ProfileView({ data, canBilling, canUsers, canLeads }: { 
                   {data.parents.map((p) => (
                     <li key={p.id}>
                       <Avatar name={personName(p)} size={30} />
-                      <span><Link href={`/dashboard/users/${p.id}`} className="a"><b>{personName(p)}</b></Link>{p.phone && <span className="subtle mono">{p.phone}</span>}</span>
+                      <span className={s.who}><Link href={`/dashboard/users/${p.id}`} className="a"><b>{personName(p)}</b></Link>{p.phone && <span className="subtle mono">{p.phone}</span>}</span>
                       {p.telegram === false && <Badge tone="warning">TG yo&apos;q</Badge>}
                     </li>
                   ))}
@@ -87,7 +87,7 @@ export default function ProfileView({ data, canBilling, canUsers, canLeads }: { 
               {data.children.length === 0 ? <EmptyState compact icon={<UsersIcon />} title="Bog'lanmagan" /> : (
                 <ul className={s.people}>
                   {data.children.map((c) => (
-                    <li key={c.id}><Avatar name={personName(c)} size={30} /><span><Link href={`/dashboard/users/${c.id}`} className="a"><b>{personName(c)}</b></Link><span className="subtle mono">{c.phone}</span></span></li>
+                    <li key={c.id}><Avatar name={personName(c)} size={30} /><span className={s.who}><Link href={`/dashboard/users/${c.id}`} className="a"><b>{personName(c)}</b></Link><span className="subtle mono">{c.phone}</span></span></li>
                   ))}
                 </ul>
               )}
