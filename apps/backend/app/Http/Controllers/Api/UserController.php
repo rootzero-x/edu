@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\ValidationException;
 
 class UserController
 {
@@ -39,7 +40,7 @@ class UserController
     {
         $data = $request->validate([
             'phone' => ['required', 'string', 'regex:/^\+998\d{9}$/', 'unique:users,phone'],
-            'first_name' => ['required', 'string', 'max:64'],
+            'first_name' => ['bail', 'required', 'string', 'max:64'],
             'last_name' => ['nullable', 'string', 'max:64'],
             'role' => ['required', new Enum(Role::class)],
             'password' => ['nullable', 'string', 'min:'.app(Settings::class)->int('auth.min_password_length')],
@@ -56,7 +57,7 @@ class UserController
     {
         $data = $request->validate([
             'phone' => ['sometimes', 'string', 'regex:/^\+998\d{9}$/', Rule::unique('users', 'phone')->ignore($user->id)],
-            'first_name' => ['sometimes', 'string', 'max:64'],
+            'first_name' => ['sometimes', 'bail', 'required', 'string', 'max:64'],
             'last_name' => ['sometimes', 'nullable', 'string', 'max:64'],
             'role' => ['sometimes', new Enum(Role::class)],
             'active' => ['sometimes', 'boolean'],
@@ -70,9 +71,16 @@ class UserController
         if ((int) $user->id === (int) $actor->id && (($data['active'] ?? true) === false || isset($data['role']))) {
             abort(422, 'O\'zingizning rolingiz yoki holatingizni o\'zgartira olmaysiz.');
         }
+        $roleChanged = isset($data['role']) && $data['role'] !== $user->role->value;
+        // Faol guruh o'qituvchisi davomat huquqisiz rolga o'tkazilmaydi — aks holda guruh o'qituvchisiz qoladi.
+        if ($roleChanged && ! app(\App\Support\Permissions::class)->has(Role::from($data['role']), 'attendance.mark')
+            && \App\Models\StudyGroup::where('teacher_id', $user->id)->where('active', true)->exists()) {
+            throw ValidationException::withMessages(['role' => 'Bu foydalanuvchi faol guruh o\'qituvchisi. Avval guruhlarga boshqa o\'qituvchi tayinlang.']);
+        }
 
         $user->update($data);
-        if (isset($data['password']) || ($data['active'] ?? true) === false) {
+        // Rol o'zgarsa eski tokenlar (va ulardagi huquqlar) bekor qilinadi — qayta kirish talab etiladi.
+        if (isset($data['password']) || ($data['active'] ?? true) === false || $roleChanged) {
             $user->tokens()->delete();
         }
         Audit::log('user.update', 'user', $user->id, array_diff_key($data, ['password' => 1]) + (isset($data['password']) ? ['password' => 'reset'] : []));
