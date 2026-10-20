@@ -138,6 +138,19 @@ class TelegramBotTest extends TestCase
         $this->assertStringContainsString('Yakuniy (Ingliz tili) — 🆕', $this->last(102)['text']);
     }
 
+    public function test_student_sees_quizzes_of_own_unpublished_course(): void
+    {
+        // courses.published faqat katalog uchun: o'z guruhining kursi yopiq bo'lsa ham testlari ko'rinadi.
+        $course = Course::first();
+        $course->update(['published' => false]);
+        $course->quizzes()->create(['title' => 'Yakuniy', 'published' => true, 'pass_percent' => 60, 'max_attempts' => 3]);
+
+        $this->text(102, '📝 Testlarim');
+        $this->assertStringContainsString('Yakuniy (Ingliz tili)', $this->last(102)['text']);
+        $this->text(102, '📚 Kurslarim');
+        $this->assertStringContainsString('Ingliz tili', $this->last(102)['text']);
+    }
+
     public function test_menu_texts_and_layout_come_from_settings(): void
     {
         app(Settings::class)->set([

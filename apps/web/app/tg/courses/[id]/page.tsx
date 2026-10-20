@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useTg } from "../../_lib/TgProvider";
-import { Async, Denied, Empty, Page, Row, Section, useApi } from "../../_ui/ui";
+import { Async, Badge, Denied, Empty, Page, Row, Section, useApi } from "../../_ui/ui";
 import type { Denial } from "@/components/AccessDenied";
 import { QuizStatus, type QuizItem } from "../../_ui/quiz";
 
@@ -25,14 +25,16 @@ export default function TgCourse() {
             <Section key={m.id} title={`${mi + 1}. ${m.title}`}>
               {m.lessons.length === 0 && <div className="tg-pad tg-hint">{t("lessons_empty")}</div>}
               {m.lessons.map((l, li) => (
-                <Row key={l.id} href={`/tg/lessons/${l.id}`} icon={access && !access.granted ? "🔒" : <small>{`${mi + 1}.${li + 1}`}</small>} title={l.title} />
+                <Row key={l.id} href={`/tg/lessons/${l.id}`} icon={access && !access.granted ? "🔒" : <small>{`${mi + 1}.${li + 1}`}</small>} title={l.title}
+                  right={l.published === false ? <Badge tone="warn">{t("draft")}</Badge> : undefined} />
               ))}
             </Section>
           ))}
           {quizzes.data && quizzes.data.data.length > 0 && (
             <Section title={t("quizzes")}>
               {quizzes.data.data.map((q) => (
-                <Row key={q.id} href={`/tg/quizzes/${q.id}`} icon={q.is_final ? "🏁" : "📝"} title={q.title} right={<QuizStatus q={q} />} />
+                <Row key={q.id} href={`/tg/quizzes/${q.id}`} icon={q.is_final ? "🏁" : "📝"} title={q.title}
+                  right={q.published === false ? <Badge tone="warn">{t("draft")}</Badge> : <QuizStatus q={q} />} />
               ))}
             </Section>
           )}

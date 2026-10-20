@@ -11,10 +11,12 @@ use Illuminate\Support\Facades\DB;
 /**
  * Kurs kontentiga (dars materiallari, testlar) kirish huquqi.
  * Kurs ro'yxati va tuzilmasi hammaga ko'rinadi; ichini faqat:
- *  - adminlar va course.manage huquqi borlar,
- *  - kurs muallifi va shu kurs guruhining o'qituvchisi,
- *  - kursning faol guruhiga a'zo o'quvchi,
- *  - shunday o'quvchining ota-onasi ochadi.
+ *  - adminlar va course.manage huquqi borlar, kurs muallifi,
+ *  - kursning faol guruhi o'qituvchisi,
+ *  - kursning faol guruhiga a'zo o'quvchi (va uning ota-onasi) ochadi.
+ *
+ * courses.published faqat ochiq katalog uchun: kursi e'lon qilinmagan bo'lsa ham, yuqoridagilar uni,
+ * uning e'lon qilingan darslari va testlarini ochadi. Qolganlar — tushunarli xabar (COURSE_UNPUBLISHED).
  */
 final class CourseAccess
 {
@@ -26,8 +28,11 @@ final class CourseAccess
         if ($user->hasPermission('course.manage') || $user->isAdmin()) {
             return true;
         }
-        if ($user->active && (DB::table('courses')->where(['id' => $courseId, 'created_by' => $user->id])->exists()
-            || DB::table('study_groups')->where(['course_id' => $courseId, 'teacher_id' => $user->id])->exists())) {
+        $course = $course instanceof Course ? $course : Course::find($courseId);
+        if ($course && (int) $course->created_by === (int) $user->id) {
+            return true;
+        }
+        if (DB::table('study_groups')->where('course_id', $courseId)->where('active', true)->where('teacher_id', $user->id)->exists()) {
             return true;
         }
 
@@ -47,7 +52,7 @@ final class CourseAccess
     public function grantedCourseIds(User $user): array
     {
         $own = DB::table('courses')->where('created_by', $user->id)->pluck('id')
-            ->merge(DB::table('study_groups')->where('teacher_id', $user->id)->pluck('course_id'));
+            ->merge(DB::table('study_groups')->where('teacher_id', $user->id)->where('active', true)->pluck('course_id'));
 
         return $own->merge(DB::table('group_members')
             ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
@@ -55,6 +60,47 @@ final class CourseAccess
             ->where(fn ($w) => $w->where('group_members.student_id', $user->id)
                 ->orWhereIn('group_members.student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id')))
             ->distinct()->pluck('study_groups.course_id'))->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /** Kursni (tuzilmasi bilan) ochish mumkinmi: e'lon qilingan yoki foydalanuvchining kontentga huquqi bor. */
+    public function canOpen(User $user, Course $course): bool
+    {
+        return (bool) $course->published || $this->granted($user, $course);
+    }
+
+    /** E'lon qilinmagan kurs va unga aloqasi yo'q foydalanuvchi: 404 + sozlamadagi tushunarli xabar. */
+    public function assertOpen(User $user, Course $course): void
+    {
+        if (! $this->canOpen($user, $course)) {
+            throw new HttpResponseException(response()->json($this->unpublished($course), 404));
+        }
+    }
+
+    public function unpublished(Course $course): array
+    {
+        $contact = (string) $this->settings->get('course.access_contact');
+        $vars = ['{course}' => $course->title, '{contact}' => $contact];
+
+        return [
+            'code' => 'COURSE_UNPUBLISHED',
+            'title' => strtr((string) $this->settings->get('course.unpublished_title'), $vars),
+            'message' => strtr((string) $this->settings->get('course.unpublished_text'), $vars),
+            'button' => strtr((string) $this->settings->get('course.access_denied_button'), $vars),
+            'contact' => $contact,
+            'contact_url' => (string) $this->settings->get('course.contact_url'),
+            'course' => ['id' => $course->id, 'title' => $course->title],
+        ];
+    }
+
+    /** Yopiq (e'lon qilinmagan) dars yoki test: 404 + xabar va kursga qaytish uchun ma'lumot. */
+    public function unavailable(string $code, string $settingKey, Course $course): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'code' => $code,
+            'title' => (string) $this->settings->get($settingKey.'_title'),
+            'message' => strtr((string) $this->settings->get($settingKey.'_text'), ['{course}' => $course->title]),
+            'course' => ['id' => $course->id, 'title' => $course->title],
+        ], 404));
     }
 
     /** Ruxsat bo'lmasa 403 + sozlamadagi xabar (frontend/bot shu formatni ko'rsatadi). */

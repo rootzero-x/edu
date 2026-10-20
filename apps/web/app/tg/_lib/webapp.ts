@@ -11,7 +11,9 @@ type BottomButton = {
   hideProgress(): BottomButton;
   onClick(cb: () => void): BottomButton;
   offClick(cb: () => void): BottomButton;
+  setParams(p: { color?: string; text_color?: string; is_active?: boolean; is_visible?: boolean }): BottomButton;
   isVisible: boolean;
+  isActive: boolean;
 };
 
 export type WebApp = {
@@ -88,8 +90,33 @@ export function openLink(url: string) {
   } else window.open(url, "_blank", "noopener");
 }
 
-/** SDK yuklanishini kutish (layout'da afterInteractive). */
-export function waitForWebApp(timeoutMs = 4000): Promise<WebApp | null> {
+/**
+ * Sahifadan chiqishdan oldin so'rash (masalan, test yechilayotganda BackButton bosilsa).
+ * false qaytarsa, orqaga o'tilmaydi.
+ */
+let backGuard: (() => Promise<boolean>) | null = null;
+
+export function setBackGuard(fn: (() => Promise<boolean>) | null) {
+  backGuard = fn;
+}
+
+export async function canLeave(): Promise<boolean> {
+  return backGuard ? backGuard() : true;
+}
+
+/** Telegram ichida ochilganmi (SDK hali yuklanmagan bo'lsa ham — URL'dagi launch parametrlari bo'yicha). */
+export function launchedFromTelegram(): boolean {
+  if (typeof window === "undefined") return false;
+  if (/(^|[#&?])tgWebAppData=/.test(window.location.hash)) return true;
+  try {
+    return Boolean(window.sessionStorage.getItem("__telegram__initParams"));
+  } catch {
+    return false;
+  }
+}
+
+/** SDK yuklanishini kutish (layout'da sinxron yuklanadi; sekin tarmoqda — kutish uzoqroq). */
+export function waitForWebApp(timeoutMs = 10000): Promise<WebApp | null> {
   return new Promise((resolve) => {
     const started = Date.now();
     const tick = () => {

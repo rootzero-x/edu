@@ -62,11 +62,9 @@ class CourseController
     public function show(Request $request, CourseAccess $access, Settings $settings, Course $course): JsonResponse
     {
         $user = $request->user();
-        // Yashirin kursni muallif va uning o'qituvchilari ham ko'radi (tahrirlash/tayyorlanish uchun).
+        // Yashirin kurs tarkibini (yashirin darslar bilan) muallif va uning o'qituvchilari ham ko'radi.
         $manage = self::canManage($user) || ($user->hasPermission('course.author') && self::isOwnOrTaught($user, $course));
-        if (! $manage && ! $course->published) {
-            abort(404);
-        }
+        $access->assertOpen($user, $course);
         $granted = $manage || $access->granted($request->user(), $course);
         if (! $granted && ! $settings->bool('course.show_outline_to_guests')) {
             $course->setRelation('modules', collect());

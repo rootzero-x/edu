@@ -11,8 +11,7 @@ type Item = { id: number; title: string; body: string; image_url: string | null;
 
 /** Yangiliklar: bosilganda to'liq ochiladi va o'qilgan deb belgilanadi. */
 export default function TgNews() {
-  const { t, settings } = useTg();
-  const tz = String(settings["app.timezone"] ?? "Asia/Tashkent");
+  const { t, tz } = useTg();
   const q = useApi<{ data: Item[] }>("announcements");
   const [open, setOpen] = useState<number | null>(null);
   const [read, setRead] = useState<Set<number>>(new Set());
@@ -22,7 +21,10 @@ export default function TgNews() {
     setOpen((o) => (o === a.id ? null : a.id));
     if (!a.read && !read.has(a.id)) {
       setRead((r) => new Set(r).add(a.id));
-      void tg("POST", `announcements/${a.id}/read`);
+      // Xato bo'lsa — keyingi ochilishda yana "yangi" bo'lib turadi.
+      void tg("POST", `announcements/${a.id}/read`).then((r) => {
+        if (!r.ok) setRead((x) => { const n = new Set(x); n.delete(a.id); return n; });
+      });
     }
   };
 
@@ -43,7 +45,7 @@ export default function TgNews() {
                     </span>
                   </span>
                   <span className="tg-hint">{fmtDate(a.published_at, tz)}{a.author ? ` · ${a.author}` : ""}</span>
-                  {a.image_url && open === a.id && <img src={a.image_url} alt="" className="tg-news-img" />}
+                  {a.image_url && open === a.id && <img src={a.image_url} alt="" className="tg-news-img" loading="lazy" />}
                   <span className={open === a.id ? "tg-prose" : "tg-prose tg-clamp"}>{a.body}</span>
                 </button>
               </Section>
