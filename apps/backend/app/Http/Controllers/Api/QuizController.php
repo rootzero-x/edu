@@ -122,6 +122,7 @@ class QuizController
 
             return $q;
         });
+        Audit::log('question.create', 'quiz', $quiz->id, ['question_id' => $question->id, 'after' => ['text' => $question->text, 'points' => $question->points]]);
 
         return response()->json(['question' => $question->load('options')], 201);
     }
@@ -149,6 +150,8 @@ class QuizController
             abort_if($current !== array_map(fn ($o) => (bool) $o['is_correct'], array_values($data['options'])), 409,
                 "Testni topshirganlar bor: to'g'ri javobni o'zgartirib bo'lmaydi (variant matnini tahrirlash mumkin). Yangi test yarating.");
         }
+        $before = ['text' => $question->text, 'points' => $question->points, 'options' => $question->options()->orderBy('position')->orderBy('id')
+            ->get(['text', 'is_correct'])->map(fn ($o) => ($o->is_correct ? '✓ ' : '').$o->text)->implode(' | ')];
         DB::transaction(function () use ($question, $data, $attempted) {
             $question->update(array_filter([
                 'text' => $data['text'] ?? null, 'points' => $data['points'] ?? null, 'position' => $data['position'] ?? null,
@@ -165,8 +168,13 @@ class QuizController
                 }
             }
         });
+        $fresh = $question->fresh()->load('options');
+        Audit::log('question.update', 'quiz', $question->quiz_id, ['question_id' => $question->id, 'before' => $before, 'after' => [
+            'text' => $fresh->text, 'points' => $fresh->points,
+            'options' => $fresh->options->sortBy([['position', 'asc'], ['id', 'asc']])->map(fn ($o) => ($o->is_correct ? '✓ ' : '').$o->text)->implode(' | '),
+        ]]);
 
-        return response()->json(['question' => $question->fresh()->load('options')]);
+        return response()->json(['question' => $fresh]);
     }
 
     public function destroyQuestion(Request $request, Question $question): JsonResponse
@@ -175,6 +183,7 @@ class QuizController
         abort_if(QuizAttempt::where('quiz_id', $question->quiz_id)->exists(), 409,
             "Testni topshirganlar bor: savolni o'chirib bo'lmaydi. Yangi test yarating yoki testni yashiring.");
         $question->delete();
+        Audit::log('question.delete', 'quiz', $question->quiz_id, ['question_id' => $question->id, 'before' => ['text' => $question->text, 'points' => $question->points]]);
 
         return response()->json(['ok' => true]);
     }
