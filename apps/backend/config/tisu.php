@@ -64,6 +64,21 @@ return [
         'security.login_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => 'Login urinishlari / daqiqa', 'default' => 10],
         'security.api_per_minute' => ['group' => 'security', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => "API so'rovlari / daqiqa", 'default' => 120],
 
+        // ── Telegram ─────────────────────────────────────────
+        'telegram.bot_username' => ['group' => 'telegram', 'type' => 'string', 'public' => true, 'label' => 'Bot username (@siz)', 'default' => ''],
+        'telegram.self_registration' => ['group' => 'telegram', 'type' => 'bool', 'label' => "Bot orqali yangi o'quvchi ro'yxatdan o'tishi", 'default' => true],
+        'telegram.login_code_ttl_seconds' => ['group' => 'telegram', 'type' => 'int', 'min' => 60, 'max' => 3600, 'label' => 'Kirish havolasi amal qilish muddati (soniya)', 'default' => 300],
+        'telegram.miniapp_auth_max_age_seconds' => ['group' => 'telegram', 'type' => 'int', 'min' => 60, 'max' => 86400, 'label' => 'Mini App initData amal qilish muddati (soniya)', 'default' => 3600],
+        'telegram.text.welcome' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: salomlashish', 'default' => "Assalomu alaykum! {site} botiga xush kelibsiz.\nDavom etish uchun telefon raqamingizni yuboring."],
+        'telegram.text.share_phone_button' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: telefon tugmasi', 'default' => '📱 Telefon raqamni yuborish'],
+        'telegram.text.registered' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxatdan o'tdi", 'default' => "Rahmat, {name}! Siz ro'yxatdan o'tdingiz."],
+        'telegram.text.linked' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: akkaunt bog\'landi', 'default' => "Rahmat, {name}! Telegram akkauntingiz bog'landi."],
+        'telegram.text.registration_closed' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: ro'yxat yopiq", 'default' => "Bu raqam tizimda topilmadi. Ro'yxatdan o'tish uchun administratorga murojaat qiling."],
+        'telegram.text.not_own_contact' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: begona kontakt", 'default' => "Iltimos, pastdagi tugma orqali o'z raqamingizni yuboring."],
+        'telegram.text.login_confirmed' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: saytga kirish tasdiqlandi', 'default' => "✅ Saytga kirish tasdiqlandi. Brauzerga qayting."],
+        'telegram.text.login_expired' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: havola eskirgan', 'default' => "Havola eskirgan. Saytda qaytadan \"Telegram orqali kirish\" ni bosing."],
+        'telegram.text.account_blocked' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: akkaunt bloklangan', 'default' => "Akkauntingiz faol emas. Administratorga murojaat qiling."],
+
         // ── Interfeys ────────────────────────────────────────
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
 

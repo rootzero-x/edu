@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+
+    // Sirlar faqat .env da. Bot matnlari va xatti-harakati — settings (telegram.*).
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
 ];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\TelegramAuthController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,10 @@ Route::get('/health', HealthController::class);
 
 Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('/auth/telegram/start', [TelegramAuthController::class, 'start'])->middleware('throttle:login');
+    Route::post('/auth/telegram/poll', [TelegramAuthController::class, 'poll'])->middleware('throttle:api');
+    Route::post('/auth/telegram/miniapp', [TelegramAuthController::class, 'miniApp'])->middleware('throttle:login');
+    Route::post('/telegram/webhook', [TelegramAuthController::class, 'webhook']);
     Route::get('/public/settings', [SettingsController::class, 'public'])->middleware('throttle:api');
 
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
