@@ -41,6 +41,12 @@ php "${COMPOSER_PHAR:-$HOME/.local/share/composer-bin/composer.phar}" install -d
 tar -C "$BUILD" -czf "$BUILD.tgz" .
 
 REL=$(date -u +%Y%m%d%H%M%S)
+# Umumiy ulanishni ochish: hosting (CloudLinux LVE, jarayonlar limiti) ba'zan ulanishni darhol yopadi — qayta urinamiz.
+for i in 1 2 3 4 5 6; do
+  "${SSH[@]}" true 2>/dev/null && break
+  [ "$i" = 6 ] && { echo "XATO: serverga SSH ulanib bo'lmadi."; exit 1; }
+  echo "  SSH ulanmadi, ${i}-qayta urinish 20s dan keyin…"; sleep 20
+done
 echo "→ upload $REL"
 "${SSH[@]}" "test -d $REMOTE_DIR && test -f $REMOTE_DIR/.env" \
   || { echo "XATO: $REMOTE_DIR yoki undagi .env yo'q (docs/DEPLOY.md)."; exit 1; }
