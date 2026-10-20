@@ -33,7 +33,7 @@ Doimiy ishlaydigan Node jarayoni yo'q, shuning uchun backend PHP'da.
 ```bash
 ./deploy/deploy-backend.sh
 ```
-Ketma-ketlik: lokal build (`composer --no-dev`) → yuklash → kod va baza zaxirasi (`~/tisu-backups`) →
+Ketma-ketlik: lokal build (`composer --no-dev`) → yuklash → kod va baza zaxirasi (`~/tisu-backups`; baza nusxasi oxirida `tisu:backup-encrypt` bilan shifrlanadi) →
 `artisan down` → kod almashtirish (`.env`, `storage` saqlanadi) → `migrate --force` → kesh → `artisan up` → `/health`.
 
 Birinchi admin: serverda `php artisan tisu:create-admin +99890XXXXXXX Ism` (parol interaktiv so'raladi).
@@ -100,7 +100,9 @@ ni almashtiring. Joriy bazaning ustiga yozish faqat qo'shimcha `--live` bilan mu
 ## Orqaga qaytarish
 ```bash
 cd ~/www/api.tisu.uzstudents.uz && tar -xzf ~/tisu-backups/code-<REL>.tgz
-gunzip -c ~/tisu-backups/db-<REL>.sql.gz | mysql -u <user> -p <db>
+# Baza (deploy oldidan olingan nusxa shifrlangan — db-<REL>.sql.gz.enc):
+/opt/alt/php83/usr/bin/php artisan tisu:backup-restore ~/tisu-backups/db-<REL>.sql.gz.enc --dry-run
+/opt/alt/php83/usr/bin/php artisan tisu:backup-restore ~/tisu-backups/db-<REL>.sql.gz.enc --live --confirm
 ```
 
 ## Boshqa loyihalar xavfsizligi
