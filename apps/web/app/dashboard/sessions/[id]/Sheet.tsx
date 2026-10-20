@@ -112,7 +112,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     if (!items.length) { setSaveState(Object.keys(current).length ? "pending" : "idle"); return; }
     if (reasonRequired && !reasonRef.current.trim()) {
       setSaveState("pending");
-      toast.error("Sabab kiriting", "Eski darsning davomatini o'zgartirish uchun sabab majburiy.");
+      toast.error("Sabab kiriting", "Eski mashg'ulot davomatini o'zgartirish uchun sabab majburiy.");
       return;
     }
 
@@ -219,13 +219,13 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
 
   async function toggleCancelled() {
     const cancel = !session.cancelled;
-    if (cancel && !(await confirm({ title: "Dars bekor qilinsinmi?", description: "Bekor qilingan dars davomat va hisobotlarga kirmaydi.", confirmText: "Bekor qilish", cancelText: "Yo'q", tone: "danger" }))) return;
+    if (cancel && !(await confirm({ title: "Mashg'ulot bekor qilinsinmi?", description: "Bekor qilingan mashg'ulot davomat va hisobotlarga kirmaydi.", confirmText: "Bekor qilish", cancelText: "Yo'q", tone: "danger" }))) return;
     const prev = server;
     version.current++;
     setServer((d) => ({ ...d, session: { ...d.session, cancelled: cancel } }));
     const r = await call("PATCH", `sessions/${session.id}`, { cancelled: cancel });
     if (!r.ok) { setServer(prev); return toast.error("Saqlanmadi", errorText(r.data)); }
-    toast.success(cancel ? "Dars bekor qilindi" : "Dars tiklandi");
+    toast.success(cancel ? "Mashg'ulot bekor qilindi" : "Mashg'ulot tiklandi");
   }
 
   // ── Ko'rinish ─────────────────────────────────────────
@@ -261,10 +261,10 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
             {canMarkPerm && started && <Button variant="secondary" icon={<History />} onClick={openHistory}>Tarix</Button>}
             {canMarkPerm && (
               <Dropdown
-                trigger={(p) => <Button variant="secondary" iconOnly aria-label="Dars amallari" icon={<MoreHorizontal />} {...p} />}
+                trigger={(p) => <Button variant="secondary" iconOnly aria-label="Mashg'ulot amallari" icon={<MoreHorizontal />} {...p} />}
                 items={[session.cancelled
-                  ? { label: "Darsni tiklash", icon: <RotateCcw />, onSelect: toggleCancelled }
-                  : { label: "Darsni bekor qilish", icon: <Ban />, danger: true, onSelect: toggleCancelled }]}
+                  ? { label: "Mashg'ulotni tiklash", icon: <RotateCcw />, onSelect: toggleCancelled }
+                  : { label: "Mashg'ulotni bekor qilish", icon: <Ban />, danger: true, onSelect: toggleCancelled }]}
               />
             )}
           </>
@@ -279,7 +279,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
           <CardBody>
             <Field
               label={reasonRequired ? "O'zgartirish sababi (majburiy)" : "O'zgartirish sababi (ixtiyoriy)"}
-              hint="O'tgan darsni tuzatayotganingiz uchun sabab tarixda saqlanadi."
+              hint="O'tgan mashg'ulotni tuzatayotganingiz uchun sabab tarixda saqlanadi."
             >
               <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Masalan: ma'lumotnoma keltirdi" />
             </Field>
@@ -292,7 +292,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
         <Card style={{ marginBottom: 16 }}>
           <CardBody>
             <div className={s.topic}>
-              <Field label="Dars mavzusi" hint="Maydondan chiqqanda saqlanadi">
+              <Field label="Mashg'ulot mavzusi" hint="Maydondan chiqqanda saqlanadi">
                 <Input value={topic} onChange={(e) => setTopic(e.target.value)} onBlur={saveTopic} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} placeholder="Masalan: Present Simple" />
               </Field>
             </div>
@@ -397,7 +397,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
         )}
       </Dialog>
       {!canMarkPerm ? null : !started && !session.cancelled ? (
-        <p className="subtle" style={{ marginTop: 12 }}>Davomatni dars boshlangandan keyin belgilash mumkin.</p>
+        <p className="subtle" style={{ marginTop: 12 }}>Davomatni mashg&apos;ulot boshlangandan keyin belgilash mumkin.</p>
       ) : null}
     </>
   );

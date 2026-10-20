@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 import { api, me } from "@/lib/api";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import Sheet, { type SheetData } from "./Sheet";
+import SessionExtras from "./SessionExtras";
 
 export const metadata: Metadata = { title: "Davomat" };
 
@@ -14,10 +15,15 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
     return (
       <>
         <PageHeader title="Davomat" back={{ href: "/dashboard/groups", label: "Guruhlar" }} />
-        <Card><EmptyState icon={<Lock />} title="Ruxsat yo'q">{(res.data as { message?: string })?.message ?? "Bu dars davomatini ko'rish huquqingiz yo'q."}</EmptyState></Card>
+        <Card><EmptyState icon={<Lock />} title="Ruxsat yo'q">{(res.data as { message?: string })?.message ?? "Bu mashg'ulot davomatini ko'rish huquqingiz yo'q."}</EmptyState></Card>
       </>
     );
   }
   if (res.status !== 200) return <NotFoundCard />;
-  return <Sheet initial={res.data} canMark={Boolean(user?.permissions.includes("attendance.mark"))} />;
+  return (
+    <>
+      <Sheet initial={res.data} canMark={Boolean(user?.permissions.includes("attendance.mark"))} />
+      <SessionExtras sessionId={res.data.session.id} groupId={res.data.group.id} cancelled={res.data.session.cancelled} />
+    </>
+  );
 }

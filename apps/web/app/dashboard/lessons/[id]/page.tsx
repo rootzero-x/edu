@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import NotFoundCard from "@/components/NotFoundCard";
 import { ArrowLeft, ArrowRight, ExternalLink, FileText, Link2, PlayCircle } from "lucide-react";
 import { api, publicSettings } from "@/lib/api";
-import { LessonActions, MaterialActions } from "./LessonManage";
+import { LessonActions, MaterialActions, OpenFile } from "./LessonManage";
 import { list } from "@/lib/settings";
 import { embedUrl } from "@/lib/embed";
 import AccessDenied, { isDenial, type Denial } from "@/components/AccessDenied";
 import { Badge, ButtonLink, Card, CardBody, CardHeader, EmptyState, PageHeader, buttonClass } from "@/components/ui";
 import s from "./lesson.module.css";
 
-type Material = { id: number; type: "VIDEO" | "FILE" | "LINK" | "TEXT"; title: string; url: string | null; content: string | null };
+type Material = {
+  id: number; type: "VIDEO" | "FILE" | "LINK" | "TEXT"; title: string; url: string | null; content: string | null;
+  file?: { id: number; original_name: string; mime: string; size: number } | null;
+};
 type Lesson = {
   id: number; title: string; body: string | null; published: boolean;
   module: { id: number; title: string; course: { id: number; title: string } };
@@ -56,7 +59,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
       {lesson.materials.length === 0 && !lesson.body && (
-        <Card><EmptyState icon={<FileText />} title="Materiallar hali qo'shilmagan">{manage ? "Yuqoridagi «Material» tugmasi orqali video, fayl yoki matn qo'shing." : null}</EmptyState></Card>
+        <Card><EmptyState icon={<FileText />} title="Materiallar hali qo'shilmagan">{manage ? "Yuqoridagi «Fayl yuklash» yoki «Material» tugmasi orqali fayl, video, havola yoki matn qo'shing." : null}</EmptyState></Card>
       )}
       <div className={s.materials}>
         {lesson.materials.map((m) => {
@@ -71,6 +74,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                   </div>
                 ) : m.type === "TEXT" ? (
                   <div className={s.body}>{m.content}</div>
+                ) : m.file ? (
+                  <OpenFile file={m.file} />
                 ) : m.url ? (
                   <a className={buttonClass({ variant: "secondary" })} href={m.url} target="_blank" rel="noreferrer noopener">
                     <ExternalLink aria-hidden /> {m.type === "FILE" ? "Faylni ochish" : m.type === "VIDEO" ? "Videoni ochish" : "Havolani ochish"}
