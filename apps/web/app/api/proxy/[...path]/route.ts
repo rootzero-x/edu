@@ -10,4 +10,4 @@ async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }
   return NextResponse.json(data, { status });
 }
 
-export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };
