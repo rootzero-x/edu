@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { api, me } from "@/lib/api";
 import SettingsEditor, { type Item } from "./SettingsEditor";
+
+export const metadata: Metadata = { title: "Sozlamalar" };
 
 export default async function SettingsPage() {
   const user = await me();

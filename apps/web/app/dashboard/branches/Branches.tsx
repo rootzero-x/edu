@@ -1,45 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Building2, Lock, MapPin, MoreHorizontal, Pencil, Phone, Plus, Unlock } from "lucide-react";
+import { Badge, Button, Card, Dropdown, EmptyState, PageHeader, Table, Td, Th, type PromptField, usePrompt, useToast } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
 
-export default function Branches({ rows }: { rows: { id: number; name: string; address: string | null; phone: string | null; active: boolean }[] }) {
+export type Branch = { id: number; name: string; address: string | null; phone: string | null; active: boolean };
+
+const fields = (b?: Branch): PromptField[] => [
+  { name: "name", label: "Nomi", required: true, defaultValue: b?.name },
+  { name: "address", label: "Manzil", defaultValue: b?.address ?? "" },
+  { name: "phone", label: "Telefon", type: "tel", defaultValue: b?.phone ?? "" },
+];
+
+export default function Branches({ rows: initial }: { rows: Branch[] }) {
   const router = useRouter();
-  const [f, setF] = useState({ name: "", address: "", phone: "" });
-  const [err, setErr] = useState<string | null>(null);
-  const run = async (method: string, path: string, body: unknown) => {
-    const r = await call(method, path, body);
-    if (!r.ok) setErr(errorText(r.data)); else { setErr(null); router.refresh(); }
-    return r.ok;
-  };
+  const toast = useToast();
+  const prompt = usePrompt();
+  const [rows, setRows] = useState(initial);
+  useEffect(() => setRows(initial), [initial]);
+
+  const add = () => prompt({
+    title: "Yangi filial",
+    fields: fields(),
+    submitText: "Qo'shish",
+    onSubmit: async (v) => {
+      const r = await call("POST", "branches", { name: v.name, address: v.address || null, phone: v.phone || null });
+      if (!r.ok) return errorText(r.data);
+      toast.success("Filial qo'shildi", v.name);
+      router.refresh();
+    },
+  });
+
+  const edit = (b: Branch) => prompt({
+    title: "Filialni tahrirlash",
+    fields: fields(b),
+    onSubmit: async (v) => {
+      const r = await call("PATCH", `branches/${b.id}`, { name: v.name, address: v.address || null, phone: v.phone || null });
+      if (!r.ok) return errorText(r.data);
+      setRows((l) => l.map((x) => (x.id === b.id ? { ...x, name: v.name, address: v.address || null, phone: v.phone || null } : x)));
+      toast.success("Saqlandi");
+      router.refresh();
+    },
+  });
+
+  async function toggle(b: Branch) {
+    setRows((l) => l.map((x) => (x.id === b.id ? { ...x, active: !b.active } : x)));
+    const r = await call("PATCH", `branches/${b.id}`, { active: !b.active });
+    if (!r.ok) {
+      setRows((l) => l.map((x) => (x.id === b.id ? { ...x, active: b.active } : x)));
+      return toast.error("Saqlanmadi", errorText(r.data));
+    }
+    toast.success(b.active ? "Filial yopildi" : "Filial ochildi", b.name);
+  }
+
   return (
     <>
-      <h1>Filiallar</h1>
-      <form className="inline" onSubmit={async (e) => {
-        e.preventDefault();
-        if (await run("POST", "branches", { name: f.name, address: f.address || null, phone: f.phone || null })) setF({ name: "", address: "", phone: "" });
-      }}>
-        <input placeholder="Nomi" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required />
-        <input placeholder="Manzil" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
-        <input placeholder="Telefon" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-        <button className="btn">Qo&apos;shish</button>
-      </form>
-      {err && <p className="error">{err}</p>}
-      <table>
-        <thead><tr><th>Nomi</th><th>Manzil</th><th>Telefon</th><th /></tr></thead>
-        <tbody>
-          {rows.map((b) => (
-            <tr key={b.id}>
-              <td>{b.name} {!b.active && <span className="tag">yopiq</span>}</td><td>{b.address}</td><td>{b.phone}</td>
-              <td>
-                <button className="link" onClick={() => { const n = window.prompt("Nomi", b.name); if (n) run("PATCH", `branches/${b.id}`, { name: n }); }}>tahrirlash</button>
-                <button className="link" onClick={() => run("PATCH", `branches/${b.id}`, { active: !b.active })}>{b.active ? "yopish" : "ochish"}</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <PageHeader title="Filiallar" description={`${rows.filter((b) => b.active).length} ta faol filial`} actions={<Button icon={<Plus />} onClick={add}>Qo&apos;shish</Button>} />
+      <Card>
+        {rows.length === 0 ? (
+          <EmptyState icon={<Building2 />} title="Filial yo'q" action={<Button icon={<Plus />} onClick={add}>Birinchi filial</Button>}>Guruh yaratish uchun kamida bitta filial kerak.</EmptyState>
+        ) : (
+          <Table caption="Filiallar">
+            <thead><tr><Th>Nomi</Th><Th>Manzil</Th><Th>Telefon</Th><Th>Holat</Th><Th actions><span className="sr-only">Amallar</span></Th></tr></thead>
+            <tbody>
+              {rows.map((b) => (
+                <tr key={b.id}>
+                  <Td><strong style={{ fontWeight: 600 }}>{b.name}</strong></Td>
+                  <Td>{b.address ? <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><MapPin size={14} aria-hidden className="subtle" />{b.address}</span> : <span className="subtle">—</span>}</Td>
+                  <Td>{b.phone ? <a className="a" href={`tel:${b.phone}`}><Phone size={14} aria-hidden /> {b.phone}</a> : <span className="subtle">—</span>}</Td>
+                  <Td>{b.active ? <Badge tone="success" dot>Ochiq</Badge> : <Badge dot>Yopiq</Badge>}</Td>
+                  <Td actions>
+                    <Dropdown
+                      trigger={(p) => <Button size="sm" variant="ghost" iconOnly aria-label={`${b.name} — amallar`} icon={<MoreHorizontal />} {...p} />}
+                      items={[
+                        { label: "Tahrirlash", icon: <Pencil />, onSelect: () => edit(b) },
+                        b.active ? { label: "Yopish", icon: <Lock />, danger: true, onSelect: () => toggle(b) } : { label: "Ochish", icon: <Unlock />, onSelect: () => toggle(b) },
+                      ]}
+                    />
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
     </>
   );
 }
