@@ -57,7 +57,10 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
   const past = sessions.filter((x) => new Date(x.starts_at).getTime() <= now).reverse();
   const upcoming = sessions.filter((x) => new Date(x.starts_at).getTime() > now);
   const avg = report.length ? Math.round((report.reduce((a, r) => a + Number(r.rate), 0) / report.length) * 10) / 10 : null;
-  const unmarked = past.filter((x) => !x.cancelled && x.marked_count === 0).length;
+  // /v1/attendance/unmarked qoidasi: belgilanganlar hozirgi a'zolardan kam bo'lsa — belgilanmagan (qisman ham).
+  const members = group.students.length;
+  const isUnmarked = (x: SessionRow) => members > 0 && x.marked_count < members;
+  const unmarked = past.filter((x) => !x.cancelled && isUnmarked(x)).length;
   const next = upcoming.find((x) => !x.cancelled);
 
   async function removeMember(m: Person) {
@@ -102,7 +105,6 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
   }
 
   const sessionLink = (x: SessionRow) => {
-    const marked = x.marked_count > 0;
     return (
       <li key={x.id} className={s.sessionItem}>
         <div className={s.when}>
@@ -111,7 +113,9 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
         </div>
         {x.cancelled ? <Badge>Bekor</Badge>
           : new Date(x.starts_at).getTime() > now ? <Badge tone="info">Rejada</Badge>
-          : marked ? <Badge tone="success" dot>Belgilangan</Badge> : <Badge tone="warning" dot>Belgilanmagan</Badge>}
+          : !isUnmarked(x) ? <Badge tone="success" dot>Belgilangan</Badge>
+          : x.marked_count > 0 ? <Badge tone="warning" dot>Qisman · {x.marked_count}/{members}</Badge>
+          : <Badge tone="warning" dot>Belgilanmagan</Badge>}
       </li>
     );
   };
@@ -151,10 +155,10 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
         {group.schedules.length > 0 && <span><CalendarClock aria-hidden />{scheduleText(group.schedules)}</span>}
       </div>
 
-      {canMark && past[0] && !past[0].cancelled && past[0].marked_count === 0 && group.students.length > 0 && (
+      {canMark && past[0] && !past[0].cancelled && isUnmarked(past[0]) && (
         <div className={s.alert} role="status">
           <ClipboardCheck aria-hidden />
-          <span>Oxirgi dars ({fmtDate(past[0].starts_at, tz)} {fmtTime(past[0].starts_at, tz)}) davomati hali belgilanmagan.</span>
+          <span>Oxirgi dars ({fmtDate(past[0].starts_at, tz)} {fmtTime(past[0].starts_at, tz)}) davomati hali to'liq belgilanmagan ({past[0].marked_count}/{members}).</span>
           <ButtonLink href={`/dashboard/sessions/${past[0].id}`} size="sm">Belgilash</ButtonLink>
         </div>
       )}
