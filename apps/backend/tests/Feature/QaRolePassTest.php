@@ -155,6 +155,39 @@ class QaRolePassTest extends TestCase
             ->assertOk()->assertJsonPath('question.options.1.text', 'B');
     }
 
+    /** #7 (davomi): ball va matnli javob kaliti ham urinishdan keyin qulflanadi. */
+    public function test_points_and_accepted_answers_locked_after_attempts(): void
+    {
+        Sanctum::actingAs($this->teacher);
+        $quizId = $this->postJson("/v1/courses/{$this->course->id}/quizzes", ['title' => 'T', 'published' => true])->json('quiz.id');
+        $q = $this->postJson("/v1/quizzes/$quizId/questions", ['type' => 'TEXT', 'text' => 'Poytaxt?', 'points' => 2,
+            'accepted_answers' => ['Toshkent']])->json('question');
+        Sanctum::actingAs($this->student);
+        $this->postJson("/v1/quizzes/$quizId/attempts")->assertOk();
+
+        Sanctum::actingAs($this->teacher);
+        $this->patchJson("/v1/questions/{$q['id']}", ['accepted_answers' => ['Toshkent', 'Tashkent']])->assertStatus(409);
+        $this->patchJson("/v1/questions/{$q['id']}", ['points' => 5])->assertStatus(409);
+        // Bir xil qiymatlar (katta-kichik harf/bo'shliq farqi) va matn tahriri — mumkin.
+        $this->patchJson("/v1/questions/{$q['id']}", ['text' => "O'zbekiston poytaxti?", 'points' => 2, 'accepted_answers' => [' toshkent ']])
+            ->assertOk()->assertJsonPath('question.text', "O'zbekiston poytaxti?");
+    }
+
+    /** #3 (davomi): guruhdagi yoki farzand sifatida bog'langan o'quvchining roli o'zgarmaydi. */
+    public function test_enrolled_or_linked_student_role_cannot_change(): void
+    {
+        Sanctum::actingAs($this->admin);
+        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertUnprocessable()->assertJsonValidationErrors('role');
+
+        DB::table('group_members')->where('student_id', $this->student->id)->update(['left_at' => now()]);
+        $parent = User::factory()->role(Role::Parent)->create();
+        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
+        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertUnprocessable();
+
+        DB::table('parent_child')->delete();
+        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertOk()->assertJsonPath('user.role', 'TEACHER');
+    }
+
     /** #10: ota-ona test topshira olmaydi — boshlash imkoni ko'rsatilmaydi. */
     public function test_parent_cannot_start_quiz(): void
     {
