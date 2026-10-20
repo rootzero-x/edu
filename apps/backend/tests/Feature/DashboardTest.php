@@ -155,7 +155,8 @@ class DashboardTest extends TestCase
         $this->getJson('/v1/public/courses')->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.title', 'Ingliz')
-            ->assertJsonPath('data.0.modules_count', 0);
+            ->assertJsonPath('data.0.modules_count', 0)
+            ->assertJsonMissingPath('data.0.created_by');
 
         app(Settings::class)->set(['site.courses_limit' => 0], null);
         $this->getJson('/v1/public/courses')->assertOk()->assertJsonCount(0, 'data');

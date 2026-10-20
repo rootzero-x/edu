@@ -14,8 +14,8 @@ class LandingController
     {
         $limit = $settings->int('site.courses_limit');
         $courses = $limit > 0
-            ? Course::query()->where('published', true)->withCount('modules')->orderByDesc('id')->limit($limit)
-                ->get(['id', 'title', 'description', 'cover_url', 'monthly_fee', 'duration_months'])
+            ? Course::query()->select(['id', 'title', 'description', 'cover_url', 'monthly_fee', 'duration_months'])
+                ->where('published', true)->withCount('modules')->orderByDesc('id')->limit($limit)->get()
             : collect();
 
         return response()->json(['data' => $courses])->header('Cache-Control', 'public, max-age=60');
