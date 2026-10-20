@@ -2,6 +2,7 @@
 .meta span { display: inline-flex; align-items: center; gap: 6px; }
 .meta svg { width: 16px; height: 16px; color: var(--fg-subtle); }
 .stats { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); margin-bottom: var(--space-6); }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); } }
 .members { list-style: none; margin: 0; padding: 0; }
 .member { display: flex; align-items: center; gap: var(--space-3); padding: 10px var(--space-5); border-bottom: 1px solid var(--border); margin: 0; transition: opacity var(--dur), background var(--dur); }
 .member:last-child { border-bottom: 0; }

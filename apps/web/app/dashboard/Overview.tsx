@@ -7,7 +7,7 @@ import { Badge, ButtonLink, Card, CardBody, CardHeader, EmptyState, PageHeader, 
 import LiveStatus from "@/components/LiveStatus";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { call } from "@/lib/client";
-import { fmtTime } from "@/lib/format";
+import { fmtLongDate, fmtTime } from "@/lib/format";
 import { refreshSeconds, statusLabels, timezone } from "@/lib/settings";
 import { STATUS_COLOR } from "@/lib/status";
 import type { Summary } from "@/lib/types";
@@ -28,7 +28,7 @@ export default function Overview({ initial, firstName }: { initial: Summary | nu
   }, []);
   const live = usePolling(fetcher, setData, { seconds });
 
-  const today = new Date().toLocaleDateString("uz-UZ", { timeZone: tz, weekday: "long", day: "numeric", month: "long" });
+  const today = fmtLongDate(data?.generated_at ?? Date.now(), tz);
   const header = (
     <PageHeader
       title={firstName ? `Salom, ${firstName}!` : "Bosh sahifa"}

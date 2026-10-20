@@ -1,25 +1,52 @@
+/**
+ * Sana/vaqt/son formatlash. Brauzerlarda uz-UZ lokali har doim ham bo'lmaydi (server va brauzer
+ * natijasi farq qilib, hydration xatosi beradi), shuning uchun Intl'dan faqat raqamli qismlarni
+ * (en-US — hamma joyda bor) olamiz, nomlarni esa o'zimiz qo'yamiz.
+ */
 export const WEEKDAYS = ["", "Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"];
+export const WEEKDAYS_LONG = ["", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba", "yakshanba"];
+export const MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
 
-export function fmtDateTime(iso: string, tz?: string) {
-  return new Date(iso).toLocaleString("uz-UZ", { timeZone: tz, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const WD: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Berilgan vaqt zonasidagi sana qismlari. */
+export function dateParts(input: string | number | Date, tz?: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", weekday: "short", hourCycle: "h23",
+  }).formatToParts(new Date(input));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return { year: +get("year"), month: +get("month"), day: +get("day"), hour: +get("hour") % 24, minute: +get("minute"), weekday: WD[get("weekday")] ?? 1 };
 }
 
 export function fmtDate(iso: string, tz?: string) {
-  return new Date(iso).toLocaleDateString("uz-UZ", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric" });
+  const d = dateParts(iso, tz);
+  return `${pad(d.day)}.${pad(d.month)}.${d.year}`;
 }
 
 export function fmtTime(iso: string, tz?: string) {
-  return new Date(iso).toLocaleTimeString("uz-UZ", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false });
+  const d = dateParts(iso, tz);
+  return `${pad(d.hour)}:${pad(d.minute)}`;
+}
+
+export function fmtDateTime(iso: string, tz?: string) {
+  const d = dateParts(iso, tz);
+  return `${pad(d.day)}.${pad(d.month)} ${pad(d.hour)}:${pad(d.minute)}`;
 }
 
 export function fmtWeekday(iso: string, tz?: string) {
-  // Dushanba = 1 … Yakshanba = 7, WEEKDAYS bilan mos.
-  const d = new Date(new Date(iso).toLocaleString("en-US", { timeZone: tz }));
-  return WEEKDAYS[d.getDay() === 0 ? 7 : d.getDay()];
+  return WEEKDAYS[dateParts(iso, tz).weekday];
+}
+
+/** "seshanba, 20-oktabr" */
+export function fmtLongDate(input: string | number | Date, tz?: string) {
+  const d = dateParts(input, tz);
+  return `${WEEKDAYS_LONG[d.weekday]}, ${d.day}-${MONTHS[d.month - 1]}`;
 }
 
 export function fmtMoney(n: number, currency = "") {
-  return `${n.toLocaleString("uz-UZ").replace(/,/g, " ")}${currency ? ` ${currency}` : ""}`;
+  const s = String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${s}${currency ? ` ${currency}` : ""}`;
 }
 
 /** "2 daqiqa oldin" kabi nisbiy vaqt. */

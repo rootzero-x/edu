@@ -144,10 +144,12 @@ export default async function Home() {
         {features.length > 0 && (
           <section id="features" className={`${s.section} ${s.sectionAlt}`}>
             <div className={s.container}>
-              <div className={s.sectionHead}>
-                {featuresTitle && <h2>{featuresTitle}</h2>}
-                {str(st, "site.features_subtitle") && <p>{str(st, "site.features_subtitle")}</p>}
-              </div>
+              {(featuresTitle || str(st, "site.features_subtitle")) && (
+                <div className={s.sectionHead}>
+                  {featuresTitle && <h2>{featuresTitle}</h2>}
+                  {str(st, "site.features_subtitle") && <p>{str(st, "site.features_subtitle")}</p>}
+                </div>
+              )}
               <div className={s.features}>
                 {features.map((f, i) => {
                   const Icon = (f.icon && ICONS[f.icon]) || FALLBACK_ICONS[i % FALLBACK_ICONS.length];
@@ -167,7 +169,7 @@ export default async function Home() {
         {steps.length > 0 && (
           <section className={s.section}>
             <div className={s.container}>
-              <div className={s.sectionHead}>{str(st, "site.steps_title") && <h2>{str(st, "site.steps_title")}</h2>}</div>
+              {str(st, "site.steps_title") && <div className={s.sectionHead}><h2>{str(st, "site.steps_title")}</h2></div>}
               <ol className={s.steps} style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {steps.map((x, i) => (
                   <li className={s.step} key={x.title} style={{ margin: 0 }}>
@@ -184,10 +186,12 @@ export default async function Home() {
         {courses.length > 0 && (
           <section id="courses" className={`${s.section} ${s.sectionAlt}`}>
             <div className={s.container}>
-              <div className={s.sectionHead}>
-                {coursesTitle && <h2>{coursesTitle}</h2>}
-                {str(st, "site.courses_subtitle") && <p>{str(st, "site.courses_subtitle")}</p>}
-              </div>
+              {(coursesTitle || str(st, "site.courses_subtitle")) && (
+                <div className={s.sectionHead}>
+                  {coursesTitle && <h2>{coursesTitle}</h2>}
+                  {str(st, "site.courses_subtitle") && <p>{str(st, "site.courses_subtitle")}</p>}
+                </div>
+              )}
               <div className={s.courses}>
                 {courses.map((c) => (
                   <article className={s.course} key={c.id}>
@@ -224,10 +228,12 @@ export default async function Home() {
         {(contacts.length > 0 || socials.length > 0) && (
           <section id="contact" className={s.section} style={{ paddingTop: 0 }}>
             <div className={s.container}>
-              <div className={s.sectionHead}>
-                {contactTitle && <h2>{contactTitle}</h2>}
-                {str(st, "site.contact_subtitle") && <p>{str(st, "site.contact_subtitle")}</p>}
-              </div>
+              {(contactTitle || str(st, "site.contact_subtitle")) && (
+                <div className={s.sectionHead}>
+                  {contactTitle && <h2>{contactTitle}</h2>}
+                  {str(st, "site.contact_subtitle") && <p>{str(st, "site.contact_subtitle")}</p>}
+                </div>
+              )}
               <div className={s.contacts}>
                 {contacts.map((c) => {
                   const Icon = c.icon;

@@ -109,3 +109,14 @@
 /* Progress */
 .progress { height: 8px; border-radius: var(--radius-full); background: var(--surface-3); overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width 500ms var(--ease); }
+
+@media (max-width: 560px) {
+  .stat { padding: var(--space-4); gap: var(--space-2); }
+  .statValue { font-size: 1.5rem; }
+  .statIcon { width: 30px; height: 30px; }
+  .statIcon svg { width: 16px; height: 16px; }
+  .statLabel { font-size: var(--text-xs); }
+  .statHint { font-size: var(--text-xs); }
+  .page { margin-bottom: var(--space-5); }
+  .pageText h1 { font-size: var(--text-xl); }
+}
