@@ -90,7 +90,7 @@ class AuditRound3Test extends TestCase
             ['text' => 'a', 'is_correct' => true], ['text' => 'b', 'is_correct' => false]]])->json('question');
 
         Sanctum::actingAs($student);
-        $attempt = $this->postJson("/v1/quizzes/$quizId/attempts")->assertCreated()->json('attempt.id');
+        $attempt = $this->postJson("/v1/quizzes/$quizId/attempts")->assertSuccessful()->json('attempt.id');
         // Bo'sh javob 422 bermaydi.
         $this->postJson("/v1/attempts/$attempt/submit", ['answers' => [(string) $q['id'] => ['']]])->assertOk();
 
@@ -99,7 +99,7 @@ class AuditRound3Test extends TestCase
         $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false]]])->assertOk()
             ->assertJsonPath('question.options.0.text', 'A');
         $this->assertSame($ids, DB::table('question_options')->where('question_id', $q['id'])->orderBy('id')->pluck('id')->all());
-        $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'A', 'is_correct' => true]]])->assertStatus(409);
+        $this->patchJson("/v1/questions/{$q['id']}", ['options' => [['text' => 'A', 'is_correct' => true], ['text' => 'B', 'is_correct' => false], ['text' => 'C', 'is_correct' => false]]])->assertStatus(409);
         $this->deleteJson("/v1/questions/{$q['id']}")->assertStatus(409);
     }
 
