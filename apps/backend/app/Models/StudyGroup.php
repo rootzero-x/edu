@@ -11,7 +11,7 @@ class StudyGroup extends Model
 {
     protected $table = 'study_groups';
 
-    protected $fillable = ['name', 'course_id', 'branch_id', 'teacher_id', 'start_date', 'end_date', 'room', 'active'];
+    protected $fillable = ['name', 'course_id', 'branch_id', 'teacher_id', 'start_date', 'end_date', 'room', 'room_id', 'active'];
 
     protected static function booted(): void
     {
@@ -34,6 +34,11 @@ class StudyGroup extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function roomRef(): BelongsTo
+    {
+        return $this->belongsTo(Room::class, 'room_id');
     }
 
     public function teacher(): BelongsTo

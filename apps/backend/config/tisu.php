@@ -12,16 +12,33 @@
 
 $allPermissions = [
     'course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage', 'quiz.take',
-    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage',
+    'report.view', 'user.manage', 'settings.manage', 'announcement.manage', 'billing.manage', 'audit.view',
 ];
 
 return [
     'permissions' => $allPermissions,
 
+    // Huquqlarning odam o'qiydigan nomlari (Sozlamalar → Rollar huquqlari).
+    'permission_labels' => [
+        'course.manage' => "Barcha kurslarni boshqarish (yashirinlari ham)",
+        'course.view' => "Kurslarni ko'rish",
+        'group.manage' => 'Guruhlar va jadvalni boshqarish',
+        'attendance.mark' => 'Davomat belgilash',
+        'quiz.manage' => 'Testlar tuzish (o\'z kurslarida)',
+        'quiz.take' => 'Test topshirish',
+        'report.view' => "Hisobotlarni ko'rish",
+        'user.manage' => 'Foydalanuvchilarni boshqarish',
+        'settings.manage' => 'Sozlamalarni o\'zgartirish',
+        'announcement.manage' => "E'lonlar yozish",
+        'billing.manage' => "To'lovlarni boshqarish",
+        'audit.view' => "Audit jurnalini ko'rish (faqat administrator)",
+    ],
+
     // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
     'groups' => [
         'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
         'certificate' => 'Sertifikat', 'course' => 'Kurslar', 'news' => 'Yangiliklar', 'reports' => 'Hisobotlar', 'billing' => "To'lovlar", 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'calendar' => 'Taqvim va xonalar', 'uploads' => 'Fayllar', 'homework' => 'Uyga vazifa va baholar', 'notifications' => 'Bildirishnomalar', 'audit' => 'Audit jurnali',
         'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
     ],
 
@@ -178,6 +195,7 @@ return [
                 ['command' => 'start', 'description' => 'Boshlash / qayta ulanish'],
                 ['command' => 'menu', 'description' => 'Asosiy menyu'],
                 ['command' => 'schedule', 'description' => 'Dars jadvali'],
+                ['command' => 'homework', 'description' => 'Uyga vazifa'],
                 ['command' => 'attendance', 'description' => 'Davomatim'],
                 ['command' => 'quizzes', 'description' => 'Testlarim'],
                 ['command' => 'certificates', 'description' => 'Sertifikatlarim'],
@@ -192,6 +210,7 @@ return [
                 ['command' => 'start', 'description' => 'Начать / переподключиться'],
                 ['command' => 'menu', 'description' => 'Главное меню'],
                 ['command' => 'schedule', 'description' => 'Расписание'],
+                ['command' => 'homework', 'description' => 'Домашнее задание'],
                 ['command' => 'attendance', 'description' => 'Моя посещаемость'],
                 ['command' => 'quizzes', 'description' => 'Мои тесты'],
                 ['command' => 'certificates', 'description' => 'Мои сертификаты'],
@@ -206,6 +225,7 @@ return [
                 ['command' => 'start', 'description' => 'Start / reconnect'],
                 ['command' => 'menu', 'description' => 'Main menu'],
                 ['command' => 'schedule', 'description' => 'Class schedule'],
+                ['command' => 'homework', 'description' => 'Homework'],
                 ['command' => 'attendance', 'description' => 'My attendance'],
                 ['command' => 'quizzes', 'description' => 'My quizzes'],
                 ['command' => 'certificates', 'description' => 'My certificates'],
@@ -251,10 +271,10 @@ return [
         'telegram.schedule_days' => ['group' => 'telegram', 'type' => 'int', 'min' => 1, 'max' => 31, 'label' => 'Botdagi jadval necha kunlik', 'default' => 7],
         'telegram.list_limit' => ['group' => 'telegram', 'type' => 'int', 'min' => 3, 'max' => 50, 'label' => "Bot ro'yxatlaridagi elementlar soni", 'default' => 15],
         // Har rol uchun reply-klaviatura: qatorlar → amallar.
-        // Amallar: courses, schedule, attendance, quizzes, certificates, balance, profile, today, children, app
+        // Amallar: courses, schedule, homework, attendance, quizzes, certificates, balance, profile, today, children, app
         'telegram.menu' => ['group' => 'telegram', 'type' => 'object', 'label' => 'Bot menyusi (rol → tugmalar qatorlari)', 'default' => [
-            'STUDENT' => [['courses', 'schedule'], ['attendance', 'quizzes'], ['news', 'certificates'], ['balance', 'profile'], ['app']],
-            'TEACHER' => [['today', 'unmarked'], ['schedule', 'courses'], ['news', 'profile'], ['app']],
+            'STUDENT' => [['courses', 'schedule'], ['homework', 'attendance'], ['quizzes', 'news'], ['certificates', 'balance'], ['profile', 'app']],
+            'TEACHER' => [['today', 'unmarked'], ['schedule', 'homework'], ['courses', 'news'], ['profile', 'app']],
             'PARENT' => [['children', 'schedule'], ['news', 'certificates'], ['balance', 'profile'], ['app']],
             'ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
             'SUPER_ADMIN' => [['today', 'unmarked'], ['schedule', 'courses'], ['profile', 'app']],
@@ -529,6 +549,98 @@ return [
         'telegram.text.alert_error' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga server xatosi ({type}, {message}, {where}, {url})', 'default' => "⚠️ Serverda xato\n{type}: {message}\n{where}\n{url}"],
         'telegram.text.alert_backup_failed' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: adminga zaxira xatosi ({message})', 'default' => "❗️ Bazaning kunlik zaxira nusxasi olinmadi: {message}"],
 
+        // ── Sprint 3: taqvim va xonalar ──────────────────────
+        'calendar.default_view' => ['group' => 'calendar', 'type' => 'string', 'public' => true, 'label' => "Taqvim ochilganda ko'rinish (week — hafta, month — oy)", 'default' => 'week'],
+        'calendar.day_start_hour' => ['group' => 'calendar', 'type' => 'int', 'min' => 0, 'max' => 23, 'public' => true, 'label' => 'Haftalik taqvim: kun boshlanishi (soat)', 'default' => 8],
+        'calendar.day_end_hour' => ['group' => 'calendar', 'type' => 'int', 'min' => 1, 'max' => 24, 'public' => true, 'label' => 'Haftalik taqvim: kun tugashi (soat)', 'default' => 21],
+        'calendar.max_days' => ['group' => 'calendar', 'type' => 'int', 'min' => 7, 'max' => 400, 'label' => "Taqvim bir so'rovda necha kunni ko'rsatadi", 'default' => 62],
+        'calendar.max_items' => ['group' => 'calendar', 'type' => 'int', 'min' => 100, 'max' => 10000, 'label' => "Taqvimdagi mashg'ulotlar soni chegarasi", 'default' => 2000],
+        'calendar.check_teacher_clash' => ['group' => 'calendar', 'type' => 'bool', 'label' => "Bir o'qituvchiga bir vaqtda ikki guruh qo'yilmasin", 'default' => true],
+        'calendar.check_room_clash' => ['group' => 'calendar', 'type' => 'bool', 'label' => 'Bir xonada bir vaqtda ikki guruh bo\'lmasin', 'default' => true],
+        'calendar.text.teacher_clash' => ['group' => 'calendar', 'type' => 'text', 'label' => "To'qnashuv: o'qituvchi band ({group}, {room}, {day}, {start}, {end})", 'default' => "O'qituvchi bu vaqtda band: «{group}» guruhi, {day} {start}–{end}."],
+        'calendar.text.room_clash' => ['group' => 'calendar', 'type' => 'text', 'label' => "To'qnashuv: xona band ({group}, {room}, {day}, {start}, {end})", 'default' => "«{room}» xonasi bu vaqtda band: «{group}» guruhi, {day} {start}–{end}."],
+        'calendar.text.self_clash' => ['group' => 'calendar', 'type' => 'text', 'label' => "To'qnashuv: guruh jadvalida vaqtlar ustma-ust ({day}, {start}, {end})", 'default' => "Jadvalda bir kunning vaqtlari ustma-ust tushgan: {day} {start}–{end}."],
+
+        // ── Sprint 3: fayllar ────────────────────────────────
+        'uploads.enabled' => ['group' => 'uploads', 'type' => 'bool', 'public' => true, 'label' => 'Fayl yuklashga ruxsat (dars materiallari, uyga vazifa)', 'default' => true],
+        'uploads.max_mb' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 200, 'public' => true, 'label' => "Bitta faylning maksimal hajmi (MB). Serverdagi upload_max_filesize dan oshmasin", 'default' => 10],
+        'uploads.allowed_types' => ['group' => 'uploads', 'type' => 'list', 'public' => true, 'label' => "Ruxsat etilgan fayl turlari (kengaytmalar). Tur fayl ichidan tekshiriladi; dastur/skript fayllari hech qachon qabul qilinmaydi", 'default' => [
+            'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'odp', 'ods', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'mp3', 'm4a', 'mp4',
+        ]],
+        'uploads.quota_mb' => ['group' => 'uploads', 'type' => 'int', 'min' => 0, 'max' => 10000000, 'label' => "Barcha fayllar uchun umumiy joy (MB, 0 — cheklanmagan)", 'default' => 5120],
+        'uploads.link_ttl_minutes' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 1440, 'label' => 'Yuklab olish havolasi amal qilish muddati (daqiqa)', 'default' => 30],
+        'uploads.max_files_per_item' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 20, 'public' => true, 'label' => 'Bitta vazifa yoki javobga biriktiriladigan fayllar soni', 'default' => 5],
+        'uploads.student_files' => ['group' => 'uploads', 'type' => 'bool', 'public' => true, 'label' => "O'quvchi vazifa javobiga fayl biriktira oladi", 'default' => true],
+
+        // ── Sprint 3: uyga vazifa va baholar ─────────────────
+        'homework.enabled' => ['group' => 'homework', 'type' => 'bool', 'public' => true, 'label' => "Uyga vazifa bo'limi yoqilgan", 'default' => true],
+        'homework.allow_late' => ['group' => 'homework', 'type' => 'bool', 'public' => true, 'label' => 'Muddat o\'tgach ham topshirishga ruxsat (kechikkan deb belgilanadi)', 'default' => true],
+        'homework.resubmit_until_graded' => ['group' => 'homework', 'type' => 'bool', 'public' => true, 'label' => "Baholanguncha javobni o'zgartirish mumkin", 'default' => true],
+        'homework.notify_new' => ['group' => 'homework', 'type' => 'bool', 'label' => "Yangi vazifa haqida o'quvchilarga Telegram xabar", 'default' => true],
+        'homework.notify_graded' => ['group' => 'homework', 'type' => 'bool', 'label' => "Vazifa baholanganda o'quvchiga xabar", 'default' => true],
+        'homework.due_reminder' => ['group' => 'homework', 'type' => 'bool', 'label' => "Muddat yaqinlashganda topshirmaganlarga eslatma", 'default' => true],
+        'homework.due_reminder_hours' => ['group' => 'homework', 'type' => 'int', 'min' => 1, 'max' => 168, 'label' => 'Eslatma muddatdan necha soat oldin', 'default' => 12],
+        'homework.teacher_summary' => ['group' => 'homework', 'type' => 'bool', 'label' => "Muddat tugagach o'qituvchiga natija (necha kishi topshirdi)", 'default' => true],
+        'homework.status_labels' => ['group' => 'homework', 'type' => 'object', 'public' => true, 'label' => 'Vazifa holatlari nomlari', 'default' => [
+            'PENDING' => 'Topshirilmagan', 'SUBMITTED' => 'Topshirildi', 'LATE' => 'Kechikib topshirildi', 'GRADED' => 'Baholandi', 'MISSED' => "Muddati o'tgan",
+        ]],
+        'marks.scale_min' => ['group' => 'homework', 'type' => 'int', 'min' => 0, 'max' => 99, 'public' => true, 'label' => 'Baho shkalasi: eng past baho', 'default' => 1],
+        'marks.scale_max' => ['group' => 'homework', 'type' => 'int', 'min' => 1, 'max' => 100, 'public' => true, 'label' => 'Baho shkalasi: eng yuqori baho (5 — besh ballik, 100 — yuz ballik)', 'default' => 5],
+        'marks.session_marks' => ['group' => 'homework', 'type' => 'bool', 'public' => true, 'label' => "Mashg'ulot varaqasida o'quvchilarga baho qo'yish", 'default' => true],
+        'marks.notify_student' => ['group' => 'homework', 'type' => 'bool', 'label' => "Mashg'ulotda baho qo'yilganda o'quvchiga xabar", 'default' => true],
+        'telegram.text.homework_new' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: yangi uyga vazifa ({name}, {group}, {title}, {due}, {url})", 'default' => "📒 {name}, «{group}» guruhida yangi uyga vazifa: «{title}».\nMuddat: {due}\n{url}"],
+        'telegram.text.homework_graded' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: vazifa baholandi ({name}, {title}, {score}, {max}, {feedback}, {url})", 'default' => "✅ {name}, «{title}» vazifangiz baholandi: {score}/{max}.\n{feedback}"],
+        'telegram.text.homework_due' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: vazifa muddati yaqin ({name}, {title}, {group}, {due}, {url})", 'default' => "⏳ {name}, «{title}» vazifasini topshirish muddati: {due}. Hali topshirilmagan.\n{url}"],
+        'telegram.text.homework_teacher_summary' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga vazifa natijasi ({name}, {group}, {title}, {submitted}, {total}, {url})", 'default' => "📋 {name}, «{group}» guruhidagi «{title}» vazifasi muddati tugadi: {submitted}/{total} o'quvchi topshirdi.\n{url}"],
+        'telegram.text.mark_received' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: mashg'ulotda baho ({name}, {group}, {date}, {score}, {max}, {note})", 'default' => "⭐️ {name}, {date} kungi «{group}» mashg'ulotida bahoyingiz: {score}/{max}. {note}"],
+        'telegram.text.btn_homework' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot tugmasi: uyga vazifa', 'default' => '📒 Uyga vazifa'],
+        'telegram.text.homework_title' => ['group' => 'telegram', 'type' => 'string', 'label' => 'Bot: uyga vazifalar sarlavhasi', 'default' => '📒 Uyga vazifalar'],
+        'telegram.text.homework_line' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: vazifa qatori ({title}, {group}, {due}, {status})", 'default' => '• {title} — {group}, muddat {due} · {status}'],
+        'telegram.text.homework_teacher_line' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: o'qituvchi uchun vazifa qatori ({title}, {group}, {due}, {submitted}, {total})", 'default' => '• {title} — {group}, muddat {due} · {submitted}/{total}'],
+        'telegram.text.homework_empty' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: vazifa yo'q", 'default' => "Hozircha uyga vazifa yo'q 🎉"],
+
+        // ── Sprint 3: bildirishnomalar markazi ───────────────
+        'notifications.inbox_enabled' => ['group' => 'notifications', 'type' => 'bool', 'public' => true, 'label' => "Paneldagi qo'ng'iroqcha (bildirishnomalar)", 'default' => true],
+        'notifications.inbox_kinds' => ['group' => 'notifications', 'type' => 'list', 'label' => "Qo'ng'iroqchada ko'rinadigan xabar turlari (kind boshlanishi)", 'default' => [
+            'announcement', 'attendance', 'homework', 'mark', 'billing', 'certificate', 'lesson',
+        ]],
+        'notifications.kind_labels' => ['group' => 'notifications', 'type' => 'object', 'public' => true, 'label' => 'Xabar turlari nomlari (kind boshlanishi → nom)', 'default' => [
+            'announcement' => 'Yangilik', 'attendance' => 'Davomat', 'homework' => 'Uyga vazifa', 'mark' => 'Baho', 'billing' => "To'lov",
+            'certificate' => 'Sertifikat', 'lesson' => "Mashg'ulot eslatmasi", 'unmarked' => 'Davomat eslatmasi', 'registration' => "Ro'yxatdan o'tish",
+        ]],
+        'notifications.delivery_labels' => ['group' => 'notifications', 'type' => 'object', 'public' => true, 'label' => 'Yetkazish holatlari nomlari', 'default' => [
+            'sent' => 'Yetkazildi', 'failed' => 'Xato', 'not_linked' => 'Telegram ulanmagan', 'blocked' => 'Botni bloklagan',
+            'skipped' => "O'tkazib yuborilgan", 'not_configured' => 'Bot sozlanmagan',
+        ]],
+        'notifications.page_size' => ['group' => 'notifications', 'type' => 'int', 'min' => 5, 'max' => 200, 'label' => "Bildirishnomalar ro'yxatida qatorlar soni", 'default' => 30],
+        'notifications.report_days' => ['group' => 'notifications', 'type' => 'int', 'min' => 1, 'max' => 366, 'label' => 'Yetkazish hisoboti standart davri (kun)', 'default' => 30],
+        'notifications.mark_pushed_news_read' => ['group' => 'notifications', 'type' => 'bool', 'label' => "Telegram'ga yuborilgan yoki botda ochilgan yangilik o'qilgan hisoblanadi", 'default' => true],
+
+        // ── Sprint 3: audit jurnali ──────────────────────────
+        'audit.page_size' => ['group' => 'audit', 'type' => 'int', 'min' => 10, 'max' => 500, 'label' => "Audit jurnalida qatorlar soni", 'default' => 50],
+        'audit.max_days' => ['group' => 'audit', 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => 'Audit jurnalida bir so\'rovdagi maksimal davr (kun)', 'default' => 366],
+        'audit.entity_labels' => ['group' => 'audit', 'type' => 'object', 'public' => true, 'label' => "Audit: obyekt turlari nomlari", 'default' => [
+            'user' => 'Foydalanuvchi', 'group' => 'Guruh', 'session' => "Mashg'ulot", 'course' => 'Kurs', 'module' => 'Modul', 'lesson' => 'Dars',
+            'material' => 'Material', 'quiz' => 'Test', 'question' => 'Savol', 'certificate' => 'Sertifikat', 'settings' => 'Sozlamalar',
+            'announcement' => "E'lon", 'billing' => "To'lov", 'room' => 'Xona', 'assignment' => 'Uyga vazifa', 'file' => 'Fayl', 'report' => 'Hisobot',
+        ]],
+        'audit.action_labels' => ['group' => 'audit', 'type' => 'object', 'public' => true, 'label' => "Audit: amallar nomlari (bo'sh bo'lsa — kod ko'rsatiladi)", 'default' => [
+            'auth.login' => 'Tizimga kirdi', 'auth.login_failed' => 'Kirish muvaffaqiyatsiz', 'auth.logout' => 'Tizimdan chiqdi', 'auth.password_change' => "Parolni o'zgartirdi",
+            'user.create' => 'Foydalanuvchi yaratildi', 'user.update' => "Foydalanuvchi o'zgartirildi", 'user.update_self' => "Profilini o'zgartirdi",
+            'group.create' => 'Guruh yaratildi', 'group.update' => "Guruh o'zgartirildi", 'group.member_add' => "Guruhga o'quvchi qo'shildi", 'group.member_remove' => "Guruhdan o'quvchi chiqarildi",
+            'session.update' => "Mashg'ulot o'zgartirildi", 'session.generate' => "Jadvaldan mashg'ulotlar yaratildi", 'attendance.mark' => 'Davomat belgilandi', 'marks.update' => "Mashg'ulot baholari qo'yildi",
+            'settings.update' => "Sozlama o'zgartirildi", 'settings.reset' => 'Sozlama standartga qaytarildi',
+            'question.create' => "Savol qo'shildi", 'question.update' => "Savol o'zgartirildi", 'question.delete' => "Savol o'chirildi",
+            'report.attendance_csv' => 'Davomat CSV yuklab olindi', 'room.create' => "Xona qo'shildi", 'room.update' => "Xona o'zgartirildi", 'room.delete' => "Xona o'chirildi",
+            'assignment.create' => 'Uyga vazifa berildi', 'assignment.update' => "Uyga vazifa o'zgartirildi", 'assignment.delete' => "Uyga vazifa o'chirildi", 'assignment.grade' => 'Vazifa baholandi',
+            'file.upload' => 'Fayl yuklandi', 'file.delete' => "Fayl o'chirildi",
+        ]],
+
+        // ── Sprint 3: ko'rsatkichlar (KPI) ──────────────────
+        'reports.kpi_months' => ['group' => 'reports', 'type' => 'int', 'min' => 2, 'max' => 24, 'label' => "Ko'rsatkichlar sahifasida necha oy", 'default' => 6],
+        'reports.quiz_pass_target' => ['group' => 'reports', 'type' => 'int', 'min' => 0, 'max' => 100, 'public' => true, 'label' => "Ko'rsatkichlar: testdan o'tish maqsadi (%)", 'default' => 70],
+        'reports.attendance_target' => ['group' => 'reports', 'type' => 'int', 'min' => 0, 'max' => 100, 'public' => true, 'label' => "Ko'rsatkichlar: davomat maqsadi (%)", 'default' => 85],
+
         // ── Tarjimalar ───────────────────────────────────────
         'i18n.overrides' => ['group' => 'i18n', 'type' => 'object', 'label' => "Xabarlarni qayta yozish {\"validation.required\": \":attribute majburiy.\"}", 'default' => (object) []],
 
@@ -537,6 +649,7 @@ return [
             '/dashboard' => 'Bosh sahifa', '/dashboard/courses' => 'Kurslar', '/dashboard/groups' => 'Guruhlar',
             '/dashboard/news' => 'Yangiliklar', '/dashboard/certificates' => 'Sertifikatlar', '/dashboard/reports' => 'Hisobotlar', '/dashboard/billing' => "To'lovlar", '/dashboard/profile' => 'Profil',
             '/dashboard/users' => 'Foydalanuvchilar', '/dashboard/settings' => 'Sozlamalar',
+            '/dashboard/calendar' => 'Taqvim', '/dashboard/homework' => 'Uyga vazifa', '/dashboard/notifications' => 'Bildirishnomalar', '/dashboard/audit' => 'Audit jurnali',
         ]],
         'ui.page_size' => ['group' => 'ui', 'type' => 'int', 'min' => 5, 'max' => 500, 'label' => 'Jadvallarda qatorlar soni', 'default' => 50],
         'ui.refresh_seconds' => ['group' => 'ui', 'type' => 'int', 'min' => 0, 'max' => 3600, 'public' => true, 'label' => "Avtomatik yangilanish oralig'i, soniya (0 — o'chiq)", 'default' => 20],
@@ -546,7 +659,7 @@ return [
         // SUPER_ADMIN har doim hamma huquqqa ega (o'zini qulflab qo'ymaslik uchun).
         'roles.permissions' => ['group' => 'roles', 'type' => 'object', 'label' => 'Rollar huquqlari', 'default' => [
             'ADMIN' => ['course.manage', 'course.view', 'group.manage', 'attendance.mark', 'quiz.manage',
-                'report.view', 'user.manage', 'announcement.manage', 'billing.manage'],
+                'report.view', 'user.manage', 'announcement.manage', 'billing.manage', 'audit.view'],
             'TEACHER' => ['course.manage', 'course.view', 'attendance.mark', 'quiz.manage', 'report.view', 'announcement.manage'],
             'STUDENT' => ['course.view', 'quiz.take'],
             'PARENT' => ['course.view'],
