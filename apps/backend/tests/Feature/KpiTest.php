@@ -42,12 +42,29 @@ class KpiTest extends TestCase
         $this->g1 = $mk('ENG-1', $this->teacher);
         $this->g2 = $mk('ENG-2', $this->teacher2);
 
-        // A: avgustdan beri; B: sentyabrda qo'shildi, oktyabrda chiqdi; C: oktyabrda qo'shildi (ENG-2).
-        foreach (['A' => [$this->g1, '2026-08-05', null], 'B' => [$this->g1, '2026-09-10', '2026-10-05'], 'C' => [$this->g2, '2026-10-02', null]] as $n => [$g, $in, $out]) {
-            $s = User::factory()->create(['first_name' => $n]);
-            $this->students[$n] = $s;
-            DB::table('group_members')->insert(['group_id' => $g, 'student_id' => $s->id, 'joined_at' => $in.' 09:00:00', 'left_at' => $out ? $out.' 09:00:00' : null]);
+        // A: avgustdan beri; B: sentyabrda qo'shildi, oktyabrda chiqdi (sabab bilan); C: oktyabrda qo'shildi (ENG-2);
+        // D: sentyabrdan, 10-oktyabrdan muzlatilgan; E: avgustda ENG-1, 21-sentyabrdan ENG-2 ga ko'chirilgan.
+        foreach (['A', 'B', 'C', 'D', 'E'] as $n) {
+            $this->students[$n] = User::factory()->create(['first_name' => $n]);
         }
+        $member = fn ($g, $n, $in, $out = null) => DB::table('group_members')->insert(['group_id' => $g, 'student_id' => $this->students[$n]->id,
+            'joined_at' => $in.' 09:00:00', 'left_at' => $out ? $out.' 18:00:00' : null]);
+        $period = fn ($g, $n, $status, $from, $to = null, $outcome = null, $reason = null, $transfer = null) => DB::table('enrollments')->insert([
+            'group_id' => $g, 'student_id' => $this->students[$n]->id, 'status' => $status, 'starts_on' => $from, 'ends_on' => $to,
+            'outcome' => $outcome, 'reason' => $reason, 'transfer_group_id' => $transfer, 'created_at' => now(), 'updated_at' => now()]);
+        $member($this->g1, 'A', '2026-08-05');
+        $period($this->g1, 'A', 'ACTIVE', '2026-08-05');
+        $member($this->g1, 'B', '2026-09-10', '2026-10-05');
+        $period($this->g1, 'B', 'ACTIVE', '2026-09-10', '2026-10-05', 'LEFT', 'Narx qimmat');
+        $member($this->g2, 'C', '2026-10-02');
+        $period($this->g2, 'C', 'ACTIVE', '2026-10-02');
+        $member($this->g1, 'D', '2026-09-01');
+        $period($this->g1, 'D', 'ACTIVE', '2026-09-01', '2026-10-09');
+        $period($this->g1, 'D', 'FROZEN', '2026-10-10', '2026-11-10');
+        $member($this->g1, 'E', '2026-08-01', '2026-09-20');
+        $period($this->g1, 'E', 'ACTIVE', '2026-08-01', '2026-09-20', 'TRANSFERRED', null, $this->g2);
+        $member($this->g2, 'E', '2026-09-21');
+        $period($this->g2, 'E', 'ACTIVE', '2026-09-21');
 
         // Mashg'ulotlar: sentyabr — 1 ta (90 daq), oktyabr — 2 ta ENG-1 (90 daq), 1 ta ENG-2 (60 daq), 1 ta bekor.
         $session = fn ($g, $start, $min, $cancelled = false) => DB::table('class_sessions')->insertGetId(['group_id' => $g, 'starts_at' => $start,
@@ -92,10 +109,14 @@ class KpiTest extends TestCase
         $this->assertSame(['2026-08', '2026-09', '2026-10'], $r->json('months'));
         [$aug, $sep, $oct] = $r->json('series');
 
-        $this->assertSame([1, 1, 0], [$aug['active_students'], $aug['new_students'], $aug['left_students']]);
-        $this->assertSame([2, 1, 0], [$sep['active_students'], $sep['new_students'], $sep['left_students']]);
-        $this->assertSame([2, 1, 1], [$oct['active_students'], $oct['new_students'], $oct['left_students']]);
-        $this->assertEquals(50, $oct['churn_percent']);
+        $this->assertSame([2, 2, 0], [$aug['active_students'], $aug['new_students'], $aug['left_students']]);
+        // Ko'chirilgan E — yangi ham, chiqqan ham emas; ko'chirish alohida.
+        $this->assertSame([4, 2, 0, 1], [$sep['active_students'], $sep['new_students'], $sep['left_students'], $sep['transferred_students']]);
+        $this->assertEquals(0, $sep['churn_percent']);
+        // D muzlatilgan: faol emas, yangi ham emas.
+        $this->assertSame([3, 1, 1, 1], [$oct['active_students'], $oct['new_students'], $oct['left_students'], $oct['frozen_students']]);
+        $this->assertEquals(25, $oct['churn_percent']);
+        $this->assertSame([['reason' => 'Narx qimmat', 'count' => 1]], $r->json('leave_reasons'));
         $this->assertTrue($oct['partial']);
 
         $this->assertEquals(50, $sep['attendance_rate']);
@@ -104,6 +125,7 @@ class KpiTest extends TestCase
 
         $this->assertSame(2, $oct['quiz_attempts']);
         $this->assertEquals(50, $oct['quiz_pass_rate']);
+        // Muzlatilgan D dan vazifa kutilmaydi.
         $this->assertSame([1, 1], [$oct['homework_expected'], $oct['homework_submitted']]);
         $this->assertEquals(100, $oct['homework_rate']);
         $this->assertEquals(80, $oct['homework_avg_percent']);
@@ -128,7 +150,7 @@ class KpiTest extends TestCase
         $r = $this->getJson('/v1/reports/kpi?months=2')->assertOk();
         $this->assertNull($r->json('money'));
         $oct = $r->json('series.1');
-        $this->assertSame(1, $oct['active_students']); // C (ENG-2) kirmaydi
+        $this->assertSame(1, $oct['active_students']); // faqat A: C va E — ENG-2 da, D muzlatilgan
         $this->assertEquals(3, $oct['teacher_hours']);
         $this->assertCount(1, $r->json('teachers'));
 
@@ -142,9 +164,9 @@ class KpiTest extends TestCase
         $new = $this->getJson('/v1/reports/kpi/students?type=new&month=2026-10')->assertOk()->json('data');
         $this->assertSame(['C'], array_map(fn ($r) => explode(' ', $r['name'])[0], $new));
         $left = $this->getJson('/v1/reports/kpi/students?type=left&month=2026-10')->assertOk()->json('data');
-        $this->assertSame('2026-10-05', $left[0]['left_at']);
-        $this->getJson('/v1/reports/kpi/students?type=active&month=2026-09')->assertOk()->assertJsonCount(2, 'data');
-        $this->getJson("/v1/reports/kpi/students?type=active&month=2026-10&group_id={$this->g2}")->assertOk()->assertJsonCount(1, 'data');
+        $this->assertSame(['2026-10-05', 'Narx qimmat'], [$left[0]['left_at'], $left[0]['reason']]);
+        $this->getJson('/v1/reports/kpi/students?type=active&month=2026-09')->assertOk()->assertJsonCount(4, 'data');
+        $this->getJson("/v1/reports/kpi/students?type=active&month=2026-10&group_id={$this->g2}")->assertOk()->assertJsonCount(2, 'data');
         $this->getJson('/v1/reports/kpi/students?type=bad&month=2026-10')->assertUnprocessable();
     }
 }

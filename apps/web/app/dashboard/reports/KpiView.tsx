@@ -78,7 +78,8 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
           <div className="stats-grid">
             <StatCard label="Faol o'quvchilar" value={cur.active_students} icon={<GraduationCap />} tone="info" hint={<Delta now={cur.active_students} prev={prev?.active_students ?? null} />} />
             <StatCard label="Yangi / chiqqan" value={<>{cur.new_students} <span className="subtle">/</span> {cur.left_students}</>} icon={<UserPlus />}
-              tone={cur.left_students > cur.new_students ? "warning" : "success"} hint={cur.churn_percent != null ? `Chiqib ketish: ${cur.churn_percent}%` : undefined} />
+              tone={cur.left_students > cur.new_students ? "warning" : "success"}
+              hint={[cur.churn_percent != null ? `Chiqib ketish: ${cur.churn_percent}%` : null, cur.frozen_students ? `${cur.frozen_students} ta muzlatilgan` : null].filter(Boolean).join(" · ") || undefined} />
             <StatCard label="Davomat" value={pct(cur.attendance_rate)} progress={cur.attendance_rate} icon={<CalendarCheck />}
               tone={cur.attendance_rate == null ? "accent" : cur.attendance_rate >= data.targets.attendance ? "success" : "warning"}
               hint={<Delta now={cur.attendance_rate} prev={prev?.attendance_rate ?? null} unit="%" />} />
@@ -94,6 +95,17 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
             )}
             {money && <StatCard label="Qarzdorlik" value={fmtMoney(money.debt_total, money.currency)} icon={<UserMinus />} tone={money.debt_total > 0 ? "danger" : "success"} hint={`${money.debtors} ta qarzdor`} />}
           </div>
+
+          {data.leave_reasons.length > 0 && (
+            <Card style={{ marginBottom: "var(--space-4)" }}>
+              <CardHeader title="Guruhdan chiqish sabablari" description={`${monthLabel(cur.month)} — ${cur.left_students} ta o'quvchi`} />
+              <ul className={s.reasons}>
+                {data.leave_reasons.map((r, i) => (
+                  <li key={i}><span>{r.reason ?? "Sabab ko'rsatilmagan"}</span><b>{r.count}</b></li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <div className={s.kpiCharts}>
             <Card>
@@ -115,6 +127,9 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
                 <MetricRow label="Yangi o'quvchilar" series={data.series} cell={(m) => m.new_students ? <button type="button" className={s.drill} onClick={() => setDrill({ type: "new", month: m.month })}>{m.new_students}</button> : 0} />
                 <MetricRow label="Chiqqan o'quvchilar" series={data.series} cell={(m) => m.left_students ? <button type="button" className={s.drill} onClick={() => setDrill({ type: "left", month: m.month })}>{m.left_students}</button> : 0} />
                 <MetricRow label="Chiqib ketish" series={data.series} cell={(m) => pct(m.churn_percent)} />
+                <MetricRow label="Muzlatilgan (oy oxirida)" series={data.series} cell={(m) => m.frozen_students} />
+                <MetricRow label="Bitirgan" series={data.series} cell={(m) => m.graduated_students} />
+                <MetricRow label="Boshqa guruhga ko'chgan" series={data.series} cell={(m) => m.transferred_students} />
                 <MetricRow label="Davomat" series={data.series} cell={(m) => pct(m.attendance_rate)} />
                 <MetricRow label="Testdan o'tish" series={data.series} cell={(m) => pct(m.quiz_pass_rate)} />
                 <MetricRow label="Vazifa topshirish" series={data.series} cell={(m) => pct(m.homework_rate)} />
@@ -207,14 +222,14 @@ function DrillDialog({ drill, qs, onClose }: { drill: { type: "new" | "left" | "
     <Dialog open={Boolean(drill)} onClose={onClose} title={title} width={640}>
       {!rows ? <p className="subtle">Yuklanmoqda…</p> : rows.length === 0 ? <p className="subtle">Ro&apos;yxat bo&apos;sh.</p> : (
         <Table stack caption={title}>
-          <thead><tr><Th>O&apos;quvchi</Th><Th>Guruh</Th><Th>Qo&apos;shilgan</Th><Th>Chiqqan</Th></tr></thead>
+          <thead><tr><Th>O&apos;quvchi</Th><Th>Guruh</Th><Th>{drill?.type === "left" ? "Chiqqan" : "Boshlagan"}</Th>{drill?.type === "left" && <Th>Sabab</Th>}</tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={`${r.student_id}-${r.group_id}-${i}`}>
                 <Td><b>{r.name}</b>{r.phone && <div className="subtle">{r.phone}</div>}</Td>
                 <Td label="Guruh">{r.group}</Td>
-                <Td label="Qo'shilgan">{r.joined_at ?? "—"}</Td>
-                <Td label="Chiqqan">{r.left_at ?? "—"}</Td>
+                <Td label={drill?.type === "left" ? "Chiqqan" : "Boshlagan"}>{(drill?.type === "left" ? r.left_at : r.joined_at) ?? "—"}</Td>
+                {drill?.type === "left" && <Td label="Sabab">{r.reason ?? "—"}</Td>}
               </tr>
             ))}
           </tbody>

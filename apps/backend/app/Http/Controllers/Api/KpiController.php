@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Ko'rsatkichlar (KPI v1) va uyga vazifa hisoboti (report.view). Hammasi SQL'da yig'iladi (xotiraga satrlar yuklanmaydi).
  * O'qituvchi — faqat o'z guruhlari; pul ko'rsatkichlari — faqat billing.manage.
- * Yangi/chiqqan o'quvchilar hozircha a'zolik sanalaridan (group_members.joined_at/left_at);
- * Sprint 2 dagi a'zolik holatlari (enrollments) qo'shilgach — shu yerda almashtiriladi.
+ * O'quvchilar soni a'zolik tarixidan (enrollments): faol — ACTIVE davr (muzlatilganlar alohida),
+ * yangi — yangi boshlangan davr (ko'chirilib kelganlar emas), chiqqan — LEFT natijasi (sabablari bilan);
+ * bitirganlar va boshqa guruhga ko'chganlar chiqib ketish (churn) hisobiga kirmaydi.
  */
 class KpiController
 {
@@ -62,8 +63,9 @@ class KpiController
             $k = $mo['key'];
             $counts = $att[$k] ?? [];
             $active = $this->activeAt($groupIds, $mo['end']);
-            $new = $this->movedIn($groupIds, 'joined_at', $mo['start'], $mo['end']);
-            $left = $this->movedIn($groupIds, 'left_at', $mo['start'], $mo['end']);
+            $new = $this->newPeriods($groupIds, $mo['start'], $mo['end'])->distinct()->count('e.student_id');
+            $closed = $this->closed($groupIds, $mo['start'], $mo['end'])->selectRaw('e.outcome, count(distinct e.student_id) as c')->groupBy('e.outcome')->pluck('c', 'outcome');
+            $left = (int) ($closed['LEFT'] ?? 0);
             $q = $quiz[$k] ?? null;
             $h = $homework[$k] ?? null;
             $series[] = [
@@ -74,6 +76,9 @@ class KpiController
                 'active_students' => $active,
                 'new_students' => $new,
                 'left_students' => $left,
+                'graduated_students' => (int) ($closed['GRADUATED'] ?? 0),
+                'transferred_students' => (int) ($closed['TRANSFERRED'] ?? 0),
+                'frozen_students' => $this->activeAt($groupIds, $mo['end'], 'FROZEN'),
                 'churn_percent' => $prevActive > 0 ? round($left / $prevActive * 100, 1) : null,
                 'quiz_attempts' => (int) ($q->attempts ?? 0),
                 'quiz_pass_rate' => $q && $q->attempts ? round($q->passed / $q->attempts * 100, 1) : null,
@@ -97,6 +102,10 @@ class KpiController
             'sessions' => collect($months)->mapWithKeys(fn ($mo) => [$mo['key'] => (int) ($hours[$mo['key']][$id]['sessions'] ?? 0)]),
         ])->sortBy('name')->values();
 
+        // Oxirgi oyda guruhdan chiqish sabablari (enrollment.leave_reasons).
+        $reasons = $this->closed($groupIds, end($months)['start'], end($months)['end'])->where('e.outcome', 'LEFT')
+            ->selectRaw("coalesce(e.reason, '') as reason, count(*) as c")->groupBy('e.reason')->orderByDesc('c')->get()
+            ->map(fn ($r) => ['reason' => $r->reason !== '' ? $r->reason : null, 'count' => (int) $r->c])->values();
         $students = DB::table('group_members')->whereIn('group_id', $groupIds)->whereNull('left_at')->distinct()->pluck('student_id');
         $linked = $students->isEmpty() ? 0 : DB::table('telegram_links')->whereIn('user_id', $students)->count();
 
@@ -104,10 +113,11 @@ class KpiController
             'months' => array_column($months, 'key'),
             'series' => $series,
             'teachers' => $teachers,
+            'leave_reasons' => $reasons,
             'telegram_reach_percent' => $students->count() ? round($linked / $students->count() * 100, 1) : null,
             'targets' => ['attendance' => $this->settings->int('reports.attendance_target'), 'quiz_pass' => $this->settings->int('reports.quiz_pass_target')],
             'money' => $user->hasPermission('billing.manage') ? $this->money($months, $rangeStart, $rangeEnd) : null,
-            'source' => ['students' => 'membership_dates'],
+            'source' => ['students' => 'enrollments'],
         ]);
     }
 
@@ -121,25 +131,23 @@ class KpiController
         $groupIds = $this->groupIds($request, $data);
         $start = Carbon::createFromFormat('!Y-m', $data['month'])->startOfMonth();
         $end = $start->isSameMonth(now()) ? now() : $start->copy()->endOfMonth();
-        $q = DB::table('group_members')
-            ->join('users', 'users.id', '=', 'group_members.student_id')
-            ->join('study_groups', 'study_groups.id', '=', 'group_members.group_id')
-            ->whereIn('group_members.group_id', $groupIds);
-        match ($data['type']) {
-            'new' => $q->whereBetween('group_members.joined_at', [$start, $end]),
-            'left' => $q->whereBetween('group_members.left_at', [$start, $end]),
-            'active' => $q->where('group_members.joined_at', '<=', $end)->where(fn ($w) => $w->whereNull('group_members.left_at')->orWhere('group_members.left_at', '>', $end)),
+        $q = match ($data['type']) {
+            'new' => $this->newPeriods($groupIds, $start, $end),
+            'left' => $this->closed($groupIds, $start, $end)->where('e.outcome', 'LEFT'),
+            'active' => $this->activeQuery($groupIds, $end, 'ACTIVE'),
         };
         $staffPhones = $request->user()->hasPermission('user.manage') || $request->user()->hasPermission('group.manage');
-        $rows = $q->orderBy('users.first_name')->limit(2000)
+        $rows = $q->join('users', 'users.id', '=', 'e.student_id')->join('study_groups', 'study_groups.id', '=', 'e.group_id')
+            ->orderBy('users.first_name')->limit(2000)
             ->get(['users.id', 'users.first_name', 'users.last_name', 'users.phone', 'study_groups.id as group_id', 'study_groups.name as group_name',
-                'group_members.joined_at', 'group_members.left_at'])
+                'e.starts_on', 'e.ends_on', 'e.reason'])
             ->map(fn ($r) => [
                 'student_id' => (int) $r->id, 'name' => trim($r->first_name.' '.$r->last_name), 'phone' => $staffPhones ? $r->phone : null,
                 'group_id' => (int) $r->group_id, 'group' => $r->group_name,
-                'joined_at' => $r->joined_at ? Carbon::parse($r->joined_at)->toDateString() : null,
-                'left_at' => $r->left_at ? Carbon::parse($r->left_at)->toDateString() : null,
-            ]);
+                'joined_at' => $data['type'] === 'left' ? null : substr((string) $r->starts_on, 0, 10),
+                'left_at' => $data['type'] === 'left' ? substr((string) $r->ends_on, 0, 10) : null,
+                'reason' => $data['type'] === 'left' ? $r->reason : null,
+            ])->values();
 
         return response()->json(['type' => $data['type'], 'month' => $data['month'], 'data' => $rows]);
     }
@@ -206,17 +214,45 @@ class KpiController
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
-    private function activeAt(array $groupIds, Carbon $at): int
+    /** Shu kuni ACTIVE (yoki FROZEN) davrdagi o'quvchilar. */
+    private function activeQuery(array $groupIds, Carbon $at, string $status)
     {
-        return DB::table('group_members')->whereIn('group_id', $groupIds)
-            ->where('joined_at', '<=', $at)
-            ->where(fn ($w) => $w->whereNull('left_at')->orWhere('left_at', '>', $at))
-            ->distinct()->count('student_id');
+        $day = $at->toDateString();
+
+        return DB::table('enrollments as e')->whereIn('e.group_id', $groupIds)->where('e.status', $status)
+            ->where('e.starts_on', '<=', $day)
+            ->where(fn ($w) => $w->whereNull('e.ends_on')->orWhere('e.ends_on', '>=', $day));
     }
 
-    private function movedIn(array $groupIds, string $col, Carbon $from, Carbon $to): int
+    private function activeAt(array $groupIds, Carbon $at, string $status = 'ACTIVE'): int
     {
-        return DB::table('group_members')->whereIn('group_id', $groupIds)->whereBetween($col, [$from, $to])->distinct()->count('student_id');
+        return $this->activeQuery($groupIds, $at, $status)->distinct()->count('e.student_id');
+    }
+
+    /**
+     * Davrda boshlangan yangi a'zolik: oldingi qatori ochiq (natijasiz) davom bo'lmagan va
+     * boshqa guruhdan ko'chirilib kelmagan qatorlar.
+     */
+    private function newPeriods(array $groupIds, Carbon $from, Carbon $to)
+    {
+        return DB::table('enrollments as e')->whereIn('e.group_id', $groupIds)
+            ->whereBetween('e.starts_on', [$from->toDateString(), $to->toDateString()])
+            ->whereNotExists(fn ($q) => $q->from('enrollments as p')
+                ->whereColumn('p.group_id', 'e.group_id')->whereColumn('p.student_id', 'e.student_id')
+                ->whereColumn('p.starts_on', '<', 'e.starts_on')->whereNull('p.outcome')
+                ->whereNotExists(fn ($r) => $r->from('enrollments as q')
+                    ->whereColumn('q.group_id', 'e.group_id')->whereColumn('q.student_id', 'e.student_id')
+                    ->whereColumn('q.starts_on', '>', 'p.starts_on')->whereColumn('q.starts_on', '<', 'e.starts_on')))
+            ->whereNotExists(fn ($q) => $q->from('enrollments as t')
+                ->whereColumn('t.transfer_group_id', 'e.group_id')->whereColumn('t.student_id', 'e.student_id')
+                ->where('t.outcome', 'TRANSFERRED')->whereColumn('t.ends_on', '<=', 'e.starts_on'));
+    }
+
+    /** Davrda yopilgan a'zoliklar (LEFT / GRADUATED / TRANSFERRED). */
+    private function closed(array $groupIds, Carbon $from, Carbon $to)
+    {
+        return DB::table('enrollments as e')->whereIn('e.group_id', $groupIds)->whereNotNull('e.outcome')
+            ->whereBetween('e.ends_on', [$from->toDateString(), $to->toDateString()]);
     }
 
     /** Vazifa × o'sha paytdagi a'zo (muddat vaqtida guruhda bo'lganlar) + ularning javobi. */
@@ -228,7 +264,12 @@ class KpiController
             })
             ->leftJoin('assignment_submissions as s', fn ($j) => $j->on('s.assignment_id', '=', 'assignments.id')->on('s.student_id', '=', 'gm.student_id'))
             ->whereIn('assignments.group_id', $groupIds)->whereNotNull('assignments.due_at')
-            ->where(fn ($w) => $w->whereNull('gm.left_at')->orWhereColumn('gm.left_at', '>', 'assignments.due_at'));
+            ->where(fn ($w) => $w->whereNull('gm.left_at')->orWhereColumn('gm.left_at', '>', 'assignments.due_at'))
+            // Muddat kuni muzlatilgan o'quvchidan vazifa kutilmaydi.
+            ->whereNotExists(fn ($q) => $q->from('enrollments as fz')
+                ->whereColumn('fz.group_id', 'assignments.group_id')->whereColumn('fz.student_id', 'gm.student_id')->where('fz.status', 'FROZEN')
+                ->whereRaw('fz.starts_on <= substr(assignments.due_at, 1, 10)')
+                ->where(fn ($w) => $w->whereNull('fz.ends_on')->orWhereRaw('fz.ends_on >= substr(assignments.due_at, 1, 10)')));
     }
 
     private function homeworkByMonth(array $groupIds, Carbon $from, Carbon $to): array
