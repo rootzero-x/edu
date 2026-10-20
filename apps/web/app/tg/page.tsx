@@ -1,0 +1,53 @@
+"use client";
+
+import Link from "next/link";
+import { useTg } from "./_lib/TgProvider";
+import type { Group } from "./_lib/data";
+import { haptic } from "./_lib/webapp";
+import { Async, Page, useApi } from "./_ui/ui";
+import { TodaySessions, UpcomingSessions, teachingGroups } from "./_ui/sessions";
+
+/** Bosh sahifa: rolga qarab bo'limlar. */
+export default function TgHome() {
+  const { me, t, can, settings } = useTg();
+  const groups = useApi<{ data: Group[] }>("groups");
+  const staff = can("attendance.mark");
+  const parent = me.role === "PARENT";
+  const roleLabel = (settings["telegram.role_labels"] as Record<string, string> | undefined)?.[me.role] ?? me.role;
+
+  const tiles: { href: string; icon: string; label: string }[] = [];
+  if (staff) tiles.push({ href: "/tg/today", icon: "📋", label: t("nav_today") });
+  if (can("course.view")) tiles.push({ href: "/tg/courses", icon: "📚", label: t("nav_courses") });
+  tiles.push({ href: "/tg/schedule", icon: "🗓", label: t("nav_schedule") });
+  if (can("quiz.take")) {
+    tiles.push({ href: "/tg/attendance", icon: "✅", label: t("nav_attendance") });
+    tiles.push({ href: "/tg/quizzes", icon: "📝", label: t("nav_quizzes") });
+  }
+  if (parent) tiles.push({ href: "/tg/attendance", icon: "👨‍👩‍👧", label: t("nav_children") });
+  tiles.push({ href: "/tg/certificates", icon: "🎓", label: t("nav_certificates") });
+
+  return (
+    <Page>
+      <div className="tg-hero">
+        <div className="tg-avatar">{me.first_name.slice(0, 1).toUpperCase()}</div>
+        <div>
+          <h1>{t("hello", { name: me.first_name })}</h1>
+          <p className="tg-hint">{roleLabel}</p>
+        </div>
+      </div>
+      <nav className="tg-tiles">
+        {tiles.map((x) => (
+          <Link key={x.href + x.label} href={x.href} className="tg-tile" onClick={() => haptic.tap()}>
+            <span className="ic">{x.icon}</span>
+            {x.label}
+          </Link>
+        ))}
+      </nav>
+      <Async q={groups}>
+        {(d) => staff
+          ? <TodaySessions groups={teachingGroups(d.data, me.id, can("group.manage"))} />
+          : <UpcomingSessions groups={d.data.filter((g) => g.active)} days={7} limit={5} />}
+      </Async>
+    </Page>
+  );
+}

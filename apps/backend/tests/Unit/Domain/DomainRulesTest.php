@@ -69,9 +69,9 @@ class DomainRulesTest extends TestCase
 
     public function test_certificate_policy(): void
     {
-        $this->assertSame([], CertificatePolicy::blockers(80, true, 0, 75, true, true));
-        $this->assertSame(['LOW_ATTENDANCE', 'QUIZ_NOT_PASSED', 'HAS_DEBT'], CertificatePolicy::blockers(50, false, 1, 75, true, true));
-        $this->assertSame([], CertificatePolicy::blockers(50, false, 1, 40, false, false));
+        $this->assertSame([], CertificatePolicy::blockers(80, true, 0, 75, true, true, 5, 1));
+        $this->assertSame(['NO_ATTENDANCE_DATA', 'LOW_ATTENDANCE', 'QUIZ_NOT_PASSED', 'HAS_DEBT'], CertificatePolicy::blockers(50, false, 1, 75, true, true, 0, 1));
+        $this->assertSame([], CertificatePolicy::blockers(50, false, 1, 40, false, false, 0, 0));
     }
 
     public function test_schedule_expander(): void

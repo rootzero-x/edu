@@ -4,6 +4,7 @@ import { api, me } from "@/lib/api";
 import type { GroupDetail, ReportRow, SessionRow } from "@/lib/types";
 import { sessionsPath } from "@/lib/groups";
 import GroupView from "./GroupView";
+import Certificates from "./Certificates";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -20,12 +21,16 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
     api<{ data: ReportRow[] }>(`/v1/groups/${id}/attendance`),
   ]);
   if (g.status !== 200) notFound();
+  const manage = Boolean(user?.permissions.includes("group.manage"));
   return (
+    <>
     <GroupView
       initial={{ group: g.data.group, sessions: sessions.data.data ?? [], report: report.data.data ?? [] }}
       manage={Boolean(user?.permissions.includes("group.manage"))}
       canMark={Boolean(user?.permissions.includes("attendance.mark"))}
       seeAll={Boolean(user?.permissions.includes("attendance.mark"))}
     />
+    {manage && <Certificates groupId={g.data.group.id} />}
+    </>
   );
 }

@@ -121,7 +121,14 @@ final class Settings
             case 'text':
                 return is_string($v) && mb_strlen($v) <= 20000 ? null : 'Matn (20000 belgigacha) bo\'lishi kerak.';
             case 'list':
-                return is_array($v) && array_is_list($v) ? null : 'Ro\'yxat bo\'lishi kerak.';
+                if (! is_array($v) || ! array_is_list($v)) {
+                    return 'Ro\'yxat bo\'lishi kerak.';
+                }
+                if (($def['items'] ?? null) === 'int' && array_filter($v, fn ($i) => ! is_int($i))) {
+                    return 'Ro\'yxat faqat butun sonlardan iborat bo\'lishi kerak.';
+                }
+
+                return null;
             case 'object':
                 if (! is_array($v) || ($v !== [] && array_is_list($v))) {
                     return 'Obyekt bo\'lishi kerak.';

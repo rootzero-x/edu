@@ -303,3 +303,8 @@ ul.plain li:last-child { border-bottom: 0; }
 .status { margin-top: var(--space-8); font-size: var(--text-sm); color: var(--fg-muted); }
 
 html:has(dialog[open]) { overflow: hidden; }
+
+/* Test topshirish varianti */
+.opt { display: block; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.opt:hover { background: var(--bg); }
+.opt.right { background: #dcfce7; color: #166534; }

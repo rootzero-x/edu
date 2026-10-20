@@ -4,7 +4,7 @@ namespace App\Domain;
 
 final class CertificatePolicy
 {
-    /** @return list<'LOW_ATTENDANCE'|'QUIZ_NOT_PASSED'|'HAS_DEBT'> bo'sh bo'lsa — berish mumkin */
+    /** @return list<'NO_ATTENDANCE_DATA'|'LOW_ATTENDANCE'|'QUIZ_NOT_PASSED'|'HAS_DEBT'> bo'sh bo'lsa — berish mumkin */
     public static function blockers(
         float $attendanceRate,
         bool $finalQuizPassed,
@@ -12,9 +12,14 @@ final class CertificatePolicy
         float $minAttendance,
         bool $requireFinalQuiz,
         bool $requireNoDebt,
+        int $markedSessions,
+        int $minMarkedSessions,
     ): array
     {
         $r = [];
+        if ($markedSessions < $minMarkedSessions) {
+            $r[] = 'NO_ATTENDANCE_DATA';
+        }
         if ($attendanceRate < $minAttendance) {
             $r[] = 'LOW_ATTENDANCE';
         }

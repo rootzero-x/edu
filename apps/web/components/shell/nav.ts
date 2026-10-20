@@ -18,6 +18,7 @@ export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view" },
   { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound },
+  { href: "/dashboard/certificates", label: "Sertifikatlar", icon: Award },
   { href: "/dashboard/users", label: "Foydalanuvchilar", icon: Users, perm: "user.manage", section: "admin" },
   { href: "/dashboard/branches", label: "Filiallar", icon: Building2, perm: "user.manage", section: "admin" },
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings, perm: "settings.manage", section: "admin" },
