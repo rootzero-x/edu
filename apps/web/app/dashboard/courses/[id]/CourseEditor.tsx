@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, FileText, Layers, MoreHorizontal, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, FileText, Layers, Lock, MoreHorizontal, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge, Button, Card, CardHeader, Dropdown, EmptyState, PageHeader, Switch, useConfirm, usePrompt, useToast } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
+import AccessDenied, { type Denial } from "@/components/AccessDenied";
 import s from "./editor.module.css";
 
 type Lesson = { id: number; title: string; position: number; published: boolean };
@@ -14,7 +16,8 @@ export type Course = {
   monthly_fee: number; duration_months?: number; modules: Module[];
 };
 
-export default function CourseEditor({ initial, canManage }: { initial: Course; canManage: boolean }) {
+export default function CourseEditor({ initial, canManage, access }: { initial: Course; canManage: boolean; access?: { granted: boolean } & Denial }) {
+  const locked = !canManage && access?.granted === false;
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
@@ -172,6 +175,7 @@ export default function CourseEditor({ initial, canManage }: { initial: Course; 
         {c.duration_months ? <Badge>{c.duration_months} oy</Badge> : null}
       </div>
       {c.description && <p className={`muted ${s.desc}`}>{c.description}</p>}
+      {locked && access && <div className={s.denied}><AccessDenied denial={access} compact /></div>}
 
       {c.modules.length === 0 ? (
         <Card><EmptyState icon={<Layers />} title="Hali modul yo'q" action={canManage && <Button icon={<Plus />} onClick={addModule}>Birinchi modul</Button>}>Kurs modullarga, modullar esa darslarga bo&apos;linadi.</EmptyState></Card>
@@ -202,8 +206,8 @@ export default function CourseEditor({ initial, canManage }: { initial: Course; 
                 <ol className={s.lessons}>
                   {m.lessons.map((l) => (
                     <li key={l.id} className={s.lesson}>
-                      <span className={s.lessonIcon} aria-hidden><FileText /></span>
-                      <span className={s.lessonTitle}>{l.title}</span>
+                      <span className={s.lessonIcon} aria-hidden>{locked ? <Lock /> : <FileText />}</span>
+                      <Link className={s.lessonTitle} href={`/dashboard/lessons/${l.id}`} aria-label={locked ? `${l.title} — yopiq` : undefined}>{l.title}</Link>
                       {!l.published && <Badge tone="warning">Qoralama</Badge>}
                       {canManage && (
                         <span className={s.lessonActions}>

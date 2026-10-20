@@ -1,0 +1,13 @@
+.list { display: grid; gap: 12px; }
+.qHead { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.qText { margin: 0; line-height: 1.55; white-space: pre-wrap; }
+.qMeta { display: flex; gap: 6px; flex: none; }
+.options { display: grid; gap: 8px; }
+.opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: border-color .15s, background .15s; }
+.opt:hover { border-color: var(--accent); }
+.opt input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; flex: none; }
+.checked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.right { border-color: #16a34a; background: color-mix(in srgb, #16a34a 12%, transparent); }
+.wrong { border-color: #dc2626; background: color-mix(in srgb, #dc2626 10%, transparent); }
+.result { margin-bottom: 16px; }
+.footer { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; margin-top: 12px; background: var(--bg); border-top: 1px solid var(--border); }

@@ -128,3 +128,5 @@ div.tg-row { cursor: default; }
 .tg-result .big { font-size: 2.4rem; font-weight: 800; margin: 6px 0; }
 .tg-prose { padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tg-video { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; background: #000; }
+
+.tg-empty-icon { font-size: 2.4rem; line-height: 1; }

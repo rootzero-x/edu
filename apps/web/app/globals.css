@@ -308,3 +308,7 @@ html:has(dialog[open]) { overflow: hidden; }
 .opt { display: block; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .opt:hover { background: var(--bg); }
 .opt.right { background: #dcfce7; color: #166534; }
+
+/* Statistika kartalari to'ri (sahifalar umumiy) */
+.stats-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); margin-bottom: var(--space-5); }
+@media (max-width: 560px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); } }

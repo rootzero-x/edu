@@ -1,0 +1,7 @@
+.body { white-space: pre-wrap; line-height: 1.65; overflow-wrap: anywhere; }
+.materials { display: grid; gap: 16px; margin-top: 16px; }
+.mTitle { display: inline-flex; align-items: center; gap: 8px; }
+.mTitle svg { width: 18px; height: 18px; color: var(--accent); }
+.video { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; }
+.video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.nav { display: flex; justify-content: space-between; gap: 12px; margin: 24px 0 8px; flex-wrap: wrap; }

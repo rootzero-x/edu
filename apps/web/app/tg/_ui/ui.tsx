@@ -4,16 +4,22 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { tg } from "../_lib/api";
 import { useTg } from "../_lib/TgProvider";
-import { haptic, webApp } from "../_lib/webapp";
+import { haptic, openLink, webApp } from "../_lib/webapp";
+import { isDenial, type Denial } from "@/components/AccessDenied";
 
 /** GET so'rov holati. path null bo'lsa so'rov yuborilmaydi. */
 export function useApi<T>(path: string | null) {
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean }>({ data: null, error: null, loading: !!path });
+  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean; denial?: Denial | null }>({ data: null, error: null, loading: !!path });
   const load = useCallback(async () => {
     if (!path) return;
     setState((s) => ({ ...s, loading: true, error: null }));
     const r = await tg<T>("GET", path);
-    setState({ data: r.ok ? r.data : null, error: r.ok ? null : (r.data as any)?.message || String(r.status), loading: false });
+    setState({
+      data: r.ok ? r.data : null,
+      error: r.ok ? null : (r.data as any)?.message || String(r.status),
+      loading: false,
+      denial: r.status === 403 && isDenial(r.data) ? r.data : null,
+    });
   }, [path]);
   useEffect(() => {
     load();
@@ -84,8 +90,22 @@ export function Failed({ onRetry, text }: { onRetry?: () => void; text?: string 
 }
 
 /** Ma'lumot holatiga qarab: yuklanmoqda / xato / kontent. */
-export function Async<T>({ q, children }: { q: { data: T | null; error: string | null; loading: boolean; reload: () => void }; children: (data: T) => React.ReactNode }) {
+/** Kursga yozilmagan foydalanuvchi: murojaat tugmasi bilan (matnlar sozlamalardan). */
+export function Denied({ denial }: { denial: Denial }) {
+  const url = denial.contact_url || (denial.contact?.startsWith("@") ? `https://t.me/${denial.contact.slice(1)}` : "");
+  return (
+    <div className="tg-empty">
+      <div className="tg-empty-icon" aria-hidden>🔒</div>
+      <p><b>{denial.title}</b></p>
+      <p className="tg-hint">{denial.message}</p>
+      {url && <button className="tg-btn" onClick={() => openLink(url)}>{denial.button || denial.contact}</button>}
+    </div>
+  );
+}
+
+export function Async<T>({ q, children }: { q: { data: T | null; error: string | null; loading: boolean; reload: () => void; denial?: Denial | null }; children: (data: T) => React.ReactNode }) {
   if (q.loading && !q.data) return <Loading />;
+  if (q.denial) return <Page><Denied denial={q.denial} /></Page>;
   if (q.error || !q.data) return <Failed onRetry={q.reload} text={q.error} />;
   return <>{children(q.data)}</>;
 }

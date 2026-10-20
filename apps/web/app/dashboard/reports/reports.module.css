@@ -1,0 +1,16 @@
+.filters { padding: var(--space-4, 16px); margin-bottom: var(--space-5, 20px); display: grid; gap: 12px; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset { border: 1px solid var(--border); background: transparent; color: inherit; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: .85rem; cursor: pointer; }
+.preset[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }
+.preset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chart { padding: 0 16px 8px; }
+.chart svg { width: 100%; height: 200px; display: block; }
+.gridLine { stroke: var(--border); stroke-width: 1; }
+.axis { fill: var(--muted, #6b7280); font-size: 11px; }
+.good { fill: #16a34a; }
+.mid { fill: #d97706; }
+.bad { fill: #dc2626; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 16px; }
+.rate { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+.rate > :first-child { flex: 1; }

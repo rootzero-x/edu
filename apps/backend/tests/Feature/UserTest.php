@@ -53,4 +53,19 @@ class UserTest extends TestCase
             ->assertOk();
         $this->assertSame(1, $u->tokens()->count());
     }
+
+    public function test_profile_update_and_first_password_for_telegram_user(): void
+    {
+        $u = User::factory()->create(['password' => null]);
+        Sanctum::actingAs($u);
+        $this->getJson('/v1/auth/me')->assertJsonPath('user.has_password', false)->assertJsonPath('user.telegram.linked', false);
+        $this->patchJson('/v1/auth/me', ['first_name' => 'Yangi', 'last_name' => 'Ism'])->assertOk()->assertJsonPath('user.first_name', 'Yangi');
+        $this->patchJson('/v1/auth/me', ['role' => 'SUPER_ADMIN'])->assertOk();
+        $this->assertSame('STUDENT', $u->fresh()->role->value);
+
+        $token = $u->createToken('x')->plainTextToken;
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->postJson('/v1/auth/password', ['new_password' => 'birinchi-parol'])->assertOk();
+        $this->withToken($token)->postJson('/v1/auth/password', ['new_password' => 'ikkinchi-parol'])->assertUnprocessable();
+    }
 }

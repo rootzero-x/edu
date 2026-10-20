@@ -2,7 +2,8 @@
 
 import { useParams } from "next/navigation";
 import { useTg } from "../../_lib/TgProvider";
-import { Async, Empty, Page, Row, Section, useApi } from "../../_ui/ui";
+import { Async, Denied, Empty, Page, Row, Section, useApi } from "../../_ui/ui";
+import type { Denial } from "@/components/AccessDenied";
 import { QuizStatus, type QuizItem } from "../../_ui/quiz";
 
 type Course = {
@@ -12,18 +13,19 @@ type Course = {
 export default function TgCourse() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTg();
-  const course = useApi<{ course: Course }>(`courses/${id}`);
+  const course = useApi<{ course: Course; access?: { granted: boolean } & Denial }>(`courses/${id}`);
   const quizzes = useApi<{ data: QuizItem[] }>(`courses/${id}/quizzes`);
   return (
     <Async q={course}>
-      {({ course: c }) => (
+      {({ course: c, access }) => (
         <Page title={c.title} subtitle={c.description ?? undefined}>
+          {access && !access.granted && <Denied denial={access} />}
           {c.modules.length === 0 && <Empty text={t("lessons_empty")} icon="📭" />}
           {c.modules.map((m, mi) => (
             <Section key={m.id} title={`${mi + 1}. ${m.title}`}>
               {m.lessons.length === 0 && <div className="tg-pad tg-hint">{t("lessons_empty")}</div>}
               {m.lessons.map((l, li) => (
-                <Row key={l.id} href={`/tg/lessons/${l.id}`} icon={<small>{`${mi + 1}.${li + 1}`}</small>} title={l.title} />
+                <Row key={l.id} href={`/tg/lessons/${l.id}`} icon={access && !access.granted ? "🔒" : <small>{`${mi + 1}.${li + 1}`}</small>} title={l.title} />
               ))}
             </Section>
           ))}

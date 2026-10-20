@@ -1,111 +1,191 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Circle, ClipboardList, Plus, Save, Trash2, Trophy } from "lucide-react";
+import {
+  Badge, Button, Card, CardBody, CardHeader, Checkbox, EmptyState, Field, Input, PageHeader, Select, Switch, Table, Td, Textarea, Th,
+  useConfirm, useToast,
+} from "@/components/ui";
 import { call, errorText } from "@/lib/client";
+import s from "./editor.module.css";
 
 type Opt = { text: string; is_correct: boolean };
 const TYPES: [string, string][] = [["SINGLE", "Bitta javob"], ["MULTIPLE", "Bir nechta javob"], ["TEXT", "Matnli javob"]];
+const typeLabel = (t: string) => TYPES.find(([v]) => v === t)?.[1] ?? t;
+const blankOpts = (): Opt[] => [{ text: "", is_correct: true }, { text: "", is_correct: false }];
 
 export default function QuizEditor({ quiz, results }: { quiz: any; results: any[] }) {
   const router = useRouter();
-  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [busy, setBusy] = useState<string | null>(null);
   const [nq, setNq] = useState({ type: "SINGLE", text: "", points: 1, accepted: "" });
-  const [opts, setOpts] = useState<Opt[]>([{ text: "", is_correct: true }, { text: "", is_correct: false }]);
-  const [cfg, setCfg] = useState({
+  const [opts, setOpts] = useState<Opt[]>(blankOpts);
+  const fromQuiz = () => ({
     title: quiz.title, pass_percent: quiz.pass_percent, max_attempts: quiz.max_attempts,
     minutes: quiz.time_limit_sec ? Math.round(quiz.time_limit_sec / 60) : 0, is_final: quiz.is_final, shuffle: quiz.shuffle,
   });
+  const [cfg, setCfg] = useState(fromQuiz);
+  useEffect(() => setCfg(fromQuiz()), [quiz]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function run(method: string, path: string, body?: unknown, okText = "Saqlandi.") {
+  async function run(key: string, method: string, path: string, body?: unknown, ok = "Saqlandi") {
+    setBusy(key);
     const r = await call(method, path, body);
-    setMsg(r.ok ? { ok: true, t: okText } : { ok: false, t: errorText(r.data) });
-    if (r.ok) router.refresh();
-    return r.ok;
+    setBusy(null);
+    if (!r.ok) { toast.error("Saqlanmadi", errorText(r.data)); return false; }
+    toast.success(ok);
+    router.refresh();
+    return true;
   }
+
+  async function addQuestion(e: React.FormEvent) {
+    e.preventDefault();
+    const body: Record<string, unknown> = { type: nq.type, text: nq.text, points: nq.points };
+    if (nq.type === "TEXT") body.accepted_answers = nq.accepted.split("\n").map((x) => x.trim()).filter(Boolean);
+    else body.options = opts.filter((o) => o.text.trim());
+    if (await run("q", "POST", `quizzes/${quiz.id}/questions`, body, "Savol qo'shildi")) {
+      setNq({ ...nq, text: "", accepted: "" });
+      setOpts(blankOpts());
+    }
+  }
+
+  async function removeQuestion(q: any) {
+    if (await confirm({ title: "Savol o'chirilsinmi?", description: q.text, confirmText: "O'chirish", tone: "danger" })) {
+      run(`del${q.id}`, "DELETE", `questions/${q.id}`, undefined, "Savol o'chirildi");
+    }
+  }
+
+  const totalPoints = quiz.questions.reduce((n: number, q: any) => n + q.points, 0);
 
   return (
     <>
-      <p><Link className="a" href={`/dashboard/courses/${quiz.course.id}`}>← {quiz.course.title}</Link></p>
-      <div className="row">
-        <h1>{quiz.title} {!quiz.published && <span className="tag">yashirin</span>}</h1>
-        <button className="btn" onClick={() => run("PATCH", `quizzes/${quiz.id}`, { published: !quiz.published })}>{quiz.published ? "Yashirish" : "E'lon qilish"}</button>
-      </div>
-      {msg && <p className={msg.ok ? "ok" : "error"}>{msg.t}</p>}
+      <PageHeader
+        back={{ href: `/dashboard/courses/${quiz.course.id}`, label: quiz.course.title }}
+        title={quiz.title}
+        description={`${quiz.questions.length} savol · ${totalPoints} ball`}
+        badge={quiz.published ? <Badge tone="success" dot>E&apos;lon qilingan</Badge> : <Badge tone="warning" dot>Yashirin</Badge>}
+        actions={
+          <Switch label="E'lon qilish" checked={quiz.published}
+            onChange={(e) => run("pub", "PATCH", `quizzes/${quiz.id}`, { published: e.target.checked }, e.target.checked ? "Test e'lon qilindi" : "Test yashirildi")} />
+        }
+      />
 
-      <div className="card form">
-        <h2>Sozlamalar</h2>
-        <div className="cols">
-          <label>Nomi<input value={cfg.title} onChange={(e) => setCfg({ ...cfg, title: e.target.value })} /></label>
-          <label>O&apos;tish bali (%)<input type="number" min={1} max={100} value={cfg.pass_percent} onChange={(e) => setCfg({ ...cfg, pass_percent: Number(e.target.value) })} /></label>
-          <label>Urinishlar<input type="number" min={1} max={100} value={cfg.max_attempts} onChange={(e) => setCfg({ ...cfg, max_attempts: Number(e.target.value) })} /></label>
-          <label>Vaqt (daqiqa, 0 — cheksiz)<input type="number" min={0} value={cfg.minutes} onChange={(e) => setCfg({ ...cfg, minutes: Number(e.target.value) })} /></label>
-        </div>
-        <label><input type="checkbox" checked={cfg.is_final} onChange={(e) => setCfg({ ...cfg, is_final: e.target.checked })} /> Yakuniy test (sertifikat sharti)</label>
-        <label><input type="checkbox" checked={cfg.shuffle} onChange={(e) => setCfg({ ...cfg, shuffle: e.target.checked })} /> Savol va variantlarni aralashtirish</label>
-        <button className="btn" onClick={() => run("PATCH", `quizzes/${quiz.id}`, {
-          title: cfg.title, pass_percent: cfg.pass_percent, max_attempts: cfg.max_attempts,
-          time_limit_sec: cfg.minutes > 0 ? cfg.minutes * 60 : null, is_final: cfg.is_final, shuffle: cfg.shuffle,
-        })}>Saqlash</button>
-      </div>
+      <Card>
+        <CardHeader title="Sozlamalar" />
+        <CardBody>
+          <form className={s.form} onSubmit={(e) => {
+            e.preventDefault();
+            run("cfg", "PATCH", `quizzes/${quiz.id}`, {
+              title: cfg.title, pass_percent: cfg.pass_percent, max_attempts: cfg.max_attempts,
+              time_limit_sec: cfg.minutes > 0 ? cfg.minutes * 60 : null, is_final: cfg.is_final, shuffle: cfg.shuffle,
+            });
+          }}>
+            <div className={s.cols}>
+              <Field label="Nomi" required><Input value={cfg.title} onChange={(e) => setCfg({ ...cfg, title: e.target.value })} required /></Field>
+              <Field label="O'tish bali (%)"><Input type="number" min={1} max={100} value={cfg.pass_percent} onChange={(e) => setCfg({ ...cfg, pass_percent: Number(e.target.value) })} /></Field>
+              <Field label="Urinishlar soni"><Input type="number" min={1} max={100} value={cfg.max_attempts} onChange={(e) => setCfg({ ...cfg, max_attempts: Number(e.target.value) })} /></Field>
+              <Field label="Vaqt (daqiqa)" hint="0 — cheksiz"><Input type="number" min={0} value={cfg.minutes} onChange={(e) => setCfg({ ...cfg, minutes: Number(e.target.value) })} /></Field>
+            </div>
+            <div className={s.switches}>
+              <Switch label="Yakuniy test (sertifikat sharti)" checked={cfg.is_final} onChange={(e) => setCfg({ ...cfg, is_final: e.target.checked })} />
+              <Switch label="Savol va variantlarni aralashtirish" checked={cfg.shuffle} onChange={(e) => setCfg({ ...cfg, shuffle: e.target.checked })} />
+            </div>
+            <div><Button type="submit" icon={<Save />} loading={busy === "cfg"}>Saqlash</Button></div>
+          </form>
+        </CardBody>
+      </Card>
 
-      <h2>Savollar ({quiz.questions.length})</h2>
-      {quiz.questions.map((q: any, i: number) => (
-        <div className="card" key={q.id}>
-          <div className="row">
-            <p><b>{i + 1}.</b> {q.text} <span className="muted">· {TYPES.find(([t]) => t === q.type)?.[1]} · {q.points} ball</span></p>
-            <button className="link danger" onClick={() => window.confirm("Savolni o'chirasizmi?") && run("DELETE", `questions/${q.id}`, undefined, "O'chirildi.")}>o&apos;chirish</button>
-          </div>
-          {q.type === "TEXT"
-            ? <p className="muted">Qabul qilinadi: {(q.accepted_answers ?? []).join(" / ")}</p>
-            : <ul className="plain">{q.options.map((o: any) => <li key={o.id}>{o.is_correct ? "✅" : "▫️"} {o.text}</li>)}</ul>}
-        </div>
-      ))}
-
-      <div className="card form">
-        <h2>Yangi savol</h2>
-        <div className="cols">
-          <label>Turi<select value={nq.type} onChange={(e) => setNq({ ...nq, type: e.target.value })}>{TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-          <label>Ball<input type="number" min={1} max={100} value={nq.points} onChange={(e) => setNq({ ...nq, points: Number(e.target.value) })} /></label>
-        </div>
-        <label>Savol matni<textarea rows={2} value={nq.text} onChange={(e) => setNq({ ...nq, text: e.target.value })} /></label>
-        {nq.type === "TEXT" ? (
-          <label>Qabul qilinadigan javoblar (har biri yangi qatorda)<textarea rows={3} value={nq.accepted} onChange={(e) => setNq({ ...nq, accepted: e.target.value })} /></label>
-        ) : (
-          <>
-            {opts.map((o, i) => (
-              <div className="inline" key={i}>
-                <input type={nq.type === "SINGLE" ? "radio" : "checkbox"} name="correct" checked={o.is_correct}
-                  onChange={(e) => setOpts(opts.map((x, j) => nq.type === "SINGLE" ? { ...x, is_correct: j === i } : j === i ? { ...x, is_correct: e.target.checked } : x))} />
-                <input placeholder={`Variant ${i + 1}`} value={o.text} onChange={(e) => setOpts(opts.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
-                {opts.length > 2 && <button type="button" className="link danger" onClick={() => setOpts(opts.filter((_, j) => j !== i))}>×</button>}
+      <h2 className={s.h2}>Savollar</h2>
+      {quiz.questions.length === 0 && <Card><EmptyState compact icon={<ClipboardList />} title="Hali savol yo'q">Pastdagi formadan birinchi savolni qo&apos;shing.</EmptyState></Card>}
+      <div className={s.list}>
+        {quiz.questions.map((q: any, i: number) => (
+          <Card key={q.id}>
+            <CardBody>
+              <div className={s.qHead}>
+                <p className={s.qText}><b>{i + 1}.</b> {q.text}</p>
+                <span className={s.qMeta}>
+                  <Badge>{typeLabel(q.type)}</Badge>
+                  <Badge tone="accent">{q.points} ball</Badge>
+                  <Button variant="ghost" size="sm" iconOnly aria-label="Savolni o'chirish" icon={<Trash2 />} loading={busy === `del${q.id}`} onClick={() => removeQuestion(q)} />
+                </span>
               </div>
-            ))}
-            {opts.length < 12 && <button type="button" className="link" onClick={() => setOpts([...opts, { text: "", is_correct: false }])}>+ variant</button>}
-          </>
-        )}
-        <button className="btn" onClick={async () => {
-          const body: any = { type: nq.type, text: nq.text, points: nq.points };
-          if (nq.type === "TEXT") body.accepted_answers = nq.accepted.split("\n").map((x) => x.trim()).filter(Boolean);
-          else body.options = opts.filter((o) => o.text.trim());
-          if (await run("POST", `quizzes/${quiz.id}/questions`, body, "Savol qo'shildi.")) {
-            setNq({ ...nq, text: "", accepted: "" });
-            setOpts([{ text: "", is_correct: true }, { text: "", is_correct: false }]);
-          }
-        }}>Savol qo&apos;shish</button>
+              {q.type === "TEXT" ? (
+                <p className="subtle" style={{ margin: 0 }}>Qabul qilinadi: {(q.accepted_answers ?? []).join(" / ")}</p>
+              ) : (
+                <ul className={s.opts}>
+                  {q.options.map((o: any) => (
+                    <li key={o.id} className={o.is_correct ? s.correct : undefined}>
+                      {o.is_correct ? <CheckCircle2 aria-label="To'g'ri" /> : <Circle aria-hidden />} {o.text}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardBody>
+          </Card>
+        ))}
       </div>
 
-      <h2>Natijalar ({results.length})</h2>
-      <table>
-        <thead><tr><th>O&apos;quvchi</th><th>Ball</th><th>%</th><th>Natija</th></tr></thead>
-        <tbody>
-          {results.map((r) => (
-            <tr key={r.id}><td>{r.first_name} {r.last_name}</td><td>{r.score}/{r.max_score}</td><td>{r.percent}</td>
-              <td>{r.passed ? <span className="tag ok">o&apos;tdi</span> : <span className="tag warn">o&apos;tmadi</span>}</td></tr>
-          ))}
-        </tbody>
-      </table>
+      <Card style={{ marginTop: 16 }}>
+        <CardHeader title="Yangi savol" />
+        <CardBody>
+          <form className={s.form} onSubmit={addQuestion}>
+            <div className={s.cols}>
+              <Field label="Turi">
+                <Select value={nq.type} onChange={(e) => { setNq({ ...nq, type: e.target.value }); setOpts(blankOpts()); }}>
+                  {TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </Select>
+              </Field>
+              <Field label="Ball"><Input type="number" min={1} max={100} value={nq.points} onChange={(e) => setNq({ ...nq, points: Number(e.target.value) })} /></Field>
+            </div>
+            <Field label="Savol matni" required><Textarea rows={2} value={nq.text} onChange={(e) => setNq({ ...nq, text: e.target.value })} required /></Field>
+            {nq.type === "TEXT" ? (
+              <Field label="Qabul qilinadigan javoblar" hint="Har biri yangi qatorda; katta-kichik harf va ortiqcha bo'sh joy hisobga olinmaydi">
+                <Textarea rows={3} value={nq.accepted} onChange={(e) => setNq({ ...nq, accepted: e.target.value })} />
+              </Field>
+            ) : (
+              <Field label="Variantlar" hint={nq.type === "SINGLE" ? "To'g'ri javobni belgilang" : "To'g'ri javoblarning hammasini belgilang"}>
+                <div className={s.optEdit}>
+                  {opts.map((o, i) => (
+                    <div key={i} className={s.optRow}>
+                      {nq.type === "SINGLE" ? (
+                        <input type="radio" name="correct" aria-label={`Variant ${i + 1} to'g'ri`} checked={o.is_correct}
+                          onChange={() => setOpts(opts.map((x, j) => ({ ...x, is_correct: j === i })))} />
+                      ) : (
+                        <Checkbox aria-label={`Variant ${i + 1} to'g'ri`} checked={o.is_correct}
+                          onChange={(e) => setOpts(opts.map((x, j) => (j === i ? { ...x, is_correct: e.target.checked } : x)))} />
+                      )}
+                      <Input placeholder={`Variant ${i + 1}`} value={o.text} onChange={(e) => setOpts(opts.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
+                      {opts.length > 2 && <Button type="button" variant="ghost" iconOnly aria-label="Variantni o'chirish" icon={<Trash2 />} onClick={() => setOpts(opts.filter((_, j) => j !== i))} />}
+                    </div>
+                  ))}
+                  {opts.length < 12 && <div><Button type="button" variant="secondary" size="sm" icon={<Plus />} onClick={() => setOpts([...opts, { text: "", is_correct: false }])}>Variant</Button></div>}
+                </div>
+              </Field>
+            )}
+            <div><Button type="submit" icon={<Plus />} loading={busy === "q"}>Savol qo&apos;shish</Button></div>
+          </form>
+        </CardBody>
+      </Card>
+
+      <Card style={{ marginTop: 16 }}>
+        <CardHeader title="Natijalar" description={`${results.length} ta urinish`} />
+        {results.length === 0 ? <EmptyState compact icon={<Trophy />} title="Hali hech kim topshirmagan" /> : (
+          <Table>
+            <thead><tr><Th>O&apos;quvchi</Th><Th>Ball</Th><Th>%</Th><Th>Natija</Th></tr></thead>
+            <tbody>
+              {results.map((r) => (
+                <tr key={r.id}>
+                  <Td>{[r.first_name, r.last_name].filter(Boolean).join(" ")}<div className="subtle">{r.phone}</div></Td>
+                  <Td>{r.score}/{r.max_score}</Td>
+                  <Td>{r.percent}</Td>
+                  <Td>{r.passed ? <Badge tone="success">O&apos;tdi</Badge> : <Badge tone="warning">O&apos;tmadi</Badge>}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
     </>
   );
 }

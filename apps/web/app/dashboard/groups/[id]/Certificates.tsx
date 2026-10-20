@@ -1,48 +1,70 @@
 "use client";
 
 import { useState } from "react";
+import { Award, ExternalLink, ShieldCheck } from "lucide-react";
+import { Badge, Button, Card, CardHeader, EmptyState, Table, Td, Th, useConfirm, useToast } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
+
+type Row = { student_id: number; name: string; attendance_rate: number; marked_sessions: number; final_quiz_passed: boolean; certificate: string | null; blockers: string[] };
 
 const REASONS: Record<string, string> = { NO_ATTENDANCE_DATA: "davomat belgilanmagan", LOW_ATTENDANCE: "davomat past", QUIZ_NOT_PASSED: "yakuniy test o'tilmagan" };
 
+/** Guruh bo'yicha sertifikat shartlari va berish (shartlar sozlamalarda: certificate.*). */
 export default function Certificates({ groupId }: { groupId: number }) {
-  const [rows, setRows] = useState<any[] | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-  const load = async () => {
-    const r = await call("GET", `groups/${groupId}/certificates`);
-    r.ok ? setRows(r.data.data) : setMsg(errorText(r.data));
-  };
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    setBusy(true);
+    const r = await call<{ data: Row[] }>("GET", `groups/${groupId}/certificates`);
+    setBusy(false);
+    r.ok ? setRows(r.data.data) : toast.error("Yuklanmadi", errorText(r.data));
+  }
+
+  async function issue() {
+    const ready = rows?.filter((r) => !r.certificate && r.blockers.length === 0).length ?? 0;
+    if (!(await confirm({ title: "Sertifikat berilsinmi?", description: `${ready} ta o'quvchiga sertifikat beriladi va Telegram orqali xabar yuboriladi.`, confirmText: "Berish" }))) return;
+    setBusy(true);
+    const r = await call<{ issued: unknown[]; data: Row[] }>("POST", `groups/${groupId}/certificates`, {});
+    setBusy(false);
+    if (!r.ok) return toast.error("Berilmadi", errorText(r.data));
+    setRows(r.data.data);
+    toast.success(`${r.data.issued.length} ta sertifikat berildi`);
+  }
+
+  const ready = rows?.some((r) => !r.certificate && r.blockers.length === 0);
   return (
-    <div className="card">
-      <div className="row">
-        <h2>Sertifikatlar</h2>
-        {!rows ? <button className="link" onClick={load}>Shartlarni tekshirish</button> : (
-          <button className="btn" disabled={!rows.some((r) => !r.certificate && r.blockers.length === 0)} onClick={async () => {
-            if (!window.confirm("Shartlarga mos o'quvchilarga sertifikat berilsinmi?")) return;
-            const r = await call("POST", `groups/${groupId}/certificates`, {});
-            if (!r.ok) return setMsg(errorText(r.data));
-            setRows(r.data.data);
-            setMsg(`${r.data.issued.length} ta sertifikat berildi.`);
-          }}>Sertifikat berish</button>
-        )}
-      </div>
-      {rows && (
-        <table>
-          <thead><tr><th>O&apos;quvchi</th><th>Davomat</th><th>Yakuniy test</th><th>Holat</th></tr></thead>
+    <Card style={{ marginTop: 16 }}>
+      <CardHeader
+        title="Sertifikatlar"
+        description="Davomat va yakuniy test shartlari sozlamalardan olinadi"
+        actions={!rows
+          ? <Button variant="secondary" icon={<ShieldCheck />} loading={busy} onClick={load}>Shartlarni tekshirish</Button>
+          : <Button icon={<Award />} loading={busy} disabled={!ready} onClick={issue}>Sertifikat berish</Button>}
+      />
+      {rows && (rows.length === 0 ? <EmptyState compact icon={<Award />} title="Guruhda o'quvchi yo'q" /> : (
+        <Table>
+          <thead><tr><Th>O&apos;quvchi</Th><Th>Davomat</Th><Th>Yakuniy test</Th><Th>Holat</Th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.student_id}>
-                <td>{r.name}</td><td>{r.attendance_rate}% <span className="muted">({r.marked_sessions} dars)</span></td><td>{r.final_quiz_passed ? "✅" : "—"}</td>
-                <td>{r.certificate
-                  ? <a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate}</a>
-                  : r.blockers.length ? <span className="muted">{r.blockers.map((b: string) => REASONS[b] ?? b).join(", ")}</span>
-                  : <span className="tag ok">berish mumkin</span>}</td>
+                <Td>{r.name}</Td>
+                <Td>{r.attendance_rate}% <span className="subtle">({r.marked_sessions} dars)</span></Td>
+                <Td>{r.final_quiz_passed ? <Badge tone="success">O&apos;tgan</Badge> : <Badge>—</Badge>}</Td>
+                <Td>
+                  {r.certificate
+                    ? <a className="a" href={`/c/${r.certificate}`} target="_blank" rel="noreferrer">{r.certificate} <ExternalLink size={14} aria-hidden /></a>
+                    : r.blockers.length
+                      ? <span className="subtle">{r.blockers.map((b) => REASONS[b] ?? b).join(", ")}</span>
+                      : <Badge tone="success">Berish mumkin</Badge>}
+                </Td>
               </tr>
             ))}
           </tbody>
-        </table>
-      )}
-      {msg && <p className="muted">{msg}</p>}
-    </div>
+        </Table>
+      ))}
+    </Card>
   );
 }

@@ -82,6 +82,11 @@ class GroupController
             if (array_key_exists('schedules', $data)) {
                 $group->schedules()->delete();
                 $group->schedules()->createMany($data['schedules'] ?? []);
+                // Eski jadval bo'yicha oldindan yaratilgan, hali boshlanmagan va belgilanmagan darslar olib tashlanadi;
+                // yangilari keyin jadvaldan qayta yaratiladi (sessions/generate).
+                DB::table('class_sessions')->where('group_id', $group->id)->where('starts_at', '>', now())
+                    ->whereNotExists(fn ($q) => $q->from('attendances')->whereColumn('attendances.session_id', 'class_sessions.id'))
+                    ->delete();
             }
         });
         Audit::log('group.update', 'group', $group->id, $data);

@@ -164,7 +164,7 @@ class AttendanceController
                     $names[$c['student_id']] = true;
                 }
 
-                return ['id' => $r->id, 'at' => $r->created_at, 'by' => trim(($r->first_name ?? '').' '.($r->last_name ?? '')),
+                return ['id' => $r->id, 'at' => \Illuminate\Support\Carbon::parse($r->created_at)->toIso8601String(), 'by' => trim(($r->first_name ?? '').' '.($r->last_name ?? '')),
                     'reason' => $d['reason'] ?? null, 'changes' => $changes];
             });
         $people = DB::table('users')->whereIn('id', array_keys($names))->get(['id', 'first_name', 'last_name'])

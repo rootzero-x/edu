@@ -1,4 +1,4 @@
-import { Award, BookOpen, Building2, ClipboardCheck, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Award, BarChart3, BookOpen, Building2, CircleUserRound, ClipboardCheck, LayoutDashboard, Settings, Users, UsersRound, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -19,6 +19,8 @@ export const NAV: NavItem[] = [
   { href: "/dashboard/courses", label: "Kurslar", icon: BookOpen, perm: "course.view" },
   { href: "/dashboard/groups", label: "Guruhlar", icon: UsersRound },
   { href: "/dashboard/certificates", label: "Sertifikatlar", icon: Award },
+  { href: "/dashboard/reports", label: "Hisobotlar", icon: BarChart3, perm: "report.view" },
+  { href: "/dashboard/profile", label: "Profil", icon: CircleUserRound },
   { href: "/dashboard/users", label: "Foydalanuvchilar", icon: Users, perm: "user.manage", section: "admin" },
   { href: "/dashboard/branches", label: "Filiallar", icon: Building2, perm: "user.manage", section: "admin" },
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings, perm: "settings.manage", section: "admin" },

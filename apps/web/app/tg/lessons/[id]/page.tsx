@@ -4,21 +4,17 @@ import { useParams } from "next/navigation";
 import { useTg } from "../../_lib/TgProvider";
 import { openLink } from "../../_lib/webapp";
 import { Async, Page, Row, Section, useApi } from "../../_ui/ui";
+import { embedUrl } from "@/lib/embed";
 
 type Material = { id: number; type: "VIDEO" | "FILE" | "LINK" | "TEXT"; title: string; url: string | null; content: string | null };
 type Lesson = { id: number; title: string; body: string | null; materials: Material[]; module: { course: { title: string } } };
-
-/** YouTube havolasini embed manziliga aylantirish; boshqa videolar <video> bilan. */
-function youtubeEmbed(url: string): string | null {
-  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
-  return m ? `https://www.youtube.com/embed/${m[1]}` : null;
-}
 
 const ICONS: Record<Material["type"], string> = { VIDEO: "🎬", FILE: "📎", LINK: "🔗", TEXT: "📄" };
 
 export default function TgLesson() {
   const { id } = useParams<{ id: string }>();
-  const { t } = useTg();
+  const { t, settings } = useTg();
+  const hosts: string[] = Array.isArray(settings["course.embed_hosts"]) ? settings["course.embed_hosts"] : [];
   const q = useApi<{ lesson: Lesson }>(`lessons/${id}`);
   return (
     <Async q={q}>
@@ -29,7 +25,7 @@ export default function TgLesson() {
         return (
           <Page title={lesson.title} subtitle={lesson.module?.course?.title}>
             {videos.map((v) => {
-              const yt = youtubeEmbed(v.url!);
+              const yt = embedUrl(v.url!, hosts);
               return (
                 <Section key={v.id} title={v.title}>
                   {yt

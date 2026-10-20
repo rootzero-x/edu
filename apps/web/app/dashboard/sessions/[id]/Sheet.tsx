@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Ban, CheckCheck, CheckCircle2, CircleDot, Loader2, MoreHorizontal, RotateCcw, Users } from "lucide-react";
-import { Avatar, Badge, Button, Card, CardBody, Dropdown, EmptyState, Field, Input, PageHeader, Progress, cx, useConfirm, useToast } from "@/components/ui";
+import { AlertCircle, Ban, CheckCheck, CheckCircle2, CircleDot, History, Loader2, Lock, MoreHorizontal, RotateCcw, Users } from "lucide-react";
+import { Avatar, Badge, Button, Card, CardBody, Dialog, Dropdown, EmptyState, Field, Input, PageHeader, Progress, cx, useConfirm, useToast } from "@/components/ui";
+import { fmtDateTime } from "@/lib/format";
 import LiveStatus from "@/components/LiveStatus";
 import { useSiteSettings } from "@/components/SiteProvider";
 import { call, errorText } from "@/lib/client";
@@ -17,7 +18,10 @@ export type SheetData = {
   session: { id: number; group_id: number; starts_at: string; ends_at: string; topic: string | null; cancelled: boolean };
   group: { id: number; name: string };
   rows: Row[];
+  /** Tahrir oynasi (server sozlamalari bo'yicha): o'tgan darslarni tuzatish muddati, sabab majburiyligi. */
+  edit?: { can_edit: boolean; reason_required: boolean; message?: string; deadline?: string | null };
 };
+type HistoryItem = { id: number; at: string; by: string; reason: string | null; changes: { student_id: number; name: string; from: string | null; to: string }[] };
 type Edit = { status?: string | null; arrived_at?: string; note?: string };
 type SaveState = "idle" | "pending" | "saving" | "saved" | "error";
 
@@ -44,6 +48,10 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
   const [failed, setFailed] = useState<Set<number>>(new Set());
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [topic, setTopic] = useState(initial.session.topic ?? "");
+  const [reason, setReason] = useState("");
+  const reasonRef = useRef(reason);
+  reasonRef.current = reason;
+  const [history, setHistory] = useState<HistoryItem[] | null>(null);
   const [loadedAt] = useState(() => Date.now());
   const editsRef = useRef(edits);
   editsRef.current = edits;
@@ -54,7 +62,10 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
 
   const { session, group, rows } = server;
   const started = new Date(session.starts_at).getTime() <= Date.now();
-  const canMark = canMarkPerm && !session.cancelled && started;
+  const edit = server.edit;
+  const canMark = canMarkPerm && !session.cancelled && started && (edit ? edit.can_edit : true);
+  const reasonRequired = Boolean(edit?.reason_required);
+  const isPast = new Date(session.ends_at).getTime() < Date.now();
   const statusKeys = Object.keys(labels);
 
   // ── Polling ───────────────────────────────────────────
@@ -99,12 +110,17 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
       snapshot[id] = e;
     }
     if (!items.length) { setSaveState(Object.keys(current).length ? "pending" : "idle"); return; }
+    if (reasonRequired && !reasonRef.current.trim()) {
+      setSaveState("pending");
+      toast.error("Sabab kiriting", "Eski darsning davomatini o'zgartirish uchun sabab majburiy.");
+      return;
+    }
 
     const ids = items.map((i) => i.student_id);
     version.current++;
     setSaving(new Set(ids));
     setSaveState("saving");
-    const r = await call<{ changed: number; notified: number }>("PUT", `sessions/${session.id}/attendance`, { items });
+    const r = await call<{ changed: number; notified: number }>("PUT", `sessions/${session.id}/attendance`, { items, reason: reasonRef.current.trim() || null });
     version.current++;
     setSaving(new Set());
     // Saqlash davomida yangi tahrir qilinmagan qatorlarnigina "toza" deb belgilaymiz.
@@ -186,6 +202,13 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
     schedule(200);
   }
 
+  async function openHistory() {
+    setHistory([]);
+    const r = await call<{ data: HistoryItem[] }>("GET", `sessions/${session.id}/attendance/history`);
+    if (!r.ok) { setHistory(null); return toast.error("Tarix yuklanmadi", errorText(r.data)); }
+    setHistory(r.data.data);
+  }
+
   async function saveTopic() {
     if (topic === (session.topic ?? "")) return;
     const r = await call("PATCH", `sessions/${session.id}`, { topic: topic || null });
@@ -235,6 +258,7 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
         actions={
           <>
             <LiveStatus {...live} lastUpdated={live.lastUpdated ?? loadedAt} onRefresh={live.refresh} seconds={seconds} />
+            {canMarkPerm && started && <Button variant="secondary" icon={<History />} onClick={openHistory}>Tarix</Button>}
             {canMarkPerm && (
               <Dropdown
                 trigger={(p) => <Button variant="secondary" iconOnly aria-label="Dars amallari" icon={<MoreHorizontal />} {...p} />}
@@ -246,6 +270,23 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
           </>
         }
       />
+
+      {canMarkPerm && started && !session.cancelled && edit && !edit.can_edit && edit.message && (
+        <Card style={{ marginBottom: 16 }}><EmptyState compact icon={<Lock />} title="Tahrirlash yopiq">{edit.message}</EmptyState></Card>
+      )}
+      {canMark && isPast && (
+        <Card style={{ marginBottom: 16 }}>
+          <CardBody>
+            <Field
+              label={reasonRequired ? "O'zgartirish sababi (majburiy)" : "O'zgartirish sababi (ixtiyoriy)"}
+              hint="O'tgan darsni tuzatayotganingiz uchun sabab tarixda saqlanadi."
+            >
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Masalan: ma'lumotnoma keltirdi" />
+            </Field>
+            {edit?.deadline && <p className="subtle" style={{ margin: "8px 0 0" }}>Tahrirlash muddati: {fmtDateTime(edit.deadline, tz)} gacha.</p>}
+          </CardBody>
+        </Card>
+      )}
 
       {canMark ? (
         <Card style={{ marginBottom: 16 }}>
@@ -334,6 +375,27 @@ export default function Sheet({ initial, canMark: canMarkPerm }: { initial: Shee
           </Card>
         </>
       )}
+      <Dialog open={history !== null} onClose={() => setHistory(null)} title="O'zgarishlar tarixi" icon={<History />} width={560}>
+        {history && history.length === 0 ? (
+          <EmptyState compact icon={<History />} title="O'zgarishlar yo'q" />
+        ) : (
+          <ul className={s.history}>
+            {history?.map((h) => (
+              <li key={h.id}>
+                <div className={s.historyHead}><b>{h.by || "—"}</b><span className="subtle">{fmtDateTime(h.at, tz)}</span></div>
+                {h.reason && <p className="subtle" style={{ margin: "2px 0 6px" }}>Sabab: {h.reason}</p>}
+                <ul>
+                  {h.changes.map((c, i) => (
+                    <li key={i}>
+                      {c.name}: {c.from ? <Badge tone={STATUS_TONE[c.from] ?? "neutral"}>{labels[c.from] ?? c.from}</Badge> : <Badge>—</Badge>} → <Badge tone={STATUS_TONE[c.to] ?? "neutral"}>{labels[c.to] ?? c.to}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dialog>
       {!canMarkPerm ? null : !started && !session.cancelled ? (
         <p className="subtle" style={{ marginTop: 12 }}>Davomatni dars boshlangandan keyin belgilash mumkin.</p>
       ) : null}

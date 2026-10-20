@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { CheckCircle2, Clock, Send, XCircle } from "lucide-react";
+import { Badge, Button, ButtonLink, Card, CardBody, EmptyState, Input, PageHeader, Spinner, cx, useConfirm } from "@/components/ui";
 import { call, errorText } from "@/lib/client";
+import s from "./take.module.css";
+import AccessDenied, { isDenial, type Denial } from "@/components/AccessDenied";
 
 type Q = { id: number; type: "SINGLE" | "MULTIPLE" | "TEXT"; text: string; points: number; options: { id: number; text: string }[] };
 type Attempt = { id: number; deadline: string | null; quiz: { id: number; title: string; pass_percent: number }; questions: Q[] };
@@ -13,12 +16,15 @@ export default function TakeQuiz({ quizId }: { quizId: number }) {
   const [left, setLeft] = useState<number | null>(null);
   const [result, setResult] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [denied, setDenied] = useState<Denial | null>(null);
   const [busy, setBusy] = useState(false);
   const sent = useRef(false);
+  const confirm = useConfirm();
   const draftKey = attempt ? `tisu.quiz.${attempt.id}` : null;
 
   useEffect(() => {
     call("POST", `quizzes/${quizId}/attempts`).then((r) => {
+      if (r.status === 403 && isDenial(r.data)) return setDenied(r.data);
       if (!r.ok) return setErr(errorText(r.data));
       setAttempt(r.data.attempt);
       try {
@@ -54,60 +60,88 @@ export default function TakeQuiz({ quizId }: { quizId: number }) {
     return () => clearInterval(t);
   }, [attempt, result, submit]);
 
-  if (err && !attempt) return <p className="error">{err}</p>;
-  if (!attempt) return <p className="muted">Yuklanmoqda…</p>;
+  if (denied) return <AccessDenied denial={denied} />;
+  if (err && !attempt) return <Card><EmptyState icon={<XCircle />} title="Testni boshlab bo'lmadi" action={<ButtonLink variant="secondary" href={`/dashboard/quizzes/${quizId}`}>Orqaga</ButtonLink>}>{err}</EmptyState></Card>;
+  if (!attempt) return <Card><EmptyState icon={<Spinner />} title="Test yuklanmoqda…" /></Card>;
 
   const correctOf = (qid: number) => result?.review?.find((x: any) => x.question_id === qid);
+  const answered = attempt.questions.filter((q) => (answers[q.id] ?? []).some((v) => v.trim())).length;
+  const timer = left !== null && !result && (
+    <Badge tone={left < 60 ? "danger" : "neutral"} icon={<Clock />}>{Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</Badge>
+  );
+
+  async function onSubmit() {
+    const missing = attempt!.questions.length - answered;
+    if (await confirm({
+      title: "Testni topshirasizmi?",
+      description: missing ? `${missing} ta savolga javob berilmagan. Topshirgandan keyin o'zgartirib bo'lmaydi.` : "Topshirgandan keyin javoblarni o'zgartirib bo'lmaydi.",
+      confirmText: "Topshirish",
+    })) submit();
+  }
 
   return (
     <>
-      <div className="row sticky">
-        <h1>{attempt.quiz.title}</h1>
-        {left !== null && !result && <span className={left < 60 ? "error" : "muted"}>⏱ {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</span>}
-      </div>
+      <PageHeader back={{ href: `/dashboard/quizzes/${quizId}`, label: "Test" }} title={attempt.quiz.title} actions={timer || undefined}
+        description={result ? undefined : `${answered}/${attempt.questions.length} javob berildi · o'tish bali ${attempt.quiz.pass_percent}%`} />
       {result && (
-        <div className="card">
-          <h2>{result.result.passed ? "✅ O'tdingiz" : "❌ O'tmadingiz"}</h2>
-          <p>{result.result.score}/{result.result.max_score} ball · {result.result.percent}% (kerak: {attempt.quiz.pass_percent}%)
-            {result.result.time_expired && " · vaqt tugagan"}</p>
-          <Link className="a" href={`/dashboard/quizzes/${quizId}`}>Natijalar →</Link>
-        </div>
+        <Card className={s.result}>
+          <EmptyState
+            icon={result.result.passed ? <CheckCircle2 /> : <XCircle />}
+            title={result.result.passed ? "Tabriklaymiz, testdan o'tdingiz!" : "Afsuski, bu safar o'tmadingiz"}
+            action={<ButtonLink href={`/dashboard/quizzes/${quizId}`} variant="secondary">Natijalarim</ButtonLink>}
+          >
+            {result.result.score}/{result.result.max_score} ball · {result.result.percent}% (kerak: {attempt.quiz.pass_percent}%){result.result.time_expired && " · vaqt tugagan"}
+          </EmptyState>
+        </Card>
       )}
-      {attempt.questions.map((q, i) => {
-        const a = answers[q.id] ?? [];
-        const rv = correctOf(q.id);
-        return (
-          <div className="card" key={q.id}>
-            <p><b>{i + 1}.</b> {q.text} <span className="muted">({q.points} ball)</span>
-              {rv && <span className={`tag ${rv.earned ? "ok" : "warn"}`}>{rv.earned ? "to'g'ri" : "noto'g'ri"}</span>}</p>
-            {q.type === "TEXT" ? (
-              <input disabled={!!result} value={a[0] ?? ""} onChange={(e) => setAnswers({ ...answers, [q.id]: [e.target.value] })} />
-            ) : (
-              q.options.map((o) => {
-                const checked = a.includes(String(o.id));
-                const isRight = rv?.correct?.includes(String(o.id));
-                return (
-                  <label key={o.id} className={`opt ${result && isRight ? "right" : ""}`}>
-                    <input
-                      type={q.type === "SINGLE" ? "radio" : "checkbox"} name={`q${q.id}`} disabled={!!result} checked={checked}
-                      onChange={() => setAnswers({ ...answers, [q.id]: q.type === "SINGLE" ? [String(o.id)]
-                        : checked ? a.filter((x) => x !== String(o.id)) : [...a, String(o.id)] })}
-                    /> {o.text}
-                  </label>
-                );
-              })
-            )}
-            {rv && q.type === "TEXT" && !rv.earned && <p className="muted">To&apos;g&apos;ri javob: {rv.correct.join(" / ")}</p>}
-          </div>
-        );
-      })}
+      <div className={s.list}>
+        {attempt.questions.map((q, i) => {
+          const a = answers[q.id] ?? [];
+          const rv = correctOf(q.id);
+          return (
+            <Card key={q.id}>
+              <CardBody>
+                <div className={s.qHead}>
+                  <p className={s.qText}><b>{i + 1}.</b> {q.text}</p>
+                  <span className={s.qMeta}>
+                    <Badge>{q.points} ball</Badge>
+                    {rv && <Badge tone={rv.earned ? "success" : "danger"}>{rv.earned ? "To'g'ri" : "Noto'g'ri"}</Badge>}
+                  </span>
+                </div>
+                {q.type === "TEXT" ? (
+                  <Input disabled={!!result} value={a[0] ?? ""} placeholder="Javobingiz" onChange={(e) => setAnswers({ ...answers, [q.id]: [e.target.value] })} />
+                ) : (
+                  <div className={s.options} role={q.type === "SINGLE" ? "radiogroup" : "group"}>
+                    {q.options.map((o) => {
+                      const checked = a.includes(String(o.id));
+                      const isRight = rv?.correct?.includes(String(o.id));
+                      return (
+                        <label key={o.id} className={cx(s.opt, checked && s.checked, result && isRight && s.right, result && checked && !isRight && s.wrong)}>
+                          <input
+                            type={q.type === "SINGLE" ? "radio" : "checkbox"} name={`q${q.id}`} disabled={!!result} checked={checked}
+                            onChange={() => setAnswers({ ...answers, [q.id]: q.type === "SINGLE" ? [String(o.id)]
+                              : checked ? a.filter((x) => x !== String(o.id)) : [...a, String(o.id)] })}
+                          />
+                          <span>{o.text}</span>
+                        </label>
+                      );
+                    })}
+                    {q.type === "MULTIPLE" && !result && <span className="subtle">Bir nechta to&apos;g&apos;ri javob bo&apos;lishi mumkin</span>}
+                  </div>
+                )}
+                {rv && q.type === "TEXT" && !rv.earned && <p className="subtle" style={{ margin: "8px 0 0" }}>To&apos;g&apos;ri javob: {rv.correct.join(" / ")}</p>}
+              </CardBody>
+            </Card>
+          );
+        })}
+      </div>
       {!result && (
-        <div className="toolbar">
-          <button className="btn" disabled={busy} onClick={() => window.confirm("Testni topshirasizmi?") && submit()}>Topshirish</button>
-          <span className="muted">{Object.keys(answers).length}/{attempt.questions.length} javob berildi</span>
+        <div className={s.footer}>
+          <span className="subtle">{answered}/{attempt.questions.length} javob berildi · javoblar qurilmangizda avtomatik saqlanadi</span>
+          <Button icon={<Send />} loading={busy} onClick={onSubmit}>Topshirish</Button>
         </div>
       )}
-      {err && <p className="error">{err}</p>}
+      {err && attempt && <p className="error">{err}</p>}
     </>
   );
 }

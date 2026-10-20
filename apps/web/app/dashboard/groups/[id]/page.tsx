@@ -5,6 +5,9 @@ import type { GroupDetail, ReportRow, SessionRow } from "@/lib/types";
 import { sessionsPath } from "@/lib/groups";
 import GroupView from "./GroupView";
 import Certificates from "./Certificates";
+import Unmarked, { type UnmarkedRow } from "./Unmarked";
+import { publicSettings } from "@/lib/api";
+import { timezone } from "@/lib/settings";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -20,6 +23,11 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
     api<{ data: SessionRow[] }>(`/v1/${sessionsPath(Number(id))}`),
     api<{ data: ReportRow[] }>(`/v1/groups/${id}/attendance`),
   ]);
+  const canMark = Boolean(user?.permissions.includes("attendance.mark"));
+  const [unmarked, st] = await Promise.all([
+    canMark ? api<{ data: UnmarkedRow[] }>(`/v1/attendance/unmarked?group_id=${id}`) : Promise.resolve(null),
+    publicSettings(),
+  ]);
   if (g.status !== 200) notFound();
   const manage = Boolean(user?.permissions.includes("group.manage"));
   return (
@@ -30,6 +38,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
       canMark={Boolean(user?.permissions.includes("attendance.mark"))}
       seeAll={Boolean(user?.permissions.includes("attendance.mark"))}
     />
+    {unmarked?.status === 200 && <Unmarked rows={unmarked.data.data ?? []} tz={timezone(st)} />}
     {manage && <Certificates groupId={g.data.group.id} />}
     </>
   );

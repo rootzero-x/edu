@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::patch('/auth/me', [AuthController::class, 'updateMe']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/password', [AuthController::class, 'changePassword']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);

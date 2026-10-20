@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BookOpen, Building2, CalendarClock, CalendarPlus, ClipboardCheck, DoorOpen, GraduationCap, Lock, MoreHorizontal, PieChart,
+  BookOpen, Building2, CalendarClock, CalendarPlus, ClipboardCheck, DoorOpen, GraduationCap, Lock, MoreHorizontal, Pencil, PieChart,
   Search, Unlock, UserMinus, UserPlus, UserRound,
 } from "lucide-react";
 import {
@@ -20,6 +20,7 @@ import { refreshSeconds, statusLabels, timezone } from "@/lib/settings";
 import type { GroupDetail, Person, ReportRow, SessionRow } from "@/lib/types";
 import { usePolling } from "@/lib/usePolling";
 import s from "./group.module.css";
+import EditGroup from "./EditGroup";
 
 type Data = { group: GroupDetail; sessions: SessionRow[]; report: ReportRow[] };
 
@@ -28,6 +29,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
   const toast = useToast();
   const confirm = useConfirm();
   const st = useSiteSettings();
+  const [editing, setEditing] = useState(false);
   const tz = timezone(st);
   const labels = statusLabels(st);
   const seconds = refreshSeconds(st);
@@ -129,6 +131,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
               <Dropdown
                 trigger={(p) => <Button variant="secondary" iconOnly aria-label="Guruh amallari" icon={<MoreHorizontal />} {...p} />}
                 items={[
+                  { label: "Tahrirlash", icon: <Pencil />, onSelect: () => setEditing(true) },
                   { label: "Jadvaldan darslarni yangilash", icon: <CalendarPlus />, onSelect: generate },
                   { type: "separator" },
                   group.active
@@ -140,6 +143,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
           </>
         }
       />
+      {manage && <EditGroup open={editing} onClose={() => setEditing(false)} group={group} onSaved={() => { void live.refresh(); router.refresh(); }} />}
       <div className={s.meta}>
         {group.course && <span><BookOpen aria-hidden />{group.course.title}</span>}
         {group.teacher && <span><UserRound aria-hidden />{personName(group.teacher)}</span>}

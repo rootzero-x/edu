@@ -12,11 +12,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, res, qz] = await Promise.all([me(), api<{ course: Course }>(`/v1/courses/${id}`), api<{ data: any[] }>(`/v1/courses/${id}/quizzes`)]);
+  const [user, res, qz] = await Promise.all([me(), api<{ course: Course; access?: any }>(`/v1/courses/${id}`), api<{ data: any[] }>(`/v1/courses/${id}/quizzes`)]);
   if (res.status !== 200) notFound();
   return (
     <>
-      <CourseEditor initial={res.data.course} canManage={Boolean(user?.permissions.includes("course.manage"))} />
+      <CourseEditor initial={res.data.course} canManage={Boolean(user?.permissions.includes("course.manage"))} access={res.data.access} />
       <Quizzes courseId={res.data.course.id} quizzes={qz.data.data ?? []} canManage={Boolean(user?.permissions.includes("quiz.manage"))} />
     </>
   );

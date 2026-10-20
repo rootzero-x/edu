@@ -1,41 +1,80 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { api, me } from "@/lib/api";
+import type { Metadata } from "next";
+import { ClipboardCheck, Clock, RotateCcw, Target } from "lucide-react";
+import { api, me, publicSettings } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
-import { publicSettings } from "@/lib/api";
+import { timezone } from "@/lib/settings";
+import AccessDenied, { isDenial, type Denial } from "@/components/AccessDenied";
+import { Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
+
+type Attempt = { id: number; submitted_at: string | null; score: number | null; max_score: number | null; percent: number | null; passed: boolean | null };
+type Res = {
+  quiz: { id: number; title: string; is_final: boolean; pass_percent: number; max_attempts: number; time_limit_sec: number | null; questions_count: number; course: { id: number; title: string } };
+  attempts: Attempt[];
+  can_take: boolean;
+};
+
+export const metadata: Metadata = { title: "Test" };
 
 export default async function QuizPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await me();
   if (user?.permissions.includes("quiz.manage")) redirect(`/dashboard/quizzes/${id}/edit`);
-  const [res, s] = await Promise.all([api<any>(`/v1/quizzes/${id}`), publicSettings()]);
+  const [res, st] = await Promise.all([api<Res | Denial>(`/v1/quizzes/${id}`), publicSettings()]);
+  if (res.status === 403 && isDenial(res.data)) {
+    const d = res.data;
+    return (
+      <>
+        <PageHeader back={d.course ? { href: `/dashboard/courses/${d.course.id}`, label: d.course.title } : undefined} title="Test" />
+        <AccessDenied denial={d} />
+      </>
+    );
+  }
   if (res.status !== 200) notFound();
-  const { quiz, attempts, can_take } = res.data;
-  const tz = String(s?.["app.timezone"] ?? "Asia/Tashkent");
-  const used = attempts.filter((a: any) => a.submitted_at).length;
-  const open = attempts.find((a: any) => !a.submitted_at);
+  const { quiz, attempts, can_take } = res.data as Res;
+  const tz = timezone(st);
+  const done = attempts.filter((a) => a.submitted_at);
+  const open = attempts.find((a) => !a.submitted_at);
+  const best = done.reduce<number | null>((m, a) => (a.percent !== null && (m === null || a.percent > m) ? a.percent : m), null);
+  const left = Math.max(0, quiz.max_attempts - done.length);
+
   return (
     <>
-      <p><Link className="a" href={`/dashboard/courses/${quiz.course.id}`}>← {quiz.course.title}</Link></p>
-      <h1>{quiz.title} {quiz.is_final && <span className="tag">yakuniy</span>}</h1>
-      <div className="card">
-        <p>{quiz.questions_count} ta savol · o&apos;tish bali {quiz.pass_percent}% · urinishlar {used}/{quiz.max_attempts}
-          {quiz.time_limit_sec ? ` · vaqt ${Math.round(quiz.time_limit_sec / 60)} daqiqa` : ""}</p>
-        {can_take && (open || used < quiz.max_attempts)
-          ? <Link className="btn" href={`/dashboard/quizzes/${id}/take`}>{open ? "Davom ettirish" : "Testni boshlash"}</Link>
-          : <p className="muted">{can_take ? "Urinishlar tugagan." : "Bu test sizning guruhingiz kursiga tegishli emas."}</p>}
+      <PageHeader
+        back={{ href: `/dashboard/courses/${quiz.course.id}`, label: quiz.course.title }}
+        title={quiz.title}
+        badge={quiz.is_final ? <Badge tone="accent">Yakuniy test</Badge> : undefined}
+        actions={can_take && (open || left > 0)
+          ? <ButtonLink href={`/dashboard/quizzes/${id}/take`} icon={<ClipboardCheck />}>{open ? "Davom ettirish" : "Testni boshlash"}</ButtonLink>
+          : undefined}
+      />
+      <div className="stats-grid">
+        <StatCard label="Savollar" value={quiz.questions_count} icon={<ClipboardCheck />} />
+        <StatCard label="O'tish bali" value={`${quiz.pass_percent}%`} icon={<Target />} />
+        <StatCard label="Qolgan urinish" value={`${left}/${quiz.max_attempts}`} icon={<RotateCcw />} tone={left ? "accent" : "warning"} />
+        <StatCard label="Vaqt" value={quiz.time_limit_sec ? `${Math.round(quiz.time_limit_sec / 60)} daq.` : "Cheksiz"} icon={<Clock />} />
       </div>
-      {used > 0 && (
-        <table>
-          <thead><tr><th>Sana</th><th>Ball</th><th>%</th><th>Natija</th></tr></thead>
-          <tbody>
-            {attempts.filter((a: any) => a.submitted_at).map((a: any) => (
-              <tr key={a.id}><td>{fmtDateTime(a.submitted_at, tz)}</td><td>{a.score}/{a.max_score}</td><td>{a.percent}</td>
-                <td>{a.passed ? <span className="tag ok">o&apos;tdi</span> : <span className="tag warn">o&apos;tmadi</span>}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      {!can_take && <Card><EmptyState compact icon={<ClipboardCheck />} title="Bu testni faqat kursga yozilgan o'quvchilar topshiradi" /></Card>}
+      <Card style={{ marginTop: 16 }}>
+        <CardHeader title="Natijalarim" description={best !== null ? `Eng yaxshi natija: ${best}%` : undefined} />
+        {done.length === 0 ? (
+          <EmptyState compact icon={<Target />} title="Hali topshirilmagan" />
+        ) : (
+          <Table>
+            <thead><tr><Th>Sana</Th><Th>Ball</Th><Th>%</Th><Th>Natija</Th></tr></thead>
+            <tbody>
+              {done.map((a) => (
+                <tr key={a.id}>
+                  <Td>{fmtDateTime(a.submitted_at!, tz)}</Td>
+                  <Td>{a.score}/{a.max_score}</Td>
+                  <Td>{a.percent}</Td>
+                  <Td>{a.passed ? <Badge tone="success">O&apos;tdi</Badge> : <Badge tone="warning">O&apos;tmadi</Badge>}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
     </>
   );
 }
