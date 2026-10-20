@@ -5,9 +5,9 @@ import { personName } from "../_lib/format";
 import { Async, Badge, Empty, Page, Row, Section, useApi } from "../_ui/ui";
 import { billingLabels, fmtYmd, type BillingMe } from "@/lib/billing";
 
-/** Balans (BillingController::me): o'quvchi — o'zi, ota-ona — farzandlari. */
+/** Balans (BillingController::me): o'quvchining o'zi. */
 export default function TgBalance() {
-  const { t, settings } = useTg();
+  const { t, settings, me } = useTg();
   const L = billingLabels(settings);
   const q = useApi<BillingMe>("billing/me");
   return (
@@ -17,7 +17,7 @@ export default function TgBalance() {
           <>
             {d.students.map((x) => (
               <div key={x.student.id}>
-                <Section title={d.students.length > 1 ? personName(x.student) : t("balance")}>
+                <Section title={d.students.length > 1 || x.student.id !== me.id ? personName(x.student) : t("balance")}>
                   <div className="tg-balance">
                     <b className={x.balance < 0 ? "bad" : x.balance > 0 ? "ok" : ""}>{L.money(x.balance)}</b>
                     {x.debt > 0 ? <Badge tone="bad">{t("balance_debt", { debt: L.money(x.debt) })}</Badge> : <Badge tone="ok">{t("balance_ok")}</Badge>}

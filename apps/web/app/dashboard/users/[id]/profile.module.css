@@ -1,0 +1,10 @@
+.layout { display: grid; gap: var(--space-5); grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.side, .main { display: grid; gap: var(--space-5); min-width: 0; }
+.contacts, .people { list-style: none; margin: 0; padding: 0; }
+.contacts li, .people li { display: flex; align-items: center; gap: var(--space-3); padding: 10px var(--space-5); border-bottom: 1px solid var(--border); margin: 0; flex-wrap: wrap; }
+.contacts li:last-child, .people li:last-child { border-bottom: 0; }
+.contacts svg { width: 18px; height: 18px; color: var(--fg-subtle); flex: none; }
+.who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.who span { font-size: var(--text-sm); }
+.pad { padding: var(--space-4) var(--space-5); }

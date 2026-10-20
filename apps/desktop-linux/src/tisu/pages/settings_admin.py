@@ -8,7 +8,7 @@ from gi.repository import Adw, GLib, Gtk
 from ..forms import FormDialog, confirm
 from ..widgets import Page, group, icon_button, label, pill, prefs_page, row
 
-ROLE_COLUMNS = ["ADMIN", "TEACHER", "STUDENT", "PARENT"]
+ROLE_COLUMNS = ["ADMIN", "TEACHER", "STUDENT"]
 
 
 def _preview(v, n=80):
@@ -290,6 +290,8 @@ class PermissionsDialog(Adw.Dialog):
         self.root = root
         self.key = it["key"]
         value = root.value(self.key) or {}
+        # Columns follow the roles the server knows (extra roles in the value appear too).
+        self.roles = ROLE_COLUMNS + [r for r in value if r not in ROLE_COLUMNS and r != "SUPER_ADMIN"]
         self.checks = {}
         tb = Adw.ToolbarView()
         header = Adw.HeaderBar(show_end_title_buttons=False, show_start_title_buttons=False)
@@ -304,11 +306,11 @@ class PermissionsDialog(Adw.Dialog):
 
         grid = Gtk.Grid(column_spacing=18, row_spacing=6, margin_top=12, margin_bottom=12, margin_start=18, margin_end=18)
         grid.attach(label("Huquq", css=("heading",)), 0, 0, 1, 1)
-        for c, role in enumerate(ROLE_COLUMNS, 1):
+        for c, role in enumerate(self.roles, 1):
             grid.attach(label(root.win.public.role_label(role), css=("heading",), xalign=0.5, wrap=False), c, 0, 1, 1)
         for r_i, perm in enumerate(root.permissions, 1):
             grid.attach(label(perm, css=("monospace",)), 0, r_i, 1, 1)
-            for c, role in enumerate(ROLE_COLUMNS, 1):
+            for c, role in enumerate(self.roles, 1):
                 cb = Gtk.CheckButton(active=perm in (value.get(role) or []), halign=Gtk.Align.CENTER)
                 self.checks[(role, perm)] = cb
                 grid.attach(cb, c, r_i, 1, 1)
@@ -321,7 +323,7 @@ class PermissionsDialog(Adw.Dialog):
         self.set_child(tb)
 
     def apply(self):
-        value = {role: [p for p in self.root.permissions if self.checks[(role, p)].get_active()] for role in ROLE_COLUMNS}
+        value = {role: [p for p in self.root.permissions if self.checks[(role, p)].get_active()] for role in self.roles}
         old = self.root.value(self.key) or {}
         for role, perms in old.items():  # keep roles we don't show (if any)
             value.setdefault(role, perms)

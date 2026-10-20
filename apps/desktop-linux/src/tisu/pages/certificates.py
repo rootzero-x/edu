@@ -1,4 +1,4 @@
-"""Certificates: own (student), children's (parent), taught groups' (teacher) or all (group.manage).
+"""Certificates: own (student), taught groups' (teacher) or all (group.manage).
 Each certificate opens in the app (verified via the public endpoint) with its QR code."""
 
 from gi.repository import Adw, Gdk, GLib, Gtk

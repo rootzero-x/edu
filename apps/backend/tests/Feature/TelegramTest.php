@@ -48,6 +48,8 @@ class TelegramTest extends TestCase
 
     public function test_full_web_login_with_self_registration(): void
     {
+        // Tasdiqsiz rejim (eski xatti-harakat sozlama bilan saqlanadi).
+        app(\App\Support\Settings::class)->set(['telegram.self_registration_approval' => false], null);
         $start = $this->postJson('/v1/auth/telegram/start')->assertOk()->json();
         $this->assertStringStartsWith('https://t.me/tisu_test_bot?start=login_', $start['bot_url']);
         $poll = fn () => $this->postJson('/v1/auth/telegram/poll', ['code' => $start['code'], 'poll_secret' => $start['poll_secret']]);

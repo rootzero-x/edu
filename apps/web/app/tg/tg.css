@@ -15,11 +15,13 @@
   --c-ok: #2fa84f;
   --c-warn: #e8a317;
   min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
   background: var(--c-bg);
   color: var(--c-text);
   font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   -webkit-tap-highlight-color: transparent;
   padding-bottom: env(safe-area-inset-bottom);
+  overflow-wrap: anywhere;
 }
 @media (prefers-color-scheme: dark) {
   .tgapp { --c-bg: var(--tg-theme-secondary-bg-color, #0f1115); --c-section: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #1b1e24)); --c-text: var(--tg-theme-text-color, #f1f2f4); }
@@ -31,8 +33,9 @@ body:has(.tgapp) { background: var(--tg-theme-secondary-bg-color, #f1f2f6); }
 
 .tg-page { max-width: 640px; margin: 0 auto; padding: 14px 14px 96px; }
 .tg-title { font-size: 1.45rem; font-weight: 700; margin: 6px 4px 2px; letter-spacing: -.01em; }
-.tg-sub { margin: 0 4px 14px; }
 .tg-hint { color: var(--c-hint); font-size: .9rem; margin: 0; }
+/* .tg-hint'dan keyin: aks holda margin: 0 sarlavha ostidagi matnni chetga yopishtirib qo'yadi. */
+.tg-hint.tg-sub { margin: 0 4px 14px; }
 
 /* Bo'limlar va ro'yxat */
 .tg-section { margin: 18px 0 0; }
@@ -57,9 +60,13 @@ div.tg-row { cursor: default; }
 .tg-avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 1.15rem; color: var(--c-btn-text); background: linear-gradient(135deg, var(--c-btn), color-mix(in srgb, var(--c-btn) 55%, #7c3aed)); flex: none; }
 .tg-hero h1 { font-size: 1.25rem; margin: 0; }
 .tg-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
-.tg-tile { background: var(--c-section); border-radius: 14px; padding: 14px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .82rem; font-weight: 500; text-align: center; }
+.tg-tile { position: relative; background: var(--c-section); border-radius: 14px; padding: 14px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .82rem; font-weight: 500; text-align: center; }
 .tg-tile:active { transform: scale(.97); }
 .tg-tile .ic { font-size: 1.5rem; }
+.tg-tile .count { position: absolute; top: 8px; right: 8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--c-danger); color: #fff; font-size: .72rem; font-weight: 700; line-height: 20px; }
+.tg-msg { text-align: center; margin: 14px 4px 0; }
+.tg-msg.ok { color: var(--c-ok); }
+.tg-msg.bad { color: var(--c-danger); }
 
 /* Tugmalar */
 .tg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 0 18px; border-radius: 12px; border: 0; background: var(--c-btn); color: var(--c-btn-text) !important; font-weight: 600; cursor: pointer; width: 100%; }
@@ -115,6 +122,12 @@ div.tg-row { cursor: default; }
 .tg-option.on .mark { border-color: var(--c-btn); background: var(--c-btn); color: var(--c-btn-text); }
 .tg-option.correct { border-color: var(--c-ok); }
 .tg-option.wrong { border-color: var(--c-danger); }
+/* Tahlil: tanlangan javob belgisi to'g'ri/noto'g'riligiga qarab — ko'k "tanlangan" emas. */
+.tg-option.correct .mark { border-color: var(--c-ok); color: var(--c-ok); }
+.tg-option.on.correct .mark { background: var(--c-ok); color: #fff; }
+.tg-option.wrong .mark { border-color: var(--c-danger); color: var(--c-danger); }
+.tg-option.on.wrong .mark { background: var(--c-danger); color: #fff; }
+.tg-option.on.correct, .tg-option.on.wrong { background: transparent; }
 .tg-input { width: 100%; min-height: 46px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--c-sep); background: transparent; color: var(--c-text); font: inherit; }
 .tg-input:focus { outline: none; border-color: var(--c-btn); }
 .tg-dots { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; }
@@ -130,6 +143,7 @@ div.tg-row { cursor: default; }
 .tg-video { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; background: #000; }
 
 .tg-empty-icon { font-size: 2.4rem; line-height: 1; }
+.tg-news .tg-prose { padding: 0; }
 .tg-news { display: grid; gap: 6px; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 12px 14px; cursor: pointer; }
 .tg-news-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
 .tg-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -141,3 +155,4 @@ html, body, * { scrollbar-width: none; }
 .tg-balance b.bad { color: var(--c-danger); }
 .tg-balance b.ok { color: var(--c-ok); }
 .tg-balance small { color: var(--c-hint); }
+

@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Question extends Model
 {
-    protected $fillable = ['quiz_id', 'type', 'text', 'points', 'position', 'accepted_answers'];
+    protected $fillable = ['quiz_id', 'type', 'text', 'points', 'position', 'accepted_answers', 'replaces_id'];
 
     protected function casts(): array
     {
-        return ['accepted_answers' => 'array', 'points' => 'integer'];
+        return ['accepted_answers' => 'array', 'points' => 'integer', 'archived_at' => 'datetime'];
     }
 
     public function quiz(): BelongsTo

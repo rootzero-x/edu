@@ -1,5 +1,5 @@
 """Billing: balances & debtors, income report, payments / adjustments / voiding (billing.manage);
-own balance for students and parents."""
+own balance for students."""
 
 import uuid
 
@@ -226,7 +226,7 @@ class BillingPage(Page):
         q = {k: v for k, v in self.query().items() if k != "page"}
         save_csv(self.win, self.api, "billing/balances.csv", q, f"balanslar_{fmt.now().format('%Y%m%d')}.csv", self.csv_btn)
 
-    # ── Student / parent: own balance ────────────────────────
+    # ── Student: own balance ─────────────────────────────────
     def _render_own(self, data):
         s = self.settings
         if data.get("enabled") is False:
@@ -239,7 +239,7 @@ class BillingPage(Page):
         groups_ = []
         for st in students:
             person = st["student"]
-            g = group(fmt.name(person) if len(students) > 1 or self.win.role == "PARENT" else "Mening balansim")
+            g = group(fmt.name(person) if len(students) > 1 else "Mening balansim")
             bal = st.get("balance", 0)
             g.add(row("Balans", "Qarz" if bal < 0 else "Ortiqcha to'lov" if bal > 0 else "Qarz yo'q", icon="tisu-wallet-symbolic",
                       suffix=balance_pill(s, bal)))

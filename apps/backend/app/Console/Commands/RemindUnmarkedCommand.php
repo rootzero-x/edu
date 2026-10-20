@@ -29,8 +29,10 @@ class RemindUnmarkedCommand extends Command
             ->join('users', 'users.id', '=', 'study_groups.teacher_id')->where('users.active', true)
             ->where('class_sessions.cancelled', false)->where('study_groups.active', true)
             ->whereBetween('class_sessions.ends_at', [$until->copy()->subDay(), $until])
-            ->whereNotExists(fn ($q) => $q->from('attendances')->whereColumn('attendances.session_id', 'class_sessions.id'))
-            ->whereExists(fn ($q) => $q->from('group_members')->whereColumn('group_members.group_id', 'study_groups.id')->whereNull('group_members.left_at'))
+            // Faol a'zolardan kamida bittasi belgilanmagan bo'lsa (yarim belgilangan varaqa ham) — eslatma.
+            ->whereExists(fn ($q) => $q->from('group_members')->whereColumn('group_members.group_id', 'study_groups.id')->whereNull('group_members.left_at')
+                ->whereNotExists(fn ($a) => $a->from('attendances')->whereColumn('attendances.session_id', 'class_sessions.id')
+                    ->whereColumn('attendances.student_id', 'group_members.student_id')))
             ->get(['class_sessions.id', 'class_sessions.starts_at', 'study_groups.name', 'users.id as teacher_id', 'users.first_name']);
 
         $items = $sessions->map(fn ($s) => [

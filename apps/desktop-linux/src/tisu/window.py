@@ -27,7 +27,7 @@ class Section:
         self.factory = factory  # callable(win) -> Page
         self.perm = perm
         self.any_perm = any_perm
-        self.own = own  # also visible to students/parents (their own data)
+        self.own = own  # also visible to students (their own data)
         self.admin = admin  # listed under the "Boshqaruv" header
 
 
@@ -38,7 +38,7 @@ SECTIONS = [
     Section("news", "/dashboard/news", "Yangiliklar", "tisu-bell-symbolic", NewsPage),
     Section("certificates", "/dashboard/certificates", "Sertifikatlar", "tisu-award-symbolic", CertificatesPage),
     Section("reports", "/dashboard/reports", "Hisobotlar", "tisu-chart-symbolic", ReportsPage, perm="report.view"),
-    # Managers see all balances; students and parents see their own (when billing is enabled).
+    # Managers see all balances; students see their own (when billing is enabled).
     Section("billing", "/dashboard/billing", "To'lovlar", "tisu-wallet-symbolic", BillingPage, perm="billing.manage",
             any_perm=None, own=True),
     Section("profile", "/dashboard/profile", "Profil", "avatar-default-symbolic", ProfilePage),
@@ -140,7 +140,7 @@ class TisuWindow(Adw.ApplicationWindow):
 
     def _visible_sections(self):
         def visible(s):
-            if s.own and self.role in ("STUDENT", "PARENT"):
+            if s.own and self.role == "STUDENT":
                 return self.public.get("billing.enabled", True) is not False
             return self.has(s.perm)
 

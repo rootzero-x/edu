@@ -12,9 +12,10 @@ import { refreshSeconds, statusLabels, timezone } from "@/lib/settings";
 import { STATUS_COLOR } from "@/lib/status";
 import type { Summary } from "@/lib/types";
 import { usePolling } from "@/lib/usePolling";
+import SetupChecklist from "./SetupChecklist";
 import s from "./overview.module.css";
 
-/** children — sarlavhadan keyingi qo'shimcha bloklar (masalan, o'quvchi/ota-ona uchun "Balans"). */
+/** children — sarlavhadan keyingi qo'shimcha bloklar (masalan, o'quvchi uchun "Balans"). */
 export default function Overview({ initial, firstName, children }: { initial: Summary | null; firstName: string; children?: ReactNode }) {
   const st = useSiteSettings();
   const tz = timezone(st);
@@ -56,13 +57,14 @@ export default function Overview({ initial, firstName, children }: { initial: Su
   return (
     <>
       {header}
+      {data.setup && <SetupChecklist setup={data.setup} />}
       {children}
       <section className={s.stats} aria-label="Statistika">
         <StatCard
-          label="Bugungi darslar"
+          label="Bugungi mashg'ulotlar"
           value={stats.today_sessions}
           icon={<CalendarClock />}
-          hint={stats.today_sessions ? `${stats.today_marked} tasida davomat belgilangan` : "Bugun dars yo'q"}
+          hint={stats.today_sessions ? `${stats.today_marked} tasida davomat belgilangan` : "Bugun mashg'ulot yo'q"}
           progress={stats.today_sessions ? (stats.today_marked / stats.today_sessions) * 100 : null}
         />
         <StatCard
@@ -78,7 +80,7 @@ export default function Overview({ initial, firstName, children }: { initial: Su
         {stats.students != null && <StatCard label="O'quvchilar" value={stats.students} icon={<GraduationCap />} tone="success" />}
         {stats.unmarked_sessions != null && (
           <StatCard
-            label="Belgilanmagan darslar"
+            label="Belgilanmagan mashg'ulotlar"
             value={stats.unmarked_sessions}
             icon={stats.unmarked_sessions ? <AlertTriangle /> : <CheckCircle2 />}
             tone={stats.unmarked_sessions ? "warning" : "success"}
@@ -89,9 +91,9 @@ export default function Overview({ initial, firstName, children }: { initial: Su
 
       <div className={s.cols}>
         <Card>
-          <CardHeader title="Bugungi jadval" description={`${data.today.length} ta dars`} actions={<ButtonLink href="/dashboard/groups" variant="ghost" size="sm">Guruhlar</ButtonLink>} />
+          <CardHeader title="Bugungi jadval" description={`${data.today.length} ta mashg'ulot`} actions={<ButtonLink href="/dashboard/groups" variant="ghost" size="sm">Guruhlar</ButtonLink>} />
           {data.today.length === 0 ? (
-            <EmptyState compact icon={<CalendarX2 />} title="Bugun dars yo'q">Jadvaldagi darslar shu yerda ko&apos;rinadi.</EmptyState>
+            <EmptyState compact icon={<CalendarX2 />} title="Bugun mashg'ulot yo'q">Jadvaldagi mashg&apos;ulotlar shu yerda ko&apos;rinadi.</EmptyState>
           ) : (
             <ul className={s.sessions}>
               {data.today.map((x) => {
@@ -132,7 +134,7 @@ export default function Overview({ initial, firstName, children }: { initial: Su
               <p className="muted" style={{ margin: 0 }}>Hali belgilar yo&apos;q.</p>
             ) : (
               <>
-                <div className={s.bar} aria-hidden>
+                <div className={s.bar} role="img" aria-label={Object.entries(stats.attendance_counts).map(([k, v]) => `${labels[k] ?? k}: ${Math.round((v / totalMarks) * 100)}%`).join(", ")}>
                   {Object.entries(stats.attendance_counts).map(([k, v]) => (
                     <span key={k} style={{ width: `${(v / totalMarks) * 100}%`, background: STATUS_COLOR[k] ?? "var(--fg-subtle)" }} />
                   ))}

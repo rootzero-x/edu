@@ -35,8 +35,8 @@ asynchronous without threads and the UI never blocks.
 | Certificates | List; opens the public verification page, copy link | everyone (scoped by API) |
 | Reports | Period + group filter, overview, attendance by group, students at risk, quizzes; **CSV export** to a file | `report.view` |
 | Profile | Name editing, Telegram link status, change / set password, sign out | everyone |
-| Billing | Balances / debtors with filters, payment and adjustment entry (de-duplicated), voiding with reason, per-student ledger and monthly summary, income report, CSV exports; students and parents see their own balance | `billing.manage` / own |
-| Users | Search, role filter, create, edit (name, phone, role), set password, block / unblock, link / unlink a parent's children | `user.manage` |
+| Billing | Balances / debtors with filters, payment and adjustment entry (de-duplicated), voiding with reason, per-student ledger and monthly summary, income report, CSV exports; students see their own balance | `billing.manage` / own |
+| Users | Search, role filter, create, edit (name, phone, role), set password, block / unblock | `user.manage` |
 | Settings | All platform settings by group with search, typed editors (switch, number, text, colour, list, key/value, JSON), role × permission matrix, unsaved draft, reset to default | `settings.manage` |
 | Content editing | Courses (create, edit, publish, delete), modules, lessons, materials (video / file / link / text), quizzes and questions, announcements (drafts, audience, publish / hide), groups (create, edit, weekly schedule, lessons generation, members, close), certificates (eligibility, issue, revoke), cancelling a lesson | authors / `course.manage`, `quiz.manage`, `announcement.manage`, `group.manage`, `attendance.mark` |
 

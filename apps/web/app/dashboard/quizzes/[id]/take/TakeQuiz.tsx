@@ -25,7 +25,7 @@ export default function TakeQuiz({ quizId }: { quizId: number }) {
 
   useEffect(() => {
     call("POST", `quizzes/${quizId}/attempts`).then((r) => {
-      if (r.status === 403 && isDenial(r.data)) return setDenied(r.data);
+      if (isDenial(r.data)) return setDenied(r.data);
       if (!r.ok) return setErr(errorText(r.data));
       setAttempt(r.data.attempt);
       try {

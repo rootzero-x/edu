@@ -6,9 +6,10 @@ import {
 } from "lucide-react";
 import { API_URL, publicCourses, publicNews, publicSettings } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
-import { list, siteName, str, timezone } from "@/lib/settings";
-import { ButtonLink } from "@/components/ui";
+import { bool, list, obj, siteName, str, timezone } from "@/lib/settings";
+import { ButtonLink, SafeImage } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
+import LeadForm from "./LeadForm";
 import s from "./landing.module.css";
 
 export const revalidate = 60;
@@ -66,6 +67,9 @@ export default async function Home() {
   const featuresTitle = str(st, "site.features_title");
   const coursesTitle = str(st, "site.courses_title");
   const contactTitle = str(st, "site.contact_title");
+  // Ariza formasi: sozlama o'chirilmagan bo'lsa (API ishlamasa ham forma ko'rinadi — zaxira yo'l bor).
+  const leadForm = bool(st, "leads.form_enabled", true);
+  const leadTitle = str(st, "leads.form_title", "Bepul sinov darsiga yoziling");
   const login = str(st, "site.nav_login", "Kirish");
   const footer = str(st, "site.footer_text", "© {year} {name}").replace("{year}", String(new Date().getFullYear())).replace("{name}", name);
 
@@ -75,12 +79,13 @@ export default async function Home() {
       <header className={s.header}>
         <div className={`${s.container} ${s.headerInner}`}>
           <Link href="/" className={s.brand}>
-            <span className={s.mark} aria-hidden>{logo ? <img src={logo} alt="" /> : name.slice(0, 1)}</span>
+            <span className={s.mark} aria-hidden><SafeImage src={logo} fallback={name.slice(0, 1)} /></span>
             <span>{name}</span>
           </Link>
           <nav className={s.nav} aria-label={name}>
             {features.length > 0 && featuresTitle && <a href="#features">{featuresTitle}</a>}
             {courses.length > 0 && coursesTitle && <a href="#courses">{coursesTitle}</a>}
+            {leadForm && <a href="#ariza">{obj<Record<string, string>>(st, "leads.form_labels").nav || "Ariza"}</a>}
             {contacts.length > 0 && contactTitle && <a href="#contact">{contactTitle}</a>}
           </nav>
           <div className={s.headerActions}>
@@ -120,7 +125,7 @@ export default async function Home() {
               )}
             </div>
             <div className={s.visual} aria-hidden>
-              {heroImage ? <img src={heroImage} alt="" /> : (
+              <SafeImage src={heroImage} fallback={(
                 <>
                   <div className={s.mock}>
                     <div className={s.mockBar}><i /><i /><i /></div>
@@ -135,7 +140,7 @@ export default async function Home() {
                   <div className={`${s.chip} ${s.chipA}`}><span className={s.chipIcon}><CheckCircle2 /></span><div><b /><b /></div></div>
                   <div className={`${s.chip} ${s.chipB}`}><span className={s.chipIcon}><Send /></span><div><b /><b /></div></div>
                 </>
-              )}
+              )} />
             </div>
           </div>
         </section>
@@ -194,12 +199,13 @@ export default async function Home() {
               <div className={s.courses}>
                 {courses.map((c) => (
                   <article className={s.course} key={c.id}>
-                    <div className={s.cover} aria-hidden>{c.cover_url ? <img src={c.cover_url} alt="" /> : <GraduationCap />}</div>
+                    <div className={s.cover} aria-hidden><SafeImage src={c.cover_url} fallback={<GraduationCap />} /></div>
                     <div className={s.courseBody}>
                       <h3>{c.title}</h3>
                       {c.description && <p>{c.description}</p>}
                       <div className={s.courseMeta}>
                         <span>{c.duration_months} oy · {c.modules_count} modul</span>
+                        {leadForm && <a href={`#ariza?course=${c.id}`} className={s.courseApply}>{obj<Record<string, string>>(st, "leads.form_labels").course_apply || "Yozilish"}<ArrowRight aria-hidden /></a>}
                       </div>
                     </div>
                   </article>
@@ -225,6 +231,24 @@ export default async function Home() {
                   </article>
                 ))}
               </div>
+            </div>
+          </section>
+        )}
+
+        {leadForm && (
+          <section id="ariza" className={`${s.section} ${s.sectionAlt}`}>
+            <div className={`${s.container} ${s.leadWrap}`}>
+              <div className={s.sectionHead}>
+                <h2>{leadTitle}</h2>
+                {str(st, "leads.form_text") && <p>{str(st, "leads.form_text")}</p>}
+              </div>
+              <LeadForm
+                labels={obj<Record<string, string>>(st, "leads.form_labels")}
+                consentText={str(st, "leads.consent_text", "Ma'lumotlarim ariza bo'yicha bog'lanish uchun ishlatilishiga roziman.")}
+                consentRequired={bool(st, "leads.consent_required", true)}
+                successText={str(st, "leads.success_text", "Rahmat! Arizangiz qabul qilindi.")}
+                courses={courses.map((c) => ({ id: c.id, title: c.title }))}
+              />
             </div>
           </section>
         )}
@@ -255,7 +279,7 @@ export default async function Home() {
               <div className={s.contacts}>
                 {contacts.map((c) => {
                   const Icon = c.icon;
-                  const inner = <><span className={s.contactIcon} aria-hidden><Icon /></span><span className={s.contactValue}>{c.value}</span></>;
+                  const inner = <><span className={s.contactIcon} aria-hidden><Icon /></span><span className={s.contactValue}>{c.value.includes("@") && !c.value.startsWith("@") ? <>{c.value.split("@")[0]}@<wbr />{c.value.split("@").slice(1).join("@")}</> : c.value}</span></>;
                   return c.href ? (
                     <a key={c.label} href={c.href} className={s.contact} target={c.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer">{inner}</a>
                   ) : <div key={c.label} className={s.contact}>{inner}</div>;

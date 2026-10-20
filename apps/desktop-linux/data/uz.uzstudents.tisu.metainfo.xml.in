@@ -8,7 +8,7 @@
   <summary xml:lang="uz">O'quv markazi: kurslar, davomat va testlar</summary>
   <description>
     <p>
-      The desktop app of the TISU Edu education center platform. Students, parents,
+      The desktop app of the TISU Edu education center platform. Students,
       teachers and administrators sign in with Telegram or their phone number and password.
     </p>
     <ul>
@@ -19,7 +19,7 @@
       <li>Certificates, attendance and quiz reports with CSV export</li>
     </ul>
     <p xml:lang="uz">
-      TISU Edu o'quv markazi platformasining kompyuter ilovasi. O'quvchilar, ota-onalar,
+      TISU Edu o'quv markazi platformasining kompyuter ilovasi. O'quvchilar,
       o'qituvchilar va administratorlar Telegram yoki telefon raqami va parol bilan kiradi.
     </p>
   </description>

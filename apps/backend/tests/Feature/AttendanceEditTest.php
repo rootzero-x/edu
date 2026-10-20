@@ -25,8 +25,6 @@ class AttendanceEditTest extends TestCase
 
     private User $student;
 
-    private User $parent;
-
     private StudyGroup $group;
 
     protected function setUp(): void
@@ -37,9 +35,7 @@ class AttendanceEditTest extends TestCase
         Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []])]);
         $this->teacher = User::factory()->role(Role::Teacher)->create();
         $this->student = User::factory()->create(['first_name' => 'Ali']);
-        $this->parent = User::factory()->role(Role::Parent)->create();
-        DB::table('parent_child')->insert(['parent_id' => $this->parent->id, 'child_id' => $this->student->id]);
-        DB::table('telegram_links')->insert(['user_id' => $this->parent->id, 'telegram_id' => 9, 'chat_id' => 9, 'linked_at' => now()]);
+        DB::table('telegram_links')->insert(['user_id' => $this->student->id, 'telegram_id' => 9, 'chat_id' => 9, 'linked_at' => now()]);
         $this->group = StudyGroup::create(['name' => 'G1', 'course_id' => Course::create(['title' => 'K', 'created_by' => $this->teacher->id])->id,
             'branch_id' => Branch::create(['name' => 'B'])->id, 'teacher_id' => $this->teacher->id, 'start_date' => '2026-09-01']);
         GroupSchedule::create(['group_id' => $this->group->id, 'weekday' => 3, 'start_time' => '14:00', 'end_time' => '15:00']);
@@ -61,7 +57,7 @@ class AttendanceEditTest extends TestCase
         $old = $this->sid('2026-10-07');
         $this->getJson("/v1/sessions/$old/attendance")->assertJsonPath('edit.can_edit', true);
         $this->putJson("/v1/sessions/$old/attendance", ['items' => [['student_id' => $this->student->id, 'status' => 'ABSENT']]])
-            ->assertOk()->assertJsonPath('notified', 0); // eski darsni tuzatish — ota-onaga xabar yo'q
+            ->assertOk()->assertJsonPath('changed', 1);
         $this->putJson("/v1/sessions/$old/attendance", ['items' => [['student_id' => $this->student->id, 'status' => 'EXCUSED']], 'reason' => "Ma'lumotnoma keltirdi"])
             ->assertOk();
 
@@ -86,12 +82,12 @@ class AttendanceEditTest extends TestCase
         $this->putJson("/v1/sessions/$old/attendance", ['items' => [['student_id' => $this->student->id, 'status' => 'PRESENT']], 'reason' => 'Tuzatish'])->assertOk();
     }
 
-    public function test_same_day_marking_still_notifies_parent(): void
+    public function test_marking_sends_no_telegram_messages(): void
     {
         Sanctum::actingAs($this->teacher);
         $this->putJson('/v1/sessions/'.$this->sid('2026-10-21').'/attendance', ['items' => [['student_id' => $this->student->id, 'status' => 'ABSENT']]])
-            ->assertJsonPath('notified', 1);
-        Http::assertSent(fn ($r) => str_contains((string) ($r['text'] ?? ''), '21.10.2026 kuni'));
+            ->assertOk()->assertJsonMissingPath('notified');
+        Http::assertNothingSent();
     }
 
     public function test_student_cannot_see_unmarked_or_history(): void

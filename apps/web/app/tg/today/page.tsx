@@ -17,7 +17,7 @@ export default function TgToday() {
           return (
             <>
               <TodaySessions groups={mine} />
-              <UpcomingSessions groups={mine} days={7} linkSessions />
+              <UpcomingSessions groups={mine} days={7} linkSessions fromTomorrow />
             </>
           );
         }}

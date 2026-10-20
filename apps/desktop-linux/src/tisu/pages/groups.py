@@ -583,10 +583,7 @@ class SessionSheetPage(Page):
                 self.save_button.set_sensitive(True)
                 self.win.toast(err.message, timeout=5)
                 return
-            n = int(data.get("notified") or 0)
-            s = self.settings
-            self.win.toast(s.text("sheet_saved_notified", "Saqlandi. Ota-onaga {n} ta xabar yuborildi.", n=n) if n
-                           else s.text("sheet_saved", "Saqlandi"))
+            self.win.toast(self.settings.text("sheet_saved", "Saqlandi"))
             self.reload()
             if self.on_saved:
                 self.on_saved()

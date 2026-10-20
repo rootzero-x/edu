@@ -1,12 +1,12 @@
-"""Users (user.manage): search, role filter, create, edit, password, block, parent ↔ child links."""
+"""Users (user.manage): search, role filter, create, edit, password, block."""
 
 from gi.repository import GLib, Gtk
 
 from .. import fmt
-from ..forms import confirm, form, pick
+from ..forms import confirm, form
 from ..widgets import Page, group, icon_button, pill, prefs_page, row, text_button
 
-ROLES = ["STUDENT", "TEACHER", "PARENT", "ADMIN", "SUPER_ADMIN"]
+ROLES = ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"]
 
 
 def role_options(win, include_all=False):
@@ -132,10 +132,7 @@ class UserPage(Page):
         self.on_changed = on_changed
 
     def fetch(self, done):
-        if self.user.get("role") == "PARENT":
-            self.api.get(f"users/{self.user['id']}/children", lambda d, e: done({"children": (d or {}).get("data") or []}, e))
-        else:
-            done({"children": []}, None)
+        done({}, None)
 
     def can_edit(self):
         u, me = self.user, self.win.user or {}
@@ -173,16 +170,6 @@ class UserPage(Page):
                        on_activate=lambda: self.push(StudentBillingPage(self.win, u["id"], fmt.name(u)))))
             groups_.append(bg)
 
-        if u["role"] == "PARENT":
-            add = text_button("Farzand qo'shish", self.link_child, css=("flat",), icon="list-add-symbolic")
-            cg = group("Farzandlari", "Ota-ona farzandining davomati, testlari va to'lovlarini ko'radi.", suffix=add)
-            children = data.get("children") or []
-            for c in children:
-                unlink = icon_button("list-remove-symbolic", "Bog'lanishni uzish", lambda c=c: self.unlink(c))
-                cg.add(row(fmt.name(c), c.get("phone"), icon="avatar-default-symbolic", suffix=unlink))
-            if not children:
-                cg.add(row("Farzand bog'lanmagan.", icon="dialog-information-symbolic"))
-            groups_.append(cg)
         return prefs_page(*groups_)
 
     def _patch(self, body, done=None, toast="Saqlandi"):
@@ -230,22 +217,3 @@ class UserPage(Page):
                     "Bloklash", lambda: self._patch({"active": False}, toast="Bloklandi"))
         else:
             self._patch({"active": True}, toast="Faollashtirildi")
-
-    def link_child(self):
-        def picked(child_id, title):
-            def ok(_d, err):
-                self.win.toast(err.message if err else f"{title} bog'landi", timeout=5 if err else 3)
-                if not err:
-                    self.reload()
-
-            self.api.post(f"users/{self.user['id']}/children", {"child_id": child_id}, ok)
-
-        pick(self.win, "Farzand qo'shish", lambda q, done: search_students(self.api, q, done), picked,
-             placeholder="O'quvchi ismi yoki telefoni")
-
-    def unlink(self, child):
-        def yes():
-            self.api.delete(f"users/{self.user['id']}/children/{child['id']}",
-                            lambda _d, err: (self.win.toast(err.message if err else "Bog'lanish uzildi"), err or self.reload()))
-
-        confirm(self.win, "Bog'lanish uzilsinmi?", f"{fmt.name(child)} endi bu ota-onaga ko'rinmaydi.", "Uzish", yes)

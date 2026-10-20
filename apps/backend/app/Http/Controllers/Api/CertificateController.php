@@ -27,10 +27,27 @@ class CertificateController
     public function issue(Request $request, Settings $settings, Notifier $notifier, StudyGroup $group): JsonResponse
     {
         $data = $request->validate(['student_ids' => ['nullable', 'array'], 'student_ids.*' => ['integer']]);
+        // Bekor qilinganlar tufayli (student, group) endi unique emas: parallel bosishda ikki marta berilmasin.
+        $lock = \Illuminate\Support\Facades\Cache::lock('certificate.issue.'.$group->id, 30);
+        abort_unless($lock->block(10), 409, 'Sertifikatlar hozir berilmoqda. Birozdan keyin qayta urinib ko\'ring.');
+        try {
+            return $this->issueLocked($data, $settings, $notifier, $group);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function issueLocked(array $data, Settings $settings, Notifier $notifier, StudyGroup $group): JsonResponse
+    {
         $rows = $this->evaluate($group, $settings, $data['student_ids'] ?? null);
         $issued = [];
+        $explicit = array_map('intval', $data['student_ids'] ?? []);
         foreach ($rows as $r) {
             if ($r['certificate'] || $r['blockers']) {
+                continue;
+            }
+            // Guruhdan chiqib ketganlarga faqat aniq tanlanganda beriladi.
+            if ($r['left'] && ! in_array((int) $r['student_id'], $explicit, true)) {
                 continue;
             }
             $code = $this->newCode($settings);
@@ -38,7 +55,7 @@ class CertificateController
                 'code' => $code, 'student_id' => $r['student_id'], 'course_id' => $group->course_id,
                 'group_id' => $group->id, 'issued_at' => now(),
             ]);
-            // Parallel berilgan bo'lsa (unique student+group) — saqlanmagan kodni yubormaymiz.
+            // Kod to'qnashsa (unique code) — saqlanmagan kodni yubormaymiz.
             if ($inserted) {
                 $issued[] = ['student_id' => $r['student_id'], 'code' => $code, 'name' => $r['name']];
             }
@@ -60,7 +77,7 @@ class CertificateController
         return response()->json(['issued' => $issued, 'data' => $this->evaluate($group, $settings, $data['student_ids'] ?? null)]);
     }
 
-    /** O'z sertifikatlari (o'quvchi), farzandlariniki (ota-ona), o'zi o'qitgan guruhlarniki (o'qituvchi), yoki hammasi (group.manage). */
+    /** O'z sertifikatlari (o'quvchi), o'zi o'qitgan guruhlarniki (o'qituvchi), yoki hammasi (group.manage). */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -69,55 +86,75 @@ class CertificateController
             ->join('courses', 'courses.id', '=', 'certificates.course_id')
             ->join('study_groups', 'study_groups.id', '=', 'certificates.group_id')
             ->select('certificates.code', 'certificates.issued_at', 'certificates.student_id', 'users.first_name', 'users.last_name',
-                'courses.title as course', 'study_groups.name as group')
+                'courses.title as course', 'study_groups.name as group', 'certificates.revoked_at', 'certificates.revoked_reason')
             ->orderByDesc('certificates.issued_at');
         if (! $user->hasPermission('group.manage')) {
             $q->where(fn ($w) => $w->where('certificates.student_id', $user->id)
-                ->orWhereIn('certificates.student_id', DB::table('parent_child')->where('parent_id', $user->id)->select('child_id'))
                 ->orWhereIn('certificates.group_id', DB::table('study_groups')->where('teacher_id', $user->id)->select('id')));
         }
         if ($request->filled('group_id')) {
             $q->where('certificates.group_id', (int) $request->input('group_id'));
         }
+        // Bekor qilinganlar: o'quvchi ro'yxatida ko'rinmaydi, xodimlar ?revoked=1 bilan ko'radi (holati bilan).
+        if (! ($request->boolean('revoked') && ($user->hasPermission('group.manage') || $user->hasPermission('attendance.mark')))) {
+            $q->whereNull('certificates.revoked_at');
+        }
 
         return response()->json(['data' => $q->limit(500)->get()]);
     }
 
-    /** Ochiq tekshiruv: QR-kod shu manzilga olib keladi. Shaxsiy ma'lumot minimal. */
+    /**
+     * Ochiq tekshiruv: QR-kod shu manzilga olib keladi. Shaxsiy ma'lumot minimal.
+     * Bekor qilingan sertifikat "topilmadi" emas — status REVOKED, sana va sabab bilan (ish beruvchi haqiqatni ko'rsin).
+     */
     public function verify(string $code): JsonResponse
     {
         $c = DB::table('certificates')
             ->join('users', 'users.id', '=', 'certificates.student_id')
             ->join('courses', 'courses.id', '=', 'certificates.course_id')
             ->where('certificates.code', $code)
-            ->first(['certificates.code', 'certificates.issued_at', 'users.first_name', 'users.last_name', 'courses.title as course', 'courses.duration_months']);
+            ->first(['certificates.code', 'certificates.issued_at', 'certificates.revoked_at', 'certificates.revoked_reason',
+                'users.first_name', 'users.last_name', 'courses.title as course', 'courses.duration_months']);
         abort_unless($c, 404, 'Sertifikat topilmadi.');
 
         return response()->json(['certificate' => [
             'code' => $c->code, 'issued_at' => $c->issued_at, 'name' => trim($c->first_name.' '.$c->last_name),
             'course' => $c->course, 'duration_months' => $c->duration_months,
+            'status' => $c->revoked_at ? 'REVOKED' : 'VALID',
+            'revoked_at' => $c->revoked_at, 'revoked_reason' => $c->revoked_at ? $c->revoked_reason : null,
         ]]);
     }
 
-    public function revoke(string $code): JsonResponse
+    /** Bekor qilish — o'chirish emas: yozuv saqlanadi, ochiq tekshiruv "bekor qilingan" deydi. Qayta berish yangi kod bilan. */
+    public function revoke(Request $request, string $code): JsonResponse
     {
-        $deleted = DB::table('certificates')->where('code', $code)->delete();
-        abort_unless($deleted, 404);
-        Audit::log('certificate.revoke', 'certificate', null, ['code' => $code]);
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+        $cert = DB::table('certificates')->where('code', $code)->first(['id', 'revoked_at', 'student_id', 'group_id']);
+        abort_unless($cert, 404);
+        abort_if($cert->revoked_at !== null, 409, 'Sertifikat allaqachon bekor qilingan.');
+        DB::table('certificates')->where('id', $cert->id)->whereNull('revoked_at')->update([
+            'revoked_at' => now(), 'revoked_reason' => $data['reason'] ?? null, 'revoked_by' => $request->user()->id,
+        ]);
+        Audit::log('certificate.revoke', 'certificate', $cert->id, ['code' => $code, 'reason' => $data['reason'] ?? null,
+            'student_id' => $cert->student_id, 'group_id' => $cert->group_id]);
 
         return response()->json(['ok' => true]);
     }
 
     private function evaluate(StudyGroup $group, Settings $settings, ?array $onlyIds): array
     {
-        $students = $group->students()->select('users.id', 'first_name', 'last_name')->orderBy('first_name')->get()
-            ->when($onlyIds, fn ($c) => $c->whereIn('id', $onlyIds));
         $statuses = DB::table('attendances')->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
             ->where('class_sessions.group_id', $group->id)->where('class_sessions.cancelled', false)
             ->get(['attendances.student_id', 'attendances.status'])->groupBy('student_id');
+        // Hozirgi a'zolar + davomati bor chiqib ketganlar (belgi bilan: ro'yxatdan yo'qolib qolmasin).
+        $students = DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
+            ->where('group_members.group_id', $group->id)
+            ->where(fn ($w) => $w->whereNull('group_members.left_at')->orWhereIn('group_members.student_id', $statuses->keys()->all()))
+            ->orderBy('users.first_name')->get(['users.id', 'users.first_name', 'users.last_name', 'group_members.left_at'])
+            ->when($onlyIds, fn ($c) => $c->whereIn('id', $onlyIds));
         $finalQuizIds = DB::table('quizzes')->where('course_id', $group->course_id)->where('is_final', true)->pluck('id');
         $passed = DB::table('quiz_attempts')->whereIn('quiz_id', $finalQuizIds)->where('passed', true)->pluck('student_id')->flip();
-        $existing = DB::table('certificates')->where('group_id', $group->id)->pluck('code', 'student_id');
+        $existing = DB::table('certificates')->where('group_id', $group->id)->whereNull('revoked_at')->pluck('code', 'student_id');
 
         return $students->map(function ($s) use ($statuses, $passed, $existing, $settings, $finalQuizIds) {
             $marked = ($statuses[$s->id] ?? collect())->pluck('status')->all();
@@ -127,6 +164,7 @@ class CertificateController
             return [
                 'student_id' => $s->id,
                 'name' => trim($s->first_name.' '.$s->last_name),
+                'left' => $s->left_at !== null,
                 'attendance_rate' => $rate,
                 'marked_sessions' => count($marked),
                 'final_quiz_passed' => $quizPassed,

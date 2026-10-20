@@ -186,7 +186,7 @@ def load_picture(api, url, picture, max_height=360):
 
 
 AUDIENCES = [("ALL", "Hammaga"), ("ROLE", "Rol bo'yicha"), ("GROUP", "Guruhga")]
-AUDIENCE_ROLES = ["STUDENT", "PARENT", "TEACHER", "ADMIN"]
+AUDIENCE_ROLES = ["STUDENT", "TEACHER", "ADMIN"]
 
 
 def announcement_form(page, ann, on_done):
