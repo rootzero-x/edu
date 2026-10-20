@@ -1,0 +1,11 @@
+.live { display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px 2px 2px 10px; border-radius: var(--radius-full); background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-muted); }
+.dot { position: relative; width: 8px; height: 8px; border-radius: 50%; }
+.on { background: var(--success); }
+.on::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--success); animation: live 2s ease-out infinite; }
+@keyframes live { from { transform: scale(0.6); opacity: 0.8; } to { transform: scale(1.8); opacity: 0; } }
+.off { background: var(--fg-subtle); }
+.err { background: var(--danger); }
+.text { white-space: nowrap; font-weight: 550; }
+.ago { font-weight: 400; color: var(--fg-subtle); }
+.spin { animation: spin 0.8s linear infinite; }
+@media (max-width: 480px) { .ago { display: none; } }

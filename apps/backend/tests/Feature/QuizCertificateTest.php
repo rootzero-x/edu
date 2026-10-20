@@ -101,7 +101,8 @@ class QuizCertificateTest extends TestCase
         $admin = User::factory()->role(Role::Admin)->create();
         Sanctum::actingAs($admin);
         // Yakuniy testdan o'tmagan → berilmaydi.
-        $this->getJson("/v1/groups/{$this->group->id}/certificates")->assertJsonPath('data.0.blockers', ['QUIZ_NOT_PASSED']);
+        $this->getJson("/v1/groups/{$this->group->id}/certificates")->assertJsonPath('data.0.blockers', ['NO_ATTENDANCE_DATA', 'QUIZ_NOT_PASSED']);
+        $this->markPresent();
 
         Sanctum::actingAs($this->student);
         $a = $this->postJson("/v1/quizzes/$quizId/attempts")->json('attempt.id');
@@ -122,10 +123,18 @@ class QuizCertificateTest extends TestCase
         $this->getJson('/v1/certificates')->assertJsonCount(1, 'data');
     }
 
+    private function markPresent(): void
+    {
+        $sid = DB::table('class_sessions')->insertGetId(['group_id' => $this->group->id, 'starts_at' => '2026-10-02 14:00:00',
+            'ends_at' => '2026-10-02 15:00:00', 'cancelled' => false, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('attendances')->insert(['session_id' => $sid, 'student_id' => $this->student->id, 'status' => 'PRESENT',
+            'marked_by' => $this->teacher->id, 'marked_at' => now()]);
+    }
+
     public function test_certificate_conditions_follow_settings(): void
     {
         $this->buildQuiz();
-        app(Settings::class)->set(['certificate.require_final_quiz' => false, 'certificate.min_attendance_percent' => 0], null);
+        app(Settings::class)->set(['certificate.require_final_quiz' => false, 'certificate.min_attendance_percent' => 0, 'certificate.min_marked_sessions' => 0], null);
         DB::table('ledger_entries')->insert(['student_id' => $this->student->id, 'group_id' => $this->group->id, 'type' => 'INVOICE', 'amount' => 100, 'created_at' => now(), 'updated_at' => now()]);
         Sanctum::actingAs(User::factory()->role(Role::Admin)->create());
         $this->getJson("/v1/groups/{$this->group->id}/certificates")->assertJsonPath('data.0.blockers', ['HAS_DEBT']);

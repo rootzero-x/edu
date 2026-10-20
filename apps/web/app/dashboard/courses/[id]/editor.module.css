@@ -1,0 +1,13 @@
+.modules { display: flex; flex-direction: column; gap: var(--space-4); }
+.num { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent-text); font-size: var(--text-sm); font-weight: 700; margin-right: var(--space-2); }
+.lessons { list-style: none; margin: 0; padding: 0; }
+.lesson { display: flex; align-items: center; gap: var(--space-3); padding: 10px var(--space-5); border-bottom: 1px solid var(--border); margin: 0; }
+.lesson:last-child { border-bottom: 0; }
+.lesson:hover { background: color-mix(in oklab, var(--surface-2) 60%, transparent); }
+.lessonIcon { color: var(--fg-subtle); flex: none; display: inline-flex; }
+.lessonIcon svg { width: 16px; height: 16px; }
+.lessonTitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lessonActions { display: flex; align-items: center; gap: var(--space-1); flex: none; }
+.desc { white-space: pre-wrap; }
+.facts { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-5); }
+@media (max-width: 600px) { .lesson { flex-wrap: wrap; padding: var(--space-3) var(--space-4); } .lessonActions { width: 100%; justify-content: flex-end; } }

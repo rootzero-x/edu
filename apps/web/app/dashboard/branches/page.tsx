@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { api, me } from "@/lib/api";
-import Branches from "./Branches";
+import Branches, { type Branch } from "./Branches";
+
+export const metadata: Metadata = { title: "Filiallar" };
 
 export default async function BranchesPage() {
   const user = await me();
   if (!user?.permissions.includes("user.manage")) redirect("/dashboard");
-  const { data } = await api<{ data: any[] }>("/v1/branches");
+  const { data } = await api<{ data: Branch[] }>("/v1/branches");
   return <Branches rows={data.data ?? []} />;
 }

@@ -1,18 +1,46 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import { publicSettings } from "@/lib/api";
+import { accentColors, siteName, str } from "@/lib/settings";
+import SiteProvider from "@/components/SiteProvider";
+import { themeScript } from "@/components/ThemeToggle";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin", "cyrillic"], display: "swap", variable: "--font-inter" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const s = await publicSettings();
-  return { title: s?.["site.name"] ?? "TISU Edu", description: s?.["site.description"] ?? "" };
+  const name = siteName(s);
+  const logo = str(s, "site.logo_url");
+  return {
+    title: { default: name, template: `%s · ${name}` },
+    description: str(s, "site.description"),
+    icons: logo ? { icon: logo } : undefined,
+    openGraph: { title: name, description: str(s, "site.description"), siteName: name },
+  };
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  const s = await publicSettings();
+  return { themeColor: accentColors(str(s, "site.primary_color"))?.accent, width: "device-width", initialScale: 1 };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const s = await publicSettings();
-  const accent = /^#[0-9a-fA-F]{3,8}$/.test(String(s?.["site.primary_color"] ?? "")) ? String(s!["site.primary_color"]) : undefined;
+  const c = accentColors(str(s, "site.primary_color"));
   return (
-    <html lang={String(s?.["site.default_locale"] ?? "uz")}>
-      <body style={accent ? ({ "--accent": accent } as React.CSSProperties) : undefined}>{children}</body>
+    <html
+      lang={str(s, "site.default_locale", "uz")}
+      className={inter.variable}
+      style={c ? ({ "--accent": c.accent, "--accent-fg": c.fg } as React.CSSProperties) : undefined}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body>
+        <SiteProvider settings={s}>{children}</SiteProvider>
+      </body>
     </html>
   );
 }
