@@ -36,7 +36,7 @@ export default function StudentBillingView({ data, type }: { data: StudentBillin
     title: "Yozuvni bekor qilish",
     description: `${L.types[e.type] ?? e.type}: ${L.signed(e.amount)} · ${fmtYmd(e.entry_date)}. Yozuv o'chirilmaydi — "bekor qilingan" deb belgilanadi va balansdan chiqariladi.`,
     fields: [{ name: "reason", label: "Sabab", type: "textarea", required: true, placeholder: "Masalan: summa noto'g'ri kiritilgan" }],
-    submitText: "Bekor qilish",
+    submitText: "Tasdiqlash",
     onSubmit: async (v) => {
       if ((v.reason ?? "").trim().length < 3) return "Sababni yozing (kamida 3 belgi).";
       const r = await call<{ balance: number }>("POST", `billing/entries/${e.id}/void`, { reason: v.reason.trim() });
