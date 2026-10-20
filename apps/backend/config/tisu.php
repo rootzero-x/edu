@@ -18,6 +18,13 @@ $allPermissions = [
 return [
     'permissions' => $allPermissions,
 
+    // Sozlamalar sahifasidagi guruh nomlari (tartib ham shu bo'yicha).
+    'groups' => [
+        'site' => 'Sayt', 'login' => 'Kirish sahifasi', 'attendance' => 'Davomat', 'quiz' => 'Testlar',
+        'certificate' => 'Sertifikat', 'automation' => 'Avtomatik vazifalar', 'telegram' => 'Telegram bot',
+        'security' => 'Xavfsizlik', 'ui' => 'Interfeys', 'i18n' => 'Tarjimalar', 'roles' => 'Rollar huquqlari',
+    ],
+
     'settings' => [
         // ── Sayt (ochiq) ──────────────────────────────────────
         'site.name' => ['group' => 'site', 'type' => 'string', 'public' => true, 'label' => 'Sayt nomi', 'default' => 'TISU Edu'],
@@ -402,6 +409,17 @@ return [
             'room' => 'Xona',
             'quiz_back' => 'Test sahifasiga qaytish',
         ]],
+
+        // ── Avtomatik vazifalar (cron: * * * * * php artisan schedule:run) ──
+        'automation.generate_sessions' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni jadvaldan darslarni oldindan yaratish', 'default' => true],
+        'automation.lesson_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars oldidan o'quvchilarga Telegram eslatma", 'default' => true],
+        'automation.lesson_reminder_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 5, 'max' => 1440, 'label' => 'Eslatma necha daqiqa oldin yuborilsin', 'default' => 60],
+        'automation.lesson_reminder_parents' => ['group' => 'automation', 'type' => 'bool', 'label' => "Dars eslatmasi ota-onalarga ham", 'default' => false],
+        'automation.unmarked_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Davomat belgilanmasa o'qituvchiga eslatma", 'default' => true],
+        'automation.unmarked_after_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 0, 'max' => 1440, 'label' => "Dars tugaganidan necha daqiqa keyin eslatilsin", 'default' => 30],
+        'automation.cleanup_days' => ['group' => 'automation', 'type' => 'int', 'min' => 7, 'max' => 3650, 'label' => 'Bildirishnoma jurnali necha kun saqlansin', 'default' => 180],
+        'telegram.text.lesson_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => 'Bot: dars eslatmasi ({name}, {group}, {time}, {room}, {topic})', 'default' => "⏰ {name}, bugun {time} da «{group}» darsi bor. Xona: {room}."],
+        'telegram.text.unmarked_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga davomat eslatmasi ({name}, {group}, {time})", 'default' => "📋 {name}, «{group}» guruhining {time} dagi darsi uchun davomat hali belgilanmagan."],
 
         // ── Tarjimalar ───────────────────────────────────────
         'i18n.overrides' => ['group' => 'i18n', 'type' => 'object', 'label' => "Xabarlarni qayta yozish {\"validation.required\": \":attribute majburiy.\"}", 'default' => (object) []],

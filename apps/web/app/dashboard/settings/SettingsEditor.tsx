@@ -12,10 +12,6 @@ export type Item = {
   label: string; public: boolean; min: number | null; max: number | null; default: unknown; value: unknown;
 };
 
-const GROUPS: Record<string, string> = {
-  site: "Sayt", login: "Kirish sahifasi", attendance: "Davomat", quiz: "Testlar", certificate: "Sertifikat", billing: "Moliya",
-  telegram: "Telegram bot", security: "Xavfsizlik", ui: "Interfeys", roles: "Rollar huquqlari",
-};
 const ROLE_NAMES: Record<string, string> = { ADMIN: "Admin", TEACHER: "O'qituvchi", STUDENT: "O'quvchi", PARENT: "Ota-ona" };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -37,7 +33,8 @@ function listShape(i: Item): string[] | "string" | null {
  * Barcha sozlamalar API'dagi ta'riflardan avtomatik quriladi — config/tisu.php ga yangi sozlama
  * qo'shilsa, forma o'zi paydo bo'ladi (tur bo'yicha mos boshqaruv elementi bilan).
  */
-export default function SettingsEditor({ items, permissions }: { items: Item[]; permissions: string[] }) {
+export default function SettingsEditor({ items, permissions, groupLabels = {} }: { items: Item[]; permissions: string[]; groupLabels?: Record<string, string> }) {
+  const GROUPS = groupLabels;
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
@@ -47,7 +44,12 @@ export default function SettingsEditor({ items, permissions }: { items: Item[]; 
   const [invalid, setInvalid] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
-  const groups = useMemo(() => Object.entries(items.reduce<Record<string, Item[]>>((a, i) => ((a[i.group] ??= []).push(i), a), {})), [items]);
+  // Guruhlar tartibi API'dagi groups ro'yxatidan; ro'yxatda yo'qlari oxirida.
+  const groups = useMemo(() => {
+    const by = items.reduce<Record<string, Item[]>>((a, i) => ((a[i.group] ??= []).push(i), a), {});
+    const order = Object.keys(groupLabels);
+    return Object.entries(by).sort(([a], [b]) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999));
+  }, [items, groupLabels]);
   const [active, setActive] = useState(groups[0]?.[0] ?? "site");
 
   const value = (i: Item) => (i.key in draft ? draft[i.key] : i.value);
