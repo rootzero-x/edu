@@ -75,7 +75,9 @@ export const haptic = {
 export function confirmDialog(message: string): Promise<boolean> {
   const wa = webApp();
   if (wa && wa.isVersionAtLeast("6.2")) return new Promise((resolve) => wa.showConfirm(message, resolve));
-  return Promise.resolve(window.confirm(message));
+  // Eski Telegram klientida showConfirm yo'q, window.confirm esa Mini App ichida bloklanadi/osilib qoladi.
+  // Foydalanuvchi tugmani o'zi bosgan — tasdiqlangan deb hisoblaymiz (aks holda test umuman topshirilmasdi).
+  return Promise.resolve(true);
 }
 
 export function openLink(url: string) {

@@ -1,10 +1,13 @@
+import { fmtTime } from "@/lib/format";
+
 /** Sana/vaqt Mini App uchun (vaqt zonasi sozlamadan). */
 export function dayKey(iso: string, tz: string) {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: tz });
 }
 
+/** HH:mm — umumiy fmtTime orqali (uz-UZ lokali brauzerlarda bir xil emas, ICU farqi). */
 export function time(iso: string, tz: string) {
-  return new Date(iso).toLocaleTimeString("uz-UZ", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false });
+  return fmtTime(iso, tz);
 }
 
 /** dd.mm.yyyy (brauzer lokalidan qat'i nazar). */
