@@ -141,6 +141,15 @@ class UserController
             && \App\Models\StudyGroup::where('teacher_id', $user->id)->where('active', true)->exists()) {
             throw ValidationException::withMessages(['role' => 'Bu foydalanuvchi faol guruh o\'qituvchisi. Avval guruhlarga boshqa o\'qituvchi tayinlang.']);
         }
+        // O'quvchi guruh a'zosi yoki ota-onaga bog'langan farzand bo'lsa — boshqa rolga o'tkazilmaydi (davomat, testlar, xabarlar shunga bog'liq).
+        if ($roleChanged && $user->role === Role::Student) {
+            if (\Illuminate\Support\Facades\DB::table('group_members')->where('student_id', $user->id)->whereNull('left_at')->exists()) {
+                throw ValidationException::withMessages(['role' => 'Bu o\'quvchi guruh a\'zosi. Avval uni guruhlardan chiqaring.']);
+            }
+            if (\Illuminate\Support\Facades\DB::table('parent_child')->where('child_id', $user->id)->exists()) {
+                throw ValidationException::withMessages(['role' => 'Bu o\'quvchi ota-onaga farzand sifatida bog\'langan. Avval bog\'lanishni olib tashlang.']);
+            }
+        }
 
         $user->update($data);
         // Rol o'zgarsa eski tokenlar (va ulardagi huquqlar) bekor qilinadi — qayta kirish talab etiladi.

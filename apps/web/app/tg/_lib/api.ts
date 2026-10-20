@@ -9,7 +9,25 @@ export function setReauth(fn: () => Promise<boolean>) {
 
 export type ApiResult<T> = { ok: boolean; status: number; data: T };
 
+/** Vaqtinchalik xatolar (deploy, tarmoq uzilishi): GET so'rov shu kutishlar bilan qayta yuboriladi. */
+const RETRY_DELAYS_MS = [800, 1600, 3200];
+const TRANSIENT = new Set([0, 500, 502, 503, 504]);
+
 export async function tg<T = any>(method: string, path: string, body?: unknown, retried = false): Promise<ApiResult<T>> {
+  let r = await once<T>(method, path, body);
+  // Faqat o'qish so'rovlari takrorlanadi — yozish (davomat, test) ikki marta ketmasin.
+  if (method === "GET") {
+    for (const ms of RETRY_DELAYS_MS) {
+      if (!TRANSIENT.has(r.status)) break;
+      await new Promise((ok) => setTimeout(ok, ms));
+      r = await once<T>(method, path, body);
+    }
+  }
+  if (r.status === 401 && !retried && reauth && (await reauth())) return tg<T>(method, path, body, true);
+  return r;
+}
+
+async function once<T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> {
   let res: Response;
   try {
     res = await fetch(`/api/tg/${path.replace(/^\//, "")}`, {
@@ -23,7 +41,6 @@ export async function tg<T = any>(method: string, path: string, body?: unknown, 
     return { ok: false, status: 0, data: { message: "Internet bilan aloqa yo'q." } as T };
   }
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && !retried && reauth && (await reauth())) return tg<T>(method, path, body, true);
   return { ok: res.ok, status: res.status, data };
 }
 

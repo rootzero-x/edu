@@ -159,6 +159,44 @@ class QaRolePassTest extends TestCase
         $this->assertTrue((bool) $new['options'][1]['is_correct']);
     }
 
+    /** #7 (davomi): ball va matnli javob kaliti ham urinishdan keyin qulflanadi. */
+    public function test_points_and_accepted_answers_locked_after_attempts(): void
+    {
+        Sanctum::actingAs($this->teacher);
+        $quizId = $this->postJson("/v1/courses/{$this->course->id}/quizzes", ['title' => 'T', 'published' => true])->json('quiz.id');
+        $q = $this->postJson("/v1/quizzes/$quizId/questions", ['type' => 'TEXT', 'text' => 'Poytaxt?', 'points' => 2,
+            'accepted_answers' => ['Toshkent']])->json('question');
+        Sanctum::actingAs($this->student);
+        $this->postJson("/v1/quizzes/$quizId/attempts")->assertOk();
+
+        Sanctum::actingAs($this->teacher);
+        // Bir xil qiymatlar (katta-kichik harf/bo'shliq farqi) va matn tahriri — o'rnida.
+        $this->patchJson("/v1/questions/{$q['id']}", ['text' => "O'zbekiston poytaxti?", 'points' => 2, 'accepted_answers' => [' toshkent ']])
+            ->assertOk()->assertJsonPath('versioned', false)->assertJsonPath('question.text', "O'zbekiston poytaxti?");
+        // Kalit yoki ball o'zgarsa (Sprint 1, #21): eski savol qulflangan holda arxivlanadi, yangi versiya yaratiladi.
+        $v2 = $this->patchJson("/v1/questions/{$q['id']}", ['accepted_answers' => ['Toshkent', 'Tashkent']])
+            ->assertOk()->assertJsonPath('versioned', true)->json('question');
+        $this->assertSame(['toshkent'], json_decode((string) DB::table('questions')->where('id', $q['id'])->value('accepted_answers'), true));
+        $this->patchJson("/v1/questions/{$q['id']}", ['points' => 5])->assertStatus(409); // eski versiya endi tahrirlanmaydi
+        $this->patchJson("/v1/questions/{$v2['id']}", ['points' => 5])->assertOk()->assertJsonPath('versioned', true)->assertJsonPath('question.points', 5);
+        $this->assertSame(2, (int) DB::table('questions')->where('id', $v2['id'])->value('points'));
+    }
+
+    /** #3 (davomi): guruhdagi yoki farzand sifatida bog'langan o'quvchining roli o'zgarmaydi. */
+    public function test_enrolled_or_linked_student_role_cannot_change(): void
+    {
+        Sanctum::actingAs($this->admin);
+        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertUnprocessable()->assertJsonValidationErrors('role');
+
+        DB::table('group_members')->where('student_id', $this->student->id)->update(['left_at' => now()]);
+        $parent = User::factory()->role(Role::Parent)->create();
+        DB::table('parent_child')->insert(['parent_id' => $parent->id, 'child_id' => $this->student->id]);
+        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertUnprocessable();
+
+        DB::table('parent_child')->delete();
+        $this->patchJson("/v1/users/{$this->student->id}", ['role' => 'TEACHER'])->assertOk()->assertJsonPath('user.role', 'TEACHER');
+    }
+
     /** #10: ota-ona test topshira olmaydi — boshlash imkoni ko'rsatilmaydi. */
     public function test_parent_cannot_start_quiz(): void
     {

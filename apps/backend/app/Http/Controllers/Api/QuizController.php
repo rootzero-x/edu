@@ -140,10 +140,12 @@ class QuizController
         $data = $this->validateQuestion($request, $question->type);
         $attempted = QuizAttempt::where('quiz_id', $question->quiz_id)->exists();
         $options = $question->options()->orderBy('position')->orderBy('id')->get()->values();
+        // Matnli javoblar: katta-kichik harf, bo'shliq va tartib farqi — o'zgarish emas (baholash ham shunday solishtiradi).
+        $norm = fn (array $a) => collect($a)->map(fn ($v) => mb_strtolower(trim((string) $v)))->filter(fn ($v) => $v !== '')->unique()->sort()->values()->all();
         $gradingChanged = (isset($data['options']) && (count($data['options']) !== $options->count()
                 || $options->map(fn ($o) => (bool) $o->is_correct)->all() !== array_map(fn ($o) => (bool) $o['is_correct'], array_values($data['options']))))
             || (isset($data['points']) && (int) $data['points'] !== (int) $question->points)
-            || ($question->type === 'TEXT' && isset($data['accepted_answers']) && array_values($data['accepted_answers']) !== array_values((array) $question->accepted_answers));
+            || ($question->type === 'TEXT' && isset($data['accepted_answers']) && $norm($data['accepted_answers']) !== $norm((array) $question->accepted_answers));
 
         if ($attempted && $gradingChanged) {
             $new = DB::transaction(function () use ($question, $data, $options) {

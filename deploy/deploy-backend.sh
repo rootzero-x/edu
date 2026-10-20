@@ -69,22 +69,35 @@ if command -v mysqldump >/dev/null; then
   MYSQL_PWD="\$DB_PASSWORD" mysqldump --single-transaction --no-tablespaces -h"\${DB_HOST:-localhost}" -u"\$DB_USERNAME" "\$DB_DATABASE" 2>/dev/null \
     | (umask 077; gzip > ~/tisu-backups/db-$REL.sql.gz) || echo "ogohlantirish: mysqldump muvaffaqiyatsiz"
 fi
-# 2) Yangi kod (.env va storage saqlanadi)
-[ -f artisan ] && \$PHP artisan down --retry=30 >/dev/null 2>&1 || true
-rm -rf app bootstrap/cache/*.php config database public resources routes vendor
-tar -xzf ~/tisu-release-$REL.tgz && rm ~/tisu-release-$REL.tgz
+# 2) Yangi kod — uzilishsiz: avval alohida katalogga ochiladi va tayyorlanadi, keyin har bir element
+#    mv (rename) bilan bir zumda almashtiriladi. Eski usulda (rm + tar) bir necha soniya public/index.php
+#    yo'q bo'lib, so'rovlar 500 (redirect sikli) olardi. .env va storage tegilmaydi.
+STAGE=.release-$REL; OLD=.old-$REL
+rm -rf .release-* .old-*  # avvalgi muvaffaqiyatsiz deploy qoldiqlari
+mkdir \$STAGE \$OLD
+tar -xzf ~/tisu-release-$REL.tgz -C \$STAGE && rm ~/tisu-release-$REL.tgz
+rm -rf \$STAGE/storage \$STAGE/.env \$STAGE/bootstrap/cache/*.php
+# Veb-server o'qishi uchun: kataloglar 755, fayllar 644.
+find \$STAGE -type d -exec chmod 755 {} +
+find \$STAGE -type f -exec chmod 644 {} +
+chmod 755 \$STAGE/artisan
+for e in \$(ls -A \$STAGE); do
+  if [ -e "\$e" ]; then mv "\$e" "\$OLD/"; fi
+  mv "\$STAGE/\$e" "\$e"
+done
+rmdir \$STAGE
 mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
-# Veb-server o'qishi uchun: kataloglar 755, fayllar 644; .env faqat egasi uchun.
-chmod 755 .
-find . -path ./storage -prune -o -type d -exec chmod 755 {} +
-find . -path ./storage -prune -o -type f -exec chmod 644 {} +
-chmod 755 artisan; chmod 600 .env
+chmod 755 .; chmod 600 .env
 chmod -R u+rwX,go+rX storage bootstrap/cache
-# 3) Laravel
+# 3) Laravel. Texnik rejim (503) faqat yangi migratsiya bo'lsa — aks holda sayt bir soniya ham to'xtamaydi.
 \$PHP artisan package:discover >/dev/null
+if \$PHP artisan migrate:status --no-ansi 2>/dev/null | grep -q Pending; then
+  \$PHP artisan down --retry=15 >/dev/null 2>&1 || true
+fi
 \$PHP artisan migrate --force --no-ansi
 \$PHP artisan config:cache >/dev/null && \$PHP artisan route:cache >/dev/null
 \$PHP artisan up >/dev/null
+rm -rf \$OLD
 ls -1t ~/tisu-backups/code-*.tgz 2>/dev/null | tail -n +6 | xargs -r rm -f
 echo "OK $REL"
 REMOTE
