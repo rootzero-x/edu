@@ -58,6 +58,8 @@ Ixtiyoriy qadamlar. Ular avtomatik sozlanadi, BotFather faqat zaxira yo'l:
 
 ## Deploy'dan keyin
 
+myxvest serverida standart `php` buyrug'i PHP 7.2. Shuning uchun artisan'ni PHP 8.3 bilan ishga tushiring: `/opt/alt/php83/usr/bin/php artisan ...` (yoki avval `alias php=/opt/alt/php83/usr/bin/php` qiling).
+
 ```bash
 php artisan tisu:setting telegram.admin_chat_ids '[6817322973]'
 php artisan tisu:setting telegram.profile.photo_url '"https://tisu.uzstudents.uz/telegram/avatar.jpg"'
