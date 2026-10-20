@@ -1,4 +1,4 @@
-.filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); margin: var(--space-3) 0 var(--space-4); }
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin: var(--space-3) 0 var(--space-4); }
 .filters > * { min-width: 200px; }
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
 .card { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card, var(--surface)); }

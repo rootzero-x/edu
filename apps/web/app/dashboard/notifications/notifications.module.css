@@ -9,7 +9,7 @@
 .text { margin: 0; white-space: pre-line; overflow-wrap: anywhere; font-size: var(--text-sm); }
 .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
 .pager { display: flex; justify-content: center; align-items: center; gap: var(--space-3); padding: var(--space-3); border-top: 1px solid var(--border); }
-.filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); padding: var(--space-4); }
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); padding: var(--space-4); }
 .filters > * { min-width: 160px; }
 .bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--neutral-soft); min-width: 120px; }
 .bar span { display: block; height: 100%; }

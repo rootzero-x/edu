@@ -1,5 +1,5 @@
 
-.filters { padding: var(--space-4); margin-bottom: var(--space-4); display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); align-items: end; }
+.filters { padding: var(--space-4); margin-bottom: var(--space-4); display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); align-items: flex-end; }
 .list { list-style: none; margin: 0; padding: 0; }
 .row + .row { border-top: 1px solid var(--border); }
 .summary { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; width: 100%; padding: var(--space-3) var(--space-4); background: none; border: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
