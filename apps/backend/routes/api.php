@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\PublicLeadController;
@@ -58,6 +59,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/users/{parent}/children', [UserController::class, 'children']);
             Route::post('/users/{parent}/children', [UserController::class, 'linkChild']);
             Route::delete('/users/{parent}/children/{child}', [UserController::class, 'unlinkChild']);
+            Route::get('/imports/students/template', [ImportController::class, 'template']);
+            Route::post('/imports/students/preview', [ImportController::class, 'preview']);
+            Route::post('/imports/students/commit', [ImportController::class, 'commit']);
         });
 
         // Guruhlar va davomat (ko'rish — ko'rinish doirasi controller'da)
