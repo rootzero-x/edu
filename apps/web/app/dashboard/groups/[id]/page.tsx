@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { api, me, publicSettings } from "@/lib/api";
 import { WEEKDAYS, fmtDateTime, personName } from "@/lib/format";
 import GroupAdmin from "./GroupAdmin";
+import Certificates from "./Certificates";
 
 export default async function GroupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,6 +51,8 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
           </table>
         </div>
       </div>
+
+      {manage && <Certificates groupId={group.id} />}
 
       <div className="grid2">
         <div className="card">

@@ -82,3 +82,7 @@ ul.plain li { padding: 5px 0; border-bottom: 1px solid var(--border); }
 .seg button.on.s-ABSENT { background: #dc2626; }
 .seg button.on.s-EXCUSED { background: #6b7280; }
 td input { margin: 0; min-width: 90px; }
+
+.opt { display: block; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.opt:hover { background: var(--bg); }
+.opt.right { background: #dcfce7; color: #166534; }
