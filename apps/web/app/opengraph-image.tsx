@@ -19,7 +19,12 @@ export default async function OpengraphImage() {
         background: `linear-gradient(135deg, ${accent} 0%, #0f172a 100%)`, color: "#fff", fontFamily: "sans-serif" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           <div style={{ width: 112, height: 112, borderRadius: 28, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 64, fontWeight: 800 }}>{name.slice(0, 1)}</div>
+            justifyContent: "center" }}>
+            <svg width={84} height={84} viewBox="0 0 64 64">
+              <path d="M32 14 6 26l26 12 20-9.2V42h4V26L32 14z" fill="#fff" />
+              <path d="M18 36v8c0 3.3 6.3 6 14 6s14-2.7 14-6v-8l-14 6.4L18 36z" fill="#fff" opacity="0.85" />
+            </svg>
+          </div>
           <div style={{ fontSize: 76, fontWeight: 800, letterSpacing: -2 }}>{name}</div>
         </div>
         {tagline && <div style={{ marginTop: 40, fontSize: 40, opacity: 0.9, maxWidth: 1000 }}>{tagline}</div>}

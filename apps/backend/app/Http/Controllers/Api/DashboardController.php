@@ -53,18 +53,21 @@ class DashboardController
 
         // Davomat: belgilovchi — ko'rinadigan guruhlar bo'yicha, o'quvchi — faqat o'zi.
         $days = $settings->int('ui.summary_attendance_days');
-        $statuses = DB::table('attendances')
+        // Davomat SQL da sanaladi (har bir belgi PHP ga yuklanmaydi). Kesh yo'q — belgilash darhol ko'rinsin.
+        $counts = DB::table('attendances')
             ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
             ->whereIn('class_sessions.group_id', $groupIds)
             ->where('class_sessions.cancelled', false)
             ->where('class_sessions.starts_at', '>=', now()->subDays($days))
             ->when(! $marker, fn ($q) => $q->where('attendances.student_id', $user->id))
-            ->pluck('attendances.status')->all();
-
+            ->groupBy('attendances.status')->selectRaw('attendances.status, count(*) as c')->pluck('c', 'status')
+            ->map(fn ($c) => (int) $c)->all();
         // Belgilanmagan darslar — /v1/attendance/unmarked bilan bir xil qoida (qisman belgilanganlar ham).
-        $unmarked = $marker
-            ? (int) app(AttendanceController::class)->unmarked($request, $settings)->getData(true)['total']
-            : null;
+        $unmarked = $marker ? (int) app(AttendanceController::class)->unmarked($request, $settings)->getData(true)['total'] : null;
+        $statuses = [];
+        foreach ($counts as $status => $c) {
+            array_push($statuses, ...array_fill(0, $c, $status));
+        }
 
         return response()->json([
             'role' => $user->role,

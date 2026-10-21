@@ -58,11 +58,14 @@ class AuditController
     /** Filtrlar uchun: amallar, obyekt turlari va bajaruvchilar (jurnalda uchraganlari). */
     public function facets(): JsonResponse
     {
-        $actions = DB::table('audit_logs')->distinct()->orderBy('action')->pluck('action');
-        $entities = DB::table('audit_logs')->distinct()->orderBy('entity')->pluck('entity');
-        $actors = DB::table('users')->whereIn('id', DB::table('audit_logs')->whereNotNull('actor_id')->distinct()->select('actor_id'))
-            ->orderBy('first_name')->limit(500)->get(['id', 'first_name', 'last_name', 'role'])
-            ->map(fn ($u) => ['id' => (int) $u->id, 'name' => trim($u->first_name.' '.$u->last_name), 'role' => $u->role]);
+        // Butun jurnal bo'ylab DISTINCT har ochilishda emas: oxirgi yozuv id si bo'yicha keshlanadi (yangi amal — yangi kalit).
+        [$actions, $entities, $actors] = \Illuminate\Support\Facades\Cache::remember('audit.facets.'.(int) DB::table('audit_logs')->max('id'), 3600, fn () => [
+            DB::table('audit_logs')->distinct()->orderBy('action')->pluck('action')->all(),
+            DB::table('audit_logs')->distinct()->orderBy('entity')->pluck('entity')->all(),
+            DB::table('users')->whereIn('id', DB::table('audit_logs')->whereNotNull('actor_id')->distinct()->select('actor_id'))
+                ->orderBy('first_name')->limit(500)->get(['id', 'first_name', 'last_name', 'role'])
+                ->map(fn ($u) => ['id' => (int) $u->id, 'name' => trim($u->first_name.' '.$u->last_name), 'role' => $u->role])->all(),
+        ]);
 
         return response()->json([
             'actions' => $actions,

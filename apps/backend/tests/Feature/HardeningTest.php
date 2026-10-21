@@ -28,4 +28,14 @@ class HardeningTest extends TestCase
         $this->assertSame([], $r->headers->getCookies());
         $this->getJson('/health')->assertOk()->assertJsonMissingPath('version')->assertJsonMissingPath('scheduler.last_tick');
     }
+
+    public function test_cleanup_removes_old_audit_logs_in_chunks_and_keeps_recent(): void
+    {
+        $old = now()->subDays(800);
+        $rows = array_map(fn ($i) => ['action' => 'x.old', 'entity' => 'x', 'created_at' => $old], range(1, 12));
+        \Illuminate\Support\Facades\DB::table('audit_logs')->insert($rows);
+        \Illuminate\Support\Facades\DB::table('audit_logs')->insert(['action' => 'x.new', 'entity' => 'x', 'created_at' => now()]);
+        $this->artisan('tisu:cleanup')->assertSuccessful();
+        $this->assertSame(['x.new'], \Illuminate\Support\Facades\DB::table('audit_logs')->pluck('action')->all());
+    }
 }

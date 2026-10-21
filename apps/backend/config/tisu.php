@@ -768,6 +768,7 @@ return [
         'notifications.mark_pushed_news_read' => ['group' => 'notifications', 'type' => 'bool', 'label' => "Telegram'ga yuborilgan yoki botda ochilgan yangilik o'qilgan hisoblanadi", 'default' => true],
 
         // ── Sprint 3: audit jurnali ──────────────────────────
+        'audit.retention_days' => ['group' => 'audit', 'type' => 'int', 'min' => 90, 'max' => 3650, 'label' => "Audit jurnali necha kun saqlanadi (eskilari har kecha o'chiriladi)", 'default' => 730],
         'audit.page_size' => ['group' => 'audit', 'type' => 'int', 'min' => 10, 'max' => 500, 'label' => "Audit jurnalida qatorlar soni", 'default' => 50],
         'audit.max_days' => ['group' => 'audit', 'type' => 'int', 'min' => 1, 'max' => 3650, 'label' => 'Audit jurnalida bir so\'rovdagi maksimal davr (kun)', 'default' => 366],
         'audit.entity_labels' => ['group' => 'audit', 'type' => 'object', 'public' => true, 'label' => "Audit: obyekt turlari nomlari", 'default' => [

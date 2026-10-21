@@ -87,14 +87,33 @@ final class Billing
         $toDate = $to->toDateString();
         $members = $this->members($fromDate, $toDate);
 
-        $rows = [];
         $now = now();
+        $created = 0;
+        $total = 0;
+        // Har kun alohida yoziladi: uzoq "catch-up" (masalan, bir yil) ham xotirani to'ldirmaydi.
+        $flush = function (array $rows) use ($dryRun, &$created, &$total): void {
+            foreach (array_chunk($rows, 500) as $chunk) {
+                $existing = DB::table('billing_entries')->whereIn('dedupe_key', array_column($chunk, 'dedupe_key'))->pluck('dedupe_key')->flip();
+                $new = array_values(array_filter($chunk, fn ($r) => ! isset($existing[$r['dedupe_key']])));
+                if (! $new) {
+                    continue;
+                }
+                if ($dryRun) {
+                    $created += count($new);
+                } else {
+                    // Parallel ishga tushsa ham unique kalit dublikatga yo'l qo'ymaydi.
+                    $created += DB::table('billing_entries')->insertOrIgnore($new);
+                }
+                $total += array_sum(array_column($new, 'amount'));
+            }
+        };
         for ($day = Carbon::parse($fromDate); $day->toDateString() <= $toDate; $day = $day->addDay()) {
             $date = $day->toDateString();
             $amount = self::dailyCharge($this->feeOn($date), $day);
             if ($amount <= 0) {
                 continue;
             }
+            $rows = [];
             foreach ($members as $m) {
                 if (! self::chargesOn($m, $date)) {
                     continue;
@@ -105,26 +124,7 @@ final class Billing
                     'created_at' => $now, 'updated_at' => $now,
                 ];
             }
-        }
-
-        $created = 0;
-        $total = 0;
-        foreach (array_chunk($rows, 500) as $chunk) {
-            if ($dryRun) {
-                $existing = DB::table('billing_entries')->whereIn('dedupe_key', array_column($chunk, 'dedupe_key'))->pluck('dedupe_key')->flip();
-                $chunk = array_filter($chunk, fn ($r) => ! isset($existing[$r['dedupe_key']]));
-                $created += count($chunk);
-                $total += array_sum(array_column($chunk, 'amount'));
-
-                continue;
-            }
-            $before = DB::table('billing_entries')->whereIn('dedupe_key', array_column($chunk, 'dedupe_key'))->pluck('dedupe_key')->flip();
-            $new = array_values(array_filter($chunk, fn ($r) => ! isset($before[$r['dedupe_key']])));
-            if ($new) {
-                // Parallel ishga tushsa ham unique kalit dublikatga yo'l qo'ymaydi.
-                $created += DB::table('billing_entries')->insertOrIgnore($new);
-                $total += array_sum(array_column($new, 'amount'));
-            }
+            $flush($rows);
         }
 
         return ['days' => Carbon::parse($fromDate)->diffInDays(Carbon::parse($toDate)) + 1, 'memberships' => $members->unique(fn ($m) => $m->group_id.':'.$m->student_id)->count(), 'created' => $created, 'amount' => -$total];

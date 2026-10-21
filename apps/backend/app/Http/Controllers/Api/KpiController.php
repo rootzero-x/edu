@@ -26,6 +26,26 @@ class KpiController
             'group_id' => ['nullable', 'integer'], 'teacher_id' => ['nullable', 'integer'], 'course_id' => ['nullable', 'integer'],
         ]);
         $user = $request->user();
+        // 60+ so'rovli hisob har safar emas: ma'lumot o'zgarmagan bo'lsa (izi bir xil) — keshdan.
+        $key = 'kpi.'.md5(json_encode([$user->id, $user->role->value, $data, $this->fingerprint(), now()->toDateString()]));
+
+        return response()->json(\Illuminate\Support\Facades\Cache::remember($key, 600, fn () => $this->build($request, $data)));
+    }
+
+    /** Manba jadvallarining arzon "izi" (indeksli max): yangi belgi, a'zolik o'zgarishi, to'lov yoki urinish keshni yangilaydi. */
+    private function fingerprint(): array
+    {
+        return [
+            DB::table('attendances')->max('marked_at'), DB::table('enrollments')->max('updated_at'),
+            DB::table('billing_entries')->max('id'), DB::table('quiz_attempts')->max('id'),
+            \Illuminate\Support\Facades\Schema::hasTable('assignment_submissions') ? DB::table('assignment_submissions')->max('updated_at') : null,
+            DB::table('class_sessions')->max('updated_at'), DB::table('settings')->max('updated_at'),
+        ];
+    }
+
+    private function build(Request $request, array $data): array
+    {
+        $user = $request->user();
         $n = $data['months'] ?? $this->settings->int('reports.kpi_months');
         $groupIds = $this->groupIds($request, $data);
         $months = [];
@@ -109,7 +129,7 @@ class KpiController
         $students = DB::table('group_members')->whereIn('group_id', $groupIds)->whereNull('left_at')->distinct()->pluck('student_id');
         $linked = $students->isEmpty() ? 0 : DB::table('telegram_links')->whereIn('user_id', $students)->count();
 
-        return response()->json([
+        return [
             'months' => array_column($months, 'key'),
             'series' => $series,
             'teachers' => $teachers,
@@ -118,7 +138,8 @@ class KpiController
             'targets' => ['attendance' => $this->settings->int('reports.attendance_target'), 'quiz_pass' => $this->settings->int('reports.quiz_pass_target')],
             'money' => $user->hasPermission('billing.manage') ? $this->money($months, $rangeStart, $rangeEnd) : null,
             'source' => ['students' => 'enrollments'],
-        ]);
+            'generated_at' => now()->toIso8601String(),
+        ];
     }
 
     /** Drill-down: shu oyda qo'shilgan / chiqqan / oy oxirida faol o'quvchilar ro'yxati. */
