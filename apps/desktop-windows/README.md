@@ -43,10 +43,14 @@ Biznes mantiq `TisuEdu.Core` da — shuning uchun u har qanday OS'da quriladi va
 | Hisobotlar | umumiy ko'rsatkichlar, davomat (kunlar diagrammasi, guruhlar, xavf ostidagilar), testlar; CSV: server `attendance.csv` + guruhlar/testlar (Excel uchun BOM, `;`, formula-injection himoyasi) | `report.view` |
 | Profil | ism/familiya, parol (Telegram orqali kelganlarga birinchi parol), chiqish | hamma |
 | Ilova sozlamalari | mavzu, bildirishnomalar, versiya | — |
+| To'lovlar | balanslar/qarzdorlar (qidiruv, filtr, tartib), davr hisoboti, o'quvchi jurnali; to'lov (takroriy bosishdan himoyalangan `request_id`), tuzatish, bekor qilish (sabab bilan); CSV (`balances.csv`, `entries.csv`). O'quvchi — o'z balansi (`billing/me`) | `billing.manage` / o'quvchi |
+| Foydalanuvchilar | qidiruv, rol va "tasdiq kutmoqda" filtrlari, yaratish, tahrirlash, parol o'rnatish, bloklash, botdan kelganlarni tasdiqlash | `user.manage` |
+| Tizim sozlamalari | barcha sozlamalar bo'lim va qidiruv bo'yicha, turiga mos tahrir (son, ha/yo'q, matn, ro'yxat/obyekt — JSON), standartga qaytarish | `settings.manage` |
+| Kontentni tahrirlash | kurs (yaratish, tahrirlash, chop etish, o'chirish), modullar, darslar, materiallar (video/fayl/havola/matn), testlar va savollar (`*` — to'g'ri variant), e'lonlar (qoralama, auditoriya, chop etish/yashirish), guruhlar (haftalik jadval, darslarni yaratish, a'zolar), sertifikat berish/bekor qilish, darsni bekor qilish | kurs muallifi (`can_edit`), `quiz.manage`, `announcement.manage`, `group.manage` |
 
-**Admin bo'limlari** (Foydalanuvchilar, Filiallar, tizim Sozlamalari) hamda kurs/test/e'lon **tahrirlash** ilovada
-qayta yozilmagan — menyudagi "Boshqaruv (saytda)" va "Saytda ochish" tugmalari ularni brauzerda
-(`site.url` + `/dashboard/...`) ochadi.
+Tahrirlash formalari bitta umumiy dialogda (`IForms` → ContentDialog): server validatsiya xatosi (422) qaytarsa dialog
+yopilmaydi va xato matni ko'rsatiladi. Telegram orqali kirishda **QR-kod** ko'rsatiladi (telefon kamerasi bilan
+skanerlash). YouTube/Vimeo videolari (`course.embed_hosts`) ilova ichida **WebView2** da ochiladi.
 
 ### Xavfsizlik va ishonchlilik
 
@@ -146,7 +150,7 @@ oyna sarlavhasi — `site.name` dan.
 
 ## Ma'lum cheklovlar
 
-- Video materiallar ilova ichida emas, brauzerda ochiladi (YouTube/Vimeo).
-- Kurs, test, e'lon yaratish/tahrirlash va admin bo'limlari — saytda (yuqoriga qarang).
+- Fayl va havola materiallari brauzerda ochiladi; video WebView2 runtime bo'lmasa ham brauzerga o'tadi.
+- Sprint 3 bo'limlari (uyga vazifa, taqvim, arizalar/CRM, audit jurnali, fayllar) hozircha faqat saytda.
 - Bildirishnomalar ilova ochiq (yoki vazifalar panelida yig'ilgan) paytda so'rov orqali keladi; ilova
   yopilganda push yo'q (server Windows push xizmatiga ulanmagan).
