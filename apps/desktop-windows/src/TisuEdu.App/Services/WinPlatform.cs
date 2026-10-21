@@ -9,7 +9,13 @@ namespace TisuEdu.App.Services;
 /// <summary>Windows xizmatlari: havola ochish, fayl saqlash oynasi, tasdiqlash dialogi, bufer.</summary>
 internal sealed class WinPlatform(MainWindow window) : IPlatform
 {
-    public void Open(Uri uri) => _ = Windows.System.Launcher.LaunchUriAsync(uri);
+    /// <summary>Faqat https/http/tg/tel (ExternalLinks) — boshqa sxemalar (file:, ms-…) ishga tushirilmaydi.</summary>
+    public void Open(Uri uri)
+    {
+        if (!ExternalLinks.IsAllowed(uri)) return;
+        try { _ = Windows.System.Launcher.LaunchUriAsync(uri); }
+        catch (Exception) { /* noto'g'ri havola — e'tiborsiz */ }
+    }
 
     public async Task<bool> SaveFileAsync(string suggestedName, string extensionLabel, string extension, byte[] content)
     {

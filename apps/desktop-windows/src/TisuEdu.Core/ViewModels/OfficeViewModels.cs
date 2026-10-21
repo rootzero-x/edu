@@ -674,7 +674,7 @@ public sealed partial class LeadViewModel(AppServices services, int leadId) : Pa
     [RelayCommand]
     private void Call()
     {
-        if (_lead is not null) S.Platform.Open(new Uri("tel:" + _lead.Phone));
+        if (_lead is not null) S.Platform.OpenUrl("tel:" + _lead.Phone);
     }
 }
 
@@ -749,7 +749,7 @@ public sealed class SearchService(AppServices s)
                 s.Navigator.Navigate(Page.Lead, l);
                 break;
             case "certificate":
-                s.Platform.Open(new Uri(s.Settings.Current.CertificateBaseUrl.TrimEnd('/') + "/" + Uri.EscapeDataString(h.StrId)));
+                s.Platform.OpenUrl(s.Settings.Current.CertificateBaseUrl.TrimEnd('/') + "/" + Uri.EscapeDataString(h.StrId));
                 break;
             default:
                 if (Links.Map(h.Href) is { } t) s.Navigator.Navigate(t.Page, t.Parameter);

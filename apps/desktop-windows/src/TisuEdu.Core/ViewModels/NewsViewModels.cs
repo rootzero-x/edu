@@ -220,7 +220,7 @@ public sealed partial class CertificatesViewModel(AppServices services) : PageVi
     [RelayCommand]
     private void Open(CertificateItem? item)
     {
-        if (item is not null) S.Platform.Open(new Uri(item.Url));
+        if (item is not null) S.Platform.OpenUrl(item.Url);
     }
 
     public bool CanRevoke => S.Session.Can(Permissions.GroupManage);

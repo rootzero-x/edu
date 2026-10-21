@@ -57,7 +57,7 @@ public sealed partial class DashboardViewModel(AppServices services) : PageViewM
     {
         if (step is null) return;
         if (Links.Map(step.Step.Href) is { } t) S.Navigator.Navigate(t.Page, t.Parameter);
-        else if (!string.IsNullOrEmpty(step.Step.Href)) S.Platform.Open(new Uri(Settings.SiteUrl + step.Step.Href));
+        else if (!string.IsNullOrEmpty(step.Step.Href)) S.Platform.OpenUrl(Settings.SiteUrl + step.Step.Href);
     }
 
     [ObservableProperty] private string _greeting = "";

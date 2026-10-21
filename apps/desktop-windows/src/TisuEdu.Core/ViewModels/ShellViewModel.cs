@@ -83,7 +83,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public void RefreshAll() => OnPropertyChanged(string.Empty);
 
     /// <summary>Admin bo'limlari (foydalanuvchilar, filiallar, tizim sozlamalari) — saytdagi boshqaruv panelida.</summary>
-    public void OpenWeb(string path) => _s.Platform.Open(new Uri(Settings.SiteUrl + path));
+    public void OpenWeb(string path) => _s.Platform.OpenUrl(Settings.SiteUrl + path);
 
     [RelayCommand]
     private Task LogoutAsync() => _s.Session.SignOutAsync();

@@ -170,7 +170,7 @@ public sealed partial class CourseViewModel(AppServices services, int courseId) 
     private void Contact() => AccessActions.Contact(S.Platform, Denied);
 
     [RelayCommand]
-    private void OpenOnWeb() => S.Platform.Open(new Uri($"{Settings.SiteUrl}/dashboard/courses/{courseId}"));
+    private void OpenOnWeb() => S.Platform.OpenUrl($"{Settings.SiteUrl}/dashboard/courses/{courseId}");
 
     // ── Tahrirlash (kurs muallifi yoki admin: can_edit) ──────
     private Course? _course;
@@ -215,9 +215,9 @@ internal static class AccessActions
     public static void Contact(IPlatform platform, AccessInfo? denied)
     {
         if (denied is null) return;
-        var url = !string.IsNullOrWhiteSpace(denied.ContactUrl) ? denied.ContactUrl
-            : denied.Contact?.StartsWith('@') == true ? "https://t.me/" + denied.Contact[1..] : null;
-        if (url is not null && Uri.TryCreate(url, UriKind.Absolute, out var u)) platform.Open(u);
+        // contact_url bo'lmasa yoki ruxsat etilmagan sxemada bo'lsa — "@username" dan Telegram havolasi.
+        if (platform.OpenUrl(denied.ContactUrl)) return;
+        if (denied.Contact?.StartsWith('@') == true) platform.OpenUrl("https://t.me/" + Uri.EscapeDataString(denied.Contact[1..]));
     }
 }
 
@@ -371,7 +371,7 @@ public sealed partial class LessonViewModel(AppServices services, int lessonId) 
         if (m?.Material.FileId is { } fileId)
         {
             // Yuklangan fayl: vaqtinchalik imzolangan havola orqali (brauzer yuklab oladi yoki ko'rsatadi).
-            await ActAsync(async () => S.Platform.Open(new Uri((await S.Api.FileLinkAsync(fileId)).Url)));
+            await ActAsync(async () => S.Platform.OpenUrl((await S.Api.FileLinkAsync(fileId)).Url));
             return;
         }
         OpenMaterialLink(m);
@@ -385,8 +385,7 @@ public sealed partial class LessonViewModel(AppServices services, int lessonId) 
             VideoUri = embed;
             return;
         }
-        if (m?.Material.Url is { } url && Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp))
-            S.Platform.Open(u);
+        S.Platform.OpenUrl(m?.Material.Url);
     }
 
     [RelayCommand]

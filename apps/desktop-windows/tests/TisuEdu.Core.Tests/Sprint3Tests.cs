@@ -86,6 +86,7 @@ public class Sprint3Tests
              "my":{"status":"PENDING","can_submit":true,"files":[]}},"scale":{"min":1,"max":5}}
             """;
         app.Handler.On("GET", "assignments/4", HttpStatusCode.OK, a)
+                   .On("POST", "uploads/ticket", HttpStatusCode.OK, """{"url":"https://api.test/v1/assignments/4/submission/files","token":"TICKET","expires_at":"2026-10-21T10:00:00+05:00"}""")
                    .On("POST", "assignments/4/submission/files", HttpStatusCode.Created, """{"file":{"id":9,"name":"javob.pdf","mime":"application/pdf","size":10}}""")
                    .On("PUT", "assignments/4/submission", HttpStatusCode.OK, """{"my":{"status":"SUBMITTED","can_submit":true}}""");
         var vm = new AssignmentViewModel(app.Services, 4);

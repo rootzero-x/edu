@@ -95,11 +95,21 @@ jobs:
       # 2) MSIX: CI uchun o'z-o'zidan imzolangan sertifikat (Publisher = CN=TISU Edu, Package.appxmanifest bilan bir xil).
       #    Reliz uchun haqiqiy sertifikat: secrets.MSIX_CERT_BASE64 + secrets.MSIX_CERT_PASSWORD.
       - name: Signing certificate
+        id: cert
         env:
           MSIX_CERT_BASE64: ${{ secrets.MSIX_CERT_BASE64 }}
           MSIX_CERT_PASSWORD: ${{ secrets.MSIX_CERT_PASSWORD }}
         run: |
           $pfx = "$PWD\signing.pfx"
+          $isTag = "$env:GITHUB_REF" -like "refs/tags/desktop-windows-v*"
+          if ($isTag -and -not $env:MSIX_CERT_BASE64) {
+            # Reliz uchun vaqtinchalik (o'z-o'zidan imzolangan) sertifikat chiqarilmaydi: MSIX o'tkazib yuboriladi,
+            # relizga faqat imzosiz portable zip qo'yiladi. MSIX kerak bo'lsa — MSIX_CERT_BASE64/MSIX_CERT_PASSWORD secrets.
+            echo "::warning title=MSIX o'tkazib yuborildi::MSIX_CERT_BASE64 secret yo'q — reliz faqat portable zip bilan chiqadi."
+            "skip=true" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          "skip=false" >> $env:GITHUB_OUTPUT
           if ($env:MSIX_CERT_BASE64) {
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:MSIX_CERT_BASE64))
             $certPass = $env:MSIX_CERT_PASSWORD
@@ -116,6 +126,7 @@ jobs:
           "PFX_PASSWORD=$certPass" >> $env:GITHUB_ENV
 
       - name: Build MSIX
+        if: steps.cert.outputs.skip != 'true'
         run: |
           (Get-Content src\TisuEdu.App\Package.appxmanifest) -replace 'Version="1\.0\.0\.0"', "Version=""$env:VERSION.0""" | Set-Content src\TisuEdu.App\Package.appxmanifest
           msbuild $env:APP_PROJECT /restore /m /v:minimal /p:Configuration=Release /p:Platform=$env:PLATFORM `

@@ -106,5 +106,5 @@ public sealed partial class AppSettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenSite() => _s.Platform.Open(new Uri(SiteUrl));
+    private void OpenSite() => _s.Platform.OpenUrl(SiteUrl);
 }

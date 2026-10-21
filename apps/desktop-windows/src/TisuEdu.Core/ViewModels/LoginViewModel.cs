@@ -131,7 +131,7 @@ public sealed partial class LoginViewModel : ObservableObject
         TelegramUrl = start.BotUrl;
         IsWaitingTelegram = true;
         IsConfirmed = false;
-        _platform.Open(new Uri(start.BotUrl));
+        _platform.OpenUrl(start.BotUrl);
 
         _pollCts = new CancellationTokenSource();
         await PollAsync(start, _pollCts.Token);
@@ -189,7 +189,7 @@ public sealed partial class LoginViewModel : ObservableObject
     [RelayCommand]
     private void OpenTelegramAgain()
     {
-        if (TelegramUrl is not null) _platform.Open(new Uri(TelegramUrl));
+        if (TelegramUrl is not null) _platform.OpenUrl(TelegramUrl);
     }
 
     [RelayCommand]
@@ -203,7 +203,7 @@ public sealed partial class LoginViewModel : ObservableObject
     [RelayCommand]
     private void Register()
     {
-        if (HasRegister) _platform.Open(new Uri($"https://t.me/{Settings.BotUsername}"));
+        if (HasRegister) _platform.OpenUrl($"https://t.me/{Settings.BotUsername}");
     }
 
     /// <summary>"+998 90 123-45-67" → "+998901234567" (bazadagi format).</summary>

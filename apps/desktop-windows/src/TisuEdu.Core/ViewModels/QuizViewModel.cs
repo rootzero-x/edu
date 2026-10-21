@@ -347,7 +347,7 @@ public sealed partial class QuizViewModel(AppServices services, int quizId) : Pa
     }
 
     [RelayCommand]
-    private void OpenOnWeb() => S.Platform.Open(new Uri($"{Settings.SiteUrl}/dashboard/quizzes/{quizId}"));
+    private void OpenOnWeb() => S.Platform.OpenUrl($"{Settings.SiteUrl}/dashboard/quizzes/{quizId}");
 
     public override void Leave()
     {

@@ -14,6 +14,9 @@ internal sealed class FakeHandler : HttpMessageHandler
 
     public List<(string Method, string Path, string? Body)> Requests { get; } = [];
 
+    /// <summary>Har so'rovning sarlavhalari (Requests bilan bir xil tartibda).</summary>
+    public List<Dictionary<string, string>> Headers { get; } = [];
+
     public bool Offline { get; set; }
 
     public FakeHandler On(string method, string pathAndQuery, HttpStatusCode status, string body)
@@ -28,6 +31,7 @@ internal sealed class FakeHandler : HttpMessageHandler
     {
         var path = request.RequestUri!.PathAndQuery.Replace("/v1/", "");
         Requests.Add((request.Method.Method, path, request.Content is null ? null : await request.Content.ReadAsStringAsync(ct)));
+        Headers.Add(request.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value)));
         if (Offline) throw new HttpRequestException("offline");
         var key = request.Method.Method + " " + path;
         if (_routes.TryGetValue(key, out var q) && q.Count > 0)

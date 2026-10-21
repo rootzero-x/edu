@@ -210,7 +210,7 @@ public static class Editing
             new("name", "Guruh nomi", FieldKind.Text, g?.Name) { Required = true, MaxLength = 120 },
             FormField.Choice("course_id", "Kurs", courses, g?.CourseId.ToString(CultureInfo.InvariantCulture)),
             FormField.Choice("teacher_id", "O'qituvchi", teachers, g?.TeacherId?.ToString(CultureInfo.InvariantCulture)),
-            new("start_date", "Boshlanish sanasi", FieldKind.Date, g?.StartDate ?? DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+            new("start_date", "Boshlanish sanasi", FieldKind.Date, g?.StartDate ?? Today),
             new("end_date", "Tugash sanasi (ixtiyoriy)", FieldKind.Date, g?.EndDate),
             new("room", "Xona", FieldKind.Text, g?.Room) { MaxLength = 60 },
             new("schedule", "Haftalik jadval", FieldKind.Multiline, g is null ? "" : ScheduleText(g.Schedules, st))

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -52,11 +53,18 @@ public sealed class ApiClient
         _http = http;
         _cache = cache;
         BaseUrl = (baseUrl ?? DefaultBaseUrl).TrimEnd('/');
-        if (_http.Timeout == Timeout.InfiniteTimeSpan || _http.Timeout > TimeSpan.FromSeconds(30))
-        {
-            _http.Timeout = TimeSpan.FromSeconds(30);
-        }
+        // Vaqt chegarasi har so'rovda alohida (oddiy — 30 s, fayl bo'lagi — 120 s), HttpClient'niki o'chiriladi.
+        _http.Timeout = Timeout.InfiniteTimeSpan;
     }
+
+    /// <summary>Oddiy so'rovlar uchun vaqt chegarasi.</summary>
+    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>Bitta fayl bo'lagini yuborish uchun vaqt chegarasi (web sendWithTicket bilan bir xil).</summary>
+    public TimeSpan UploadChunkTimeout { get; set; } = TimeSpan.FromSeconds(120);
+
+    /// <summary>Hostingda bitta so'rovda ~2 MB gacha qabul qilinadi — kattaroq fayl shu hajmdagi bo'laklarda yuboriladi.</summary>
+    public const int UploadChunkSize = 1536 * 1024;
 
     public string BaseUrl { get; }
 
@@ -129,21 +137,70 @@ public sealed class ApiClient
         catch (ApiException) { return null; }
     }
 
-    /// <summary>multipart/form-data yuklash (maydon: file) + qo'shimcha matn maydonlari.</summary>
+    /// <summary>
+    /// Fayl yuklash (web lib/upload.ts sendWithTicket bilan bir xil): 1) POST /uploads/ticket {path} — bir martalik
+    /// chipta; 2) multipart so'rov chipta manziliga chipta tokeni bilan. 1,5 MB dan katta fayl bo'laklarga bo'linadi
+    /// (X-Upload-Id / X-Chunk-Index / X-Chunk-Total, maydon "chunk"); fayl nomi va qo'shimcha maydonlar — oxirgi bo'lakda.
+    /// Oraliq bo'laklarga server 202 qaytaradi.
+    /// </summary>
     public async Task<T> UploadAsync<T>(string path, string fileName, byte[] content, string mime, IReadOnlyDictionary<string, string>? fields = null, CancellationToken ct = default)
     {
-        using var req = Build(HttpMethod.Post, path, null, accept: "application/json");
-        var form = new MultipartFormDataContent();
-        var file = new ByteArrayContent(content);
-        file.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrEmpty(mime) ? "application/octet-stream" : mime);
-        form.Add(file, "file", fileName);
-        if (fields is not null)
-            foreach (var (k, v) in fields) form.Add(new StringContent(v, Encoding.UTF8), k);
-        req.Content = form;
-        using var res = await Execute(req, ct).ConfigureAwait(false);
-        var text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        if (!res.IsSuccessStatusCode) throw Fail(res.StatusCode, text, path);
-        return Parse<T>(text, path);
+        var ticket = await PostAsync<UploadTicket>("uploads/ticket", new { path }, ct).ConfigureAwait(false);
+        if (!Uri.TryCreate(ticket.Url, UriKind.Absolute, out var target) || (target.Scheme != Uri.UriSchemeHttps && target.Scheme != Uri.UriSchemeHttp))
+            throw new ApiException(HttpStatusCode.OK, $"{Strings.BadResponse} (uploads/ticket)");
+
+        var total = Math.Max(1, (content.Length + UploadChunkSize - 1) / UploadChunkSize);
+        var uploadId = Guid.NewGuid().ToString("N");
+        for (var i = 0; i < total; i++)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, target);
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            req.Headers.UserAgent.ParseAdd(UserAgent);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ticket.Token);
+            var form = new MultipartFormDataContent();
+            if (total == 1)
+            {
+                var file = new ByteArrayContent(content);
+                file.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrEmpty(mime) ? "application/octet-stream" : mime);
+                form.Add(file, "file", fileName);
+            }
+            else
+            {
+                var offset = i * UploadChunkSize;
+                var part = new ByteArrayContent(content, offset, Math.Min(UploadChunkSize, content.Length - offset));
+                part.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                form.Add(part, "chunk", "blob");
+                req.Headers.Add("X-Upload-Id", uploadId);
+                req.Headers.Add("X-Chunk-Index", i.ToString(CultureInfo.InvariantCulture));
+                req.Headers.Add("X-Chunk-Total", total.ToString(CultureInfo.InvariantCulture));
+            }
+            var last = i == total - 1;
+            if (last)
+            {
+                if (total > 1) form.Add(new StringContent(fileName, Encoding.UTF8), "filename");
+                if (fields is not null)
+                    foreach (var (k, v) in fields) form.Add(new StringContent(v, Encoding.UTF8), k);
+            }
+            req.Content = form;
+
+            using var res = await Execute(req, ct, UploadChunkTimeout).ConfigureAwait(false);
+            var text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            if (!res.IsSuccessStatusCode)
+            {
+                // Chipta tokenining 401/403 i — sessiya tugagani emas (asosiy token o'z joyida).
+                throw res.StatusCode == HttpStatusCode.RequestEntityTooLarge
+                    ? new ApiException(res.StatusCode, Strings.FileTooLarge)
+                    : Fail(res.StatusCode, text, "uploads/" + path, logoutOn401: false);
+            }
+            if (last) return Parse<T>(text, path);
+        }
+        throw new ApiException(null, Strings.UnknownError);
+    }
+
+    private sealed class UploadTicket
+    {
+        public string Url { get; set; } = "";
+        public string Token { get; set; } = "";
     }
 
     /// <summary>Imzolangan (signed) mutlaq URL — Bearer token yuborilmaydi.</summary>
@@ -208,12 +265,14 @@ public sealed class ApiClient
         return req;
     }
 
-    private async Task<HttpResponseMessage> Execute(HttpRequestMessage req, CancellationToken ct)
+    private async Task<HttpResponseMessage> Execute(HttpRequestMessage req, CancellationToken ct, TimeSpan? timeout = null)
     {
         HttpResponseMessage res;
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limit.CancelAfter(timeout ?? RequestTimeout);
         try
         {
-            res = await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, ct).ConfigureAwait(false);
+            res = await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, limit.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -235,7 +294,7 @@ public sealed class ApiClient
         ConnectivityChanged?.Invoke(this, online);
     }
 
-    private ApiException Fail(HttpStatusCode status, string body, string path)
+    private ApiException Fail(HttpStatusCode status, string body, string path, bool logoutOn401 = true)
     {
         string? message = null;
         Dictionary<string, string[]>? errors = null;
@@ -267,7 +326,7 @@ public sealed class ApiClient
             message = first[0];
         }
 
-        if (status == HttpStatusCode.Unauthorized && !path.StartsWith("auth/login", StringComparison.Ordinal) && !path.StartsWith("auth/telegram", StringComparison.Ordinal))
+        if (status == HttpStatusCode.Unauthorized && logoutOn401 && !path.StartsWith("auth/login", StringComparison.Ordinal) && !path.StartsWith("auth/telegram", StringComparison.Ordinal))
         {
             Unauthorized?.Invoke(this, EventArgs.Empty);
             message = Strings.SessionExpired;

@@ -465,7 +465,7 @@ public sealed partial class AssignmentViewModel(AppServices services, int assign
         await ActAsync(async () =>
         {
             var link = await S.Api.FileLinkAsync(f.File.Id);
-            S.Platform.Open(new Uri(link.Url));
+            S.Platform.OpenUrl(link.Url);
         });
     }
 

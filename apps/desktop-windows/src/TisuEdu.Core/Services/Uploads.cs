@@ -8,7 +8,8 @@ public static class Uploads
 
     public static bool Enabled(SiteSettings st) => st.Bool("uploads.enabled", true);
 
-    public static int MaxMb(SiteSettings st) => Math.Max(1, st.Int("uploads.max_mb", 10));
+    /// <summary>uploads.max_mb (serverda bo'laklar bilan ham ko'pi bilan 64 MB).</summary>
+    public static int MaxMb(SiteSettings st) => Math.Clamp(st.Int("uploads.max_mb", 10), 1, 64);
 
     public static IReadOnlyList<string> Types(SiteSettings st)
     {

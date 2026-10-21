@@ -49,7 +49,7 @@ Biznes mantiq `TisuEdu.Core` da — shuning uchun u har qanday OS'da quriladi va
 | Kontentni tahrirlash | kurs (yaratish, tahrirlash, chop etish, o'chirish), modullar, darslar, materiallar (video/fayl/havola/matn), testlar va savollar (`*` — to'g'ri variant), e'lonlar (qoralama, auditoriya, chop etish/yashirish), guruhlar (haftalik jadval, darslarni yaratish, a'zolar), sertifikat berish/bekor qilish, darsni bekor qilish | kurs muallifi (`can_edit`), `quiz.manage`, `announcement.manage`, `group.manage` |
 | Taqvim | hafta/oy, o'qituvchi/xona/guruh filtrlari, bekor qilingan darslar chizilgan, darsni bosish → davomat varaqasi; xonalarni boshqarish | hamma / xonalar — `group.manage` |
 | Uyga vazifa va baholar | o'qituvchi: vazifa (matn, muddat, ball, fayl), topshirganlar, baholash; o'quvchi: topshirish (matn, havola, fayl), natija, "Baholarim"; darsdagi baholar davomat varaqasida | o'qituvchi (guruhi) / o'quvchi |
-| Fayllar | dars materiali, vazifa va javob fayllarini yuklash (`uploads.*` cheklovlari oldindan tekshiriladi), yuklab olish — vaqtinchalik imzolangan havola orqali | kontent huquqi bo'yicha |
+| Fayllar | yuklash web'dagidek: `POST /uploads/ticket` → bir martalik chipta bilan to'g'ridan-to'g'ri API'ga; 1,5 MB dan katta fayl bo'laklarda (X-Upload-Id / X-Chunk-*), har bo'lakka 120 s; dars materiali, vazifa va javob fayllarini yuklash (`uploads.*` cheklovlari oldindan tekshiriladi), yuklab olish — vaqtinchalik imzolangan havola orqali | kontent huquqi bo'yicha |
 | Arizalar (CRM) | holat filtrlari va sonlar, voronka, bugun bog'lanish kerak bo'lganlar; holat (sinov darsi, rad etish sababi), qo'ng'iroq/izoh, o'quvchiga aylantirish (guruhga qo'shish bilan) | `lead.manage` |
 | O'quvchi profili va holatlari | guruhlar, davomat, testlar, sertifikatlar, balans, a'zolik tarixi; muzlatish, qayta faollashtirish, boshqa guruhga o'tkazish, bitirish, chiqarish (sabablar sozlamadan), guruhni bitirish; Excel/CSV import (tekshiruv → tasdiq) | `group.manage`, `user.manage` |
 | Bildirishnomalar markazi | ro'yxat, o'qilmaganlar belgisi, hammasini o'qilgan qilish, bosilganda tegishli sahifa; yangi elementlar — Windows bildirishnomasi | hamma |
@@ -143,6 +143,9 @@ msbuild src/TisuEdu.App/TisuEdu.App.csproj /restore /p:Configuration=Release /p:
 **CI sinov paketini o'rnatish:** `TisuEdu-CI-win-x64.cer` ni administrator sifatida "Local Machine → Trusted People"
 ga import qiling (`Import-Certificate -FilePath TisuEdu-CI-win-x64.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople`),
 so'ng `.msix` ni ikki marta bosing. Har CI ishga tushishida yangi sertifikat yaratiladi.
+
+**Reliz tag'lari (`desktop-windows-v*`)da vaqtinchalik sertifikat ishlatilmaydi:** `MSIX_CERT_BASE64` secret bo'lmasa
+MSIX umuman yig'ilmaydi va relizga faqat imzosiz portable zip'lar qo'yiladi (CI ogohlantirish chiqaradi).
 
 **Haqiqiy reliz:** kod imzolash sertifikati (subject `CN=TISU Edu`, yoki manifestdagi Publisher'ni o'zgartiring)
 ni repo secrets'ga qo'shing — CI avtomatik uni ishlatadi:

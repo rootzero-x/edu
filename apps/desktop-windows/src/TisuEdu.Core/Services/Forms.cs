@@ -57,6 +57,35 @@ public sealed class FormValues(IReadOnlyDictionary<string, string> values)
 
     public bool Bool(string key) => Str(key) == "1";
 
+    /// <summary>
+    /// Pul summasi (so'm, butun): "150000", "150 000", "150000.00", "150 000,00" → 150000; "150000.50" → xato.
+    /// Web'dagi parseAmount (EntryDialog.tsx) bilan bir xil. allowSign — tuzatish uchun "-"/"+".
+    /// </summary>
+    public (int? Value, string? Error) Amount(string key, bool allowSign = false) => ParseAmount(Str(key), allowSign);
+
+    public static (int? Value, string? Error) ParseAmount(string input, bool allowSign = false)
+    {
+        var s = input.Trim();
+        var sign = 1;
+        if (allowSign && s.Length > 0 && (s[0] == '-' || s[0] == '+' || s[0] == '−'))
+        {
+            sign = s[0] == '+' ? 1 : -1;
+            s = s[1..].TrimStart();
+        }
+        var m = System.Text.RegularExpressions.Regex.Match(s, @"[.,](\d{1,2})$");
+        if (m.Success)
+        {
+            if (m.Groups[1].Value.Any(c => c is >= '1' and <= '9')) return (null, Strings.AmountWhole);
+            s = s[..^m.Length];
+        }
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"[\s,.'’\u00A0\u202F]", "");
+        if (s.Length == 0) return (null, "Summani kiriting.");
+        if (!s.All(char.IsAsciiDigit)) return (null, Strings.AmountWhole);
+        return long.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out var n) && n <= int.MaxValue
+            ? ((int)(n * sign), null)
+            : (null, "Summa juda katta.");
+    }
+
     /// <summary>Qatorlar (bo'sh qatorlarsiz).</summary>
     public List<string> Lines(string key) =>
         Str(key).Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();

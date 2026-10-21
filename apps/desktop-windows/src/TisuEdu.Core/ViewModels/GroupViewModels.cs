@@ -167,7 +167,6 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
     [ObservableProperty] private string _schedule = "";
     [ObservableProperty] private string _period = "";
     [ObservableProperty] private string _room = "";
-    [ObservableProperty] private string _branch = "";
     [ObservableProperty] private bool _active;
     [ObservableProperty] private bool _hasSessions;
     [ObservableProperty] private bool _hasStudents;
@@ -204,7 +203,6 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
         Schedule = GroupText.Schedule(group, Settings);
         Period = string.Join(" — ", new[] { group.StartDate, group.EndDate }.Where(x => !string.IsNullOrEmpty(x)));
         Room = group.Room ?? "";
-        Branch = group.Branch?.Name ?? "";
         Active = group.Active;
         _studentsCount = group.Students.Count;
 
@@ -361,7 +359,7 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
                 await EditAsync($"{row.Name} — muzlatish",
                 [
                     new FormField("from", "Qachondan", FieldKind.Date, today),
-                    new FormField("to", "Qachongacha", FieldKind.Date, DateTime.Today.AddDays(14).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
+                    new FormField("to", "Qachongacha", FieldKind.Date, ServerClock.Now.Date.AddDays(14).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
                     ReasonField("reason", "Sabab", freeze: true),
                     new FormField("note", "Izoh", FieldKind.Multiline) { MaxLength = 500 },
                 ], v => S.Api.FreezeMemberAsync(groupId, row.Id, new { from = v.Str("from"), to = v.Str("to"), reason = v.StrOrNull("reason"), note = v.StrOrNull("note") }),

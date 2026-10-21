@@ -17,6 +17,8 @@ public static class Strings
     public const string ServerError = "Serverda xatolik. Keyinroq urinib ko'ring.";
     public const string UnknownError = "Noma'lum xatolik.";
     public const string BadResponse = "Serverdan noto'g'ri javob keldi";
+    public const string FileTooLarge = "Fayl juda katta — server qabul qilmadi.";
+    public const string AmountWhole = "Summa so'mda butun son bo'lishi kerak (masalan 150 000).";
     public const string OfflineCached = "Oflayn rejim — oxirgi saqlangan ma'lumotlar ko'rsatilmoqda";
 
     // Kirish

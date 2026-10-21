@@ -451,7 +451,7 @@ public sealed partial class BillingViewModel(AppServices services) : PageViewMod
         await ActAsync(async () =>
         {
             var bytes = await S.Api.BalancesCsvAsync(Query, Status, Sort);
-            if (await S.Platform.SaveFileAsync($"balanslar_{DateTime.Today:yyyyMMdd}.csv", "CSV (Excel)", ".csv", bytes)) Notice = Strings.CsvSaved;
+            if (await S.Platform.SaveFileAsync($"balanslar_{ServerClock.Now:yyyyMMdd}.csv", "CSV (Excel)", ".csv", bytes)) Notice = Strings.CsvSaved;
         });
     }
 
@@ -524,17 +524,26 @@ public sealed partial class BillingStudentViewModel(AppServices services, int st
         var requestId = Guid.NewGuid().ToString("N");
         await EditAsync($"{Name} — to'lov", Editing.PaymentForm(Settings), v =>
         {
-            if (v.Int("amount") is not > 0) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, "Summani kiriting.");
-            return S.Api.AddPaymentAsync(studentId, v.Int("amount")!.Value, v.Str("method"), v.Str("date"), v.StrOrNull("note"), requestId);
+            var (amount, error) = v.Amount("amount");
+            if (error is not null) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, error);
+            if (amount is not > 0) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, "Summani kiriting.");
+            return S.Api.AddPaymentAsync(studentId, amount.Value, v.Str("method"), v.Str("date"), v.StrOrNull("note"), requestId);
         }, "To'lov saqlandi.", "Saqlash");
     }
 
     [RelayCommand]
-    private Task AddAdjustmentAsync() => EditAsync($"{Name} — tuzatish", Editing.AdjustmentForm(Settings), v =>
+    private Task AddAdjustmentAsync()
     {
-        if (v.Int("amount") is null or 0) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, "Summani kiriting (0 dan farqli).");
-        return S.Api.AddAdjustmentAsync(studentId, v.Int("amount")!.Value, v.Str("reason"), v.Str("date"));
-    }, "Tuzatish saqlandi.");
+        // To'lov kabi: bitta dialog — bitta request_id (ikki marta bosilsa ham server bitta yozuv yaratadi).
+        var requestId = Guid.NewGuid().ToString("N");
+        return EditAsync($"{Name} — tuzatish", Editing.AdjustmentForm(Settings), v =>
+        {
+            var (amount, error) = v.Amount("amount", allowSign: true);
+            if (error is not null) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, error);
+            if (amount is null or 0) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, "Summani kiriting (0 dan farqli).");
+            return S.Api.AddAdjustmentAsync(studentId, amount.Value, v.Str("reason"), v.Str("date"), requestId);
+        }, "Tuzatish saqlandi.");
+    }
 
     [RelayCommand]
     private async Task VoidAsync(EntryItem? e)

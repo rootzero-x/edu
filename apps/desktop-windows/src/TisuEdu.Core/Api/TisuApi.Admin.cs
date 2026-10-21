@@ -92,8 +92,8 @@ public sealed partial class TisuApi
         Http.GetBytesAsync("billing/entries.csv" + Query(("from", Date(from)), ("to", Date(to))), ct);
     public Task<JsonElement> AddPaymentAsync(int studentId, int amount, string method, string date, string? note, string requestId, CancellationToken ct = default) =>
         Http.PostAsync<JsonElement>($"billing/students/{studentId}/payments", new { amount, method, date, note, request_id = requestId }, ct);
-    public Task<JsonElement> AddAdjustmentAsync(int studentId, int amount, string reason, string date, CancellationToken ct = default) =>
-        Http.PostAsync<JsonElement>($"billing/students/{studentId}/adjustments", new { amount, reason, date }, ct);
+    public Task<JsonElement> AddAdjustmentAsync(int studentId, int amount, string reason, string date, string requestId, CancellationToken ct = default) =>
+        Http.PostAsync<JsonElement>($"billing/students/{studentId}/adjustments", new { amount, reason, date, request_id = requestId }, ct);
     public Task<JsonElement> VoidEntryAsync(int entryId, string reason, CancellationToken ct = default) =>
         Http.PostAsync<JsonElement>($"billing/entries/{entryId}/void", new { reason }, ct);
 }

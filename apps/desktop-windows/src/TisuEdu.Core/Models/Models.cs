@@ -47,7 +47,6 @@ public sealed class User
     public string FirstName { get; set; } = "";
     public string? LastName { get; set; }
     public string Role { get; set; } = "";
-    public int? BranchId { get; set; }
     public bool Active { get; set; }
     public string? Locale { get; set; }
     public List<string> Permissions { get; set; } = [];
@@ -260,7 +259,6 @@ public sealed class Group
     public int Id { get; set; }
     public string Name { get; set; } = "";
     public int CourseId { get; set; }
-    public int? BranchId { get; set; }
     public int? TeacherId { get; set; }
     public string? StartDate { get; set; }
     public string? EndDate { get; set; }
@@ -269,7 +267,6 @@ public sealed class Group
     public int StudentsCount { get; set; }
     public NamedRef? Course { get; set; }
     public Person? Teacher { get; set; }
-    public NamedRef? Branch { get; set; }
     public List<GroupSchedule> Schedules { get; set; } = [];
     public List<Person> Students { get; set; } = [];
 }
