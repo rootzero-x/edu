@@ -72,8 +72,6 @@ export function errorText(data: any, fallback: string): string {
 export async function tgUpload<T = any>(path: string, file: File): Promise<ApiResult<T>> {
   const ticket = await tg<UploadTicket>("POST", "uploads/ticket", { path: path.replace(/^\//, "") });
   if (!ticket.ok) return ticket as unknown as ApiResult<T>;
-  const form = new FormData();
-  form.append("file", file);
-  return sendWithTicket(ticket.data, form);
+  return sendWithTicket(ticket.data, file);
 }
 

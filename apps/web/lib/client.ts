@@ -37,10 +37,7 @@ export function errorText(data: any): string {
 export async function upload<T = any>(path: string, file: File, fields: Record<string, string> = {}): Promise<CallResult<T>> {
   const ticket = await call<UploadTicket>("POST", "uploads/ticket", { path: path.replace(/^\//, "") });
   if (!ticket.ok) return ticket as unknown as CallResult<T>;
-  const form = new FormData();
-  form.append("file", file);
-  Object.entries(fields).forEach(([k, v]) => form.append(k, v));
-  return sendWithTicket(ticket.data, form);
+  return sendWithTicket(ticket.data, file, fields);
 }
 
 /**

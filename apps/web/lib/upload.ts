@@ -32,17 +32,40 @@ export type StoredFile = { id: number; name: string; mime: string; size: number;
 
 export type UploadTicket = { url: string; token: string };
 
-/** Chipta bo'yicha faylni bevosita API ga yuborish (web va Mini App uchun umumiy). */
-export async function sendWithTicket(ticket: UploadTicket, form: FormData): Promise<{ ok: boolean; status: number; data: any }> {
-  let res: Response;
-  try {
-    res = await fetch(ticket.url, {
-      method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${ticket.token}` }, body: form,
-      cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(300000),
-    });
-  } catch {
-    return { ok: false, status: 0, data: { message: "Tarmoq bilan aloqa yo'q yoki yuklash juda uzoq davom etdi." } };
+/** Hostingda bitta so'rovda 2 MB gacha fayl qabul qilinadi — kattasi shu hajmdagi bo'laklarda yuboriladi. */
+const CHUNK = 1536 * 1024;
+
+const uploadId = () =>
+  (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "");
+
+/**
+ * Chipta bo'yicha faylni bevosita API ga yuborish (web va Mini App uchun umumiy). Katta fayl bo'laklarga bo'linadi:
+ * har biri X-Upload-Id / X-Chunk-Index / X-Chunk-Total bilan, oxirgisida fayl nomi va qo'shimcha maydonlar.
+ */
+export async function sendWithTicket(ticket: UploadTicket, file: File, fields: Record<string, string> = {}): Promise<{ ok: boolean; status: number; data: any }> {
+  const total = Math.max(1, Math.ceil(file.size / CHUNK));
+  const id = uploadId();
+  for (let i = 0; i < total; i++) {
+    const form = new FormData();
+    const headers: Record<string, string> = { Accept: "application/json", Authorization: `Bearer ${ticket.token}` };
+    if (total === 1) {
+      form.append("file", file);
+    } else {
+      form.append("chunk", file.slice(i * CHUNK, (i + 1) * CHUNK), "blob");
+      Object.assign(headers, { "X-Upload-Id": id, "X-Chunk-Index": String(i), "X-Chunk-Total": String(total) });
+    }
+    if (i === total - 1) {
+      if (total > 1) form.append("filename", file.name);
+      Object.entries(fields).forEach(([k, v]) => form.append(k, v));
+    }
+    let res: Response;
+    try {
+      res = await fetch(ticket.url, { method: "POST", headers, body: form, cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(120000) });
+    } catch {
+      return { ok: false, status: 0, data: { message: "Tarmoq bilan aloqa yo'q yoki yuklash juda uzoq davom etdi." } };
+    }
+    const data = await res.json().catch(() => ({ message: res.status === 413 ? "Fayl juda katta." : "Xatolik yuz berdi." }));
+    if (i === total - 1 || !res.ok) return { ok: res.ok, status: res.status, data };
   }
-  const data = await res.json().catch(() => ({ message: res.status === 413 ? "Fayl juda katta." : "Xatolik yuz berdi." }));
-  return { ok: res.ok, status: res.status, data };
+  return { ok: false, status: 0, data: { message: "Xatolik yuz berdi." } };
 }

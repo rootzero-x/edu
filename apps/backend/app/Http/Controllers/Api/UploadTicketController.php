@@ -17,6 +17,13 @@ class UploadTicketController
         $user = $request->user();
         // Eskirgan chiptalar yig'ilib qolmasin.
         $user->tokens()->where('name', UploadTickets::TOKEN_NAME)->where('expires_at', '<', now())->delete();
+        // Tashlab ketilgan bo'lakli yuklashlar (chipta 10 daqiqa) — bir kundan eski papkalar o'chiriladi.
+        foreach (glob(storage_path('app/chunks/*'), GLOB_ONLYDIR) ?: [] as $dir) {
+            if (filemtime($dir) < now()->subDay()->getTimestamp()) {
+                array_map('unlink', glob($dir.'/*') ?: []);
+                @rmdir($dir);
+            }
+        }
         $expires = now()->addMinutes(10);
         $token = $user->createToken(UploadTickets::TOKEN_NAME, ['upload:'.$path], $expires);
 

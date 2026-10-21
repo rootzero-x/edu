@@ -711,7 +711,7 @@ return [
 
         // ── Sprint 3: fayllar ────────────────────────────────
         'uploads.enabled' => ['group' => 'uploads', 'type' => 'bool', 'public' => true, 'label' => 'Fayl yuklashga ruxsat (dars materiallari, uyga vazifa)', 'default' => true],
-        'uploads.max_mb' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 64, 'public' => true, 'label' => "Bitta faylning maksimal hajmi (MB, 64 gacha — serverdagi chegara public/.user.ini da)", 'default' => 10],
+        'uploads.max_mb' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 64, 'public' => true, 'label' => "Bitta faylning maksimal hajmi (MB, 64 gacha; katta fayllar 1,5 MB li bo'laklarda yuklanadi)", 'default' => 10],
         'uploads.allowed_types' => ['group' => 'uploads', 'type' => 'list', 'public' => true, 'label' => "Ruxsat etilgan fayl turlari (kengaytmalar). Tur fayl ichidan tekshiriladi; dastur/skript fayllari hech qachon qabul qilinmaydi", 'default' => [
             'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'odp', 'ods', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'mp3', 'm4a', 'mp4',
         ]],

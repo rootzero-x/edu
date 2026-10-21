@@ -241,4 +241,24 @@ class UploadsTest extends TestCase
         $this->withHeaders($headers)->post("/v1/lessons/{$this->lesson->id}/materials/upload",
             ['file' => UploadedFile::fake()->createWithContent('b.pdf', $this->pdf()), 'title' => 'Material'])->assertUnauthorized();
     }
+
+    public function test_large_file_is_uploaded_in_chunks_with_one_ticket(): void
+    {
+        $ticket = $this->postJson('/v1/uploads/ticket', ['path' => "lessons/{$this->lesson->id}/materials/upload"])->assertOk()->json();
+        $this->app['auth']->forgetGuards();
+        $pdf = $this->pdf().str_repeat("% padding\n", 300);
+        $parts = str_split($pdf, (int) ceil(strlen($pdf) / 3));
+        $headers = ['Authorization' => 'Bearer '.$ticket['token'], 'Accept' => 'application/json', 'X-Upload-Id' => 'abcDEF123456', 'X-Chunk-Total' => (string) count($parts)];
+        foreach ($parts as $i => $part) {
+            $last = $i === count($parts) - 1;
+            $r = $this->withHeaders($headers + ['X-Chunk-Index' => (string) $i])->post("/v1/lessons/{$this->lesson->id}/materials/upload",
+                ['chunk' => UploadedFile::fake()->createWithContent('blob', $part)] + ($last ? ['filename' => 'katta.pdf', 'title' => 'Katta'] : []));
+            $this->app['auth']->forgetGuards();
+            $last ? $r->assertCreated() : $r->assertStatus(202);
+        }
+        $file = \Illuminate\Support\Facades\DB::table('files')->latest('id')->first();
+        $this->assertSame(strlen($pdf), (int) $file->size);
+        $this->assertSame('katta.pdf', $file->original_name);
+        $this->assertSame([], glob(storage_path('app/chunks/*')) ?: []);
+    }
 }
