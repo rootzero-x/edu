@@ -165,6 +165,43 @@ class EnrollmentTest extends TestCase
         $this->assertSame(220000, $this->charged());
     }
 
+    public function test_rejoining_on_the_day_of_leaving_undoes_the_leave(): void
+    {
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-01'])->assertCreated();
+        Carbon::setTestNow('2026-10-10 12:00:00');
+        $this->postJson($this->url('/leave'), ['reason' => 'Narx qimmat'])->assertOk();
+
+        // Xato chiqarilgan — o'sha kuni qaytarildi: davr davom etadi, tarixda "chiqib ketgan" qolmaydi.
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id])->assertCreated()->assertJson(['result' => 'restored']);
+        $this->assertNull(DB::table('group_members')->value('left_at'));
+        $history = $this->getJson($this->url('/history'))->json('data');
+        $this->assertCount(1, $history);
+        $this->assertSame(['2026-10-01', null, null, null], [$history[0]['starts_on'], $history[0]['ends_on'], $history[0]['outcome'], $history[0]['reason']]);
+        $this->assertSame([], $this->getJson("/v1/groups/{$this->group->id}/members")->json('former'));
+
+        Carbon::setTestNow('2026-11-01 01:00:00');
+        $this->accrue('2026-10-01', '2026-10-31');
+        $this->assertSame(310000, $this->charged()); // butun oy, uzilishsiz
+    }
+
+    public function test_backdated_or_older_leave_is_not_undone_by_rejoin(): void
+    {
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-01'])->assertCreated();
+        Carbon::setTestNow('2026-10-10 12:00:00');
+        $this->postJson($this->url('/leave'), ['reason' => 'Narx qimmat', 'date' => '2026-10-08'])->assertOk();
+        // Orqa sana bilan chiqarilgan — bugun qayta qo'shish yangi davr ochadi, eski tarix saqlanadi.
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id])->assertCreated()->assertJson(['result' => 'rejoined']);
+        $this->assertCount(2, $this->getJson($this->url('/history'))->json('data'));
+
+        // Ertasi kuni — chiqarishni bekor qilish yo'q, sanasi ertaroq bo'lsa rad etiladi.
+        $other = User::factory()->create();
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $other->id])->assertCreated();
+        $this->postJson("/v1/groups/{$this->group->id}/members/{$other->id}/leave", ['reason' => 'Boshqa'])->assertOk();
+        Carbon::setTestNow('2026-10-11 12:00:00');
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $other->id, 'start_date' => '2026-10-10'])->assertStatus(422);
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $other->id])->assertCreated()->assertJson(['result' => 'rejoined']);
+    }
+
     public function test_legacy_delete_still_works_and_same_day_mistake_is_not_charged(): void
     {
         $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id])->assertCreated();

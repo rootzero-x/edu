@@ -40,8 +40,9 @@ final class Enrollments
 
     /**
      * Guruhga qo'shish (yoki qayta qo'shish). Allaqachon a'zo bo'lsa hech narsa o'zgarmaydi.
+     * Bugun xato chiqarib yuborilgan o'quvchi bugun qayta qo'shilsa — chiqarish bekor qilinadi (davr davom etadi).
      *
-     * @return 'added'|'rejoined'|'already'
+     * @return 'added'|'rejoined'|'restored'|'already'
      */
     public function join(StudyGroup $group, User $student, ?string $date = null, ?int $actorId = null): string
     {
@@ -56,6 +57,11 @@ final class Enrollments
                 return 'already';
             }
             $this->ensureHistory($group->id, $student->id);
+            if ($member && $this->undoTodaysLeave($group->id, $student->id, $date)) {
+                DB::table('group_members')->where(['group_id' => $group->id, 'student_id' => $student->id])->update(['left_at' => null]);
+
+                return 'restored';
+            }
             $lastEnd = DB::table('enrollments')->where(['group_id' => $group->id, 'student_id' => $student->id])->max('ends_on');
             if ($lastEnd && substr((string) $lastEnd, 0, 10) >= $date) {
                 throw ValidationException::withMessages(['start_date' => "O'quvchi bu guruhda ".$this->fmt(substr((string) $lastEnd, 0, 10))." gacha o'qigan — qayta qo'shish sanasi undan keyin bo'lishi kerak."]);
@@ -69,6 +75,25 @@ final class Enrollments
 
             return $member ? 'rejoined' : 'added';
         });
+    }
+
+    /**
+     * Bugun "chiqib ketgan" deb yopilgan davrni qayta ochish (xato chiqarish). Faqat: oxirgi qator ACTIVE, natija LEFT,
+     * yopilgan sana — bugun va qayta qo'shish sanasi bugundan keyin emas. Orqa sana bilan chiqarilganlar (to'lov qaytarilgan) — yo'q.
+     */
+    private function undoTodaysLeave(int $groupId, int $studentId, string $date): bool
+    {
+        $today = today()->toDateString();
+        $last = DB::table('enrollments')->where(['group_id' => $groupId, 'student_id' => $studentId])
+            ->orderByDesc('starts_on')->orderByDesc('id')->lockForUpdate()->first();
+        if (! $last || $last->outcome !== self::LEFT || $last->status !== self::ACTIVE
+            || substr((string) $last->ends_on, 0, 10) !== $today || $date > $today) {
+            return false;
+        }
+        DB::table('enrollments')->where('id', $last->id)
+            ->update(['ends_on' => null, 'outcome' => null, 'reason' => null, 'note' => null, 'transfer_group_id' => null, 'updated_at' => now()]);
+
+        return true;
     }
 
     /** Guruhdan chiqarish yoki bitirish. $date — o'quvchi o'qigan oxirgi kun (shu kun ham hisoblanadi). */
