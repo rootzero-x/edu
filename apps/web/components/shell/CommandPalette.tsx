@@ -6,6 +6,9 @@ import { Award, BookOpen, CornerDownLeft, GraduationCap, Inbox, LayoutGrid, Sear
 import { call } from "@/lib/client";
 import s from "./CommandPalette.module.css";
 
+/** Kichik harf va apostroflarsiz: "tolov" → "To'lovlar" ni topadi. */
+const plain = (s: string) => s.toLowerCase().replace(/['ʻʼ’‘`]/g, "");
+
 type Hit = { type: string; id: number | string; title: string; subtitle: string; href: string; active: boolean };
 type Item = Hit & { key: string };
 
@@ -69,8 +72,8 @@ export default function CommandPalette({ nav }: { nav: { href: string; label: st
   }, [q]);
 
   const items: Item[] = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    const pages = nav.filter((n) => !term || n.label.toLowerCase().includes(term))
+    const term = plain(q.trim());
+    const pages = nav.filter((n) => !term || plain(n.label).includes(term))
       .map((n) => ({ type: "page", id: n.href, title: n.label, subtitle: "", href: n.href, active: true, key: `p:${n.href}` }));
     // Natijalar turlar bo'yicha guruhlanadi (bo'limlar — oxirida, qidiruv bo'sh bo'lsa — faqat ular).
     const order = ["student", "user", "group", "course", "lead", "certificate"];

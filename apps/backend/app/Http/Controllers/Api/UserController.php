@@ -161,8 +161,9 @@ class UserController
             return $q->where('phone', 'like', '%'.$digits.'%');
         }
         foreach (array_slice(preg_split('/\s+/u', $s) ?: [], 0, 3) as $word) {
-            $like = '%'.addcslashes($word, '%_\\').'%';
-            $q->where(fn ($w) => $w->where('first_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('phone', 'like', $like));
+            if (trim(\App\Support\TextSearch::strip($word)) !== '') {
+                \App\Support\TextSearch::where($q, ['first_name', 'last_name', 'phone'], $word);
+            }
         }
 
         return $q;
