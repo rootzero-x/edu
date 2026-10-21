@@ -9,7 +9,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 os.environ.setdefault("XDG_CACHE_HOME", tempfile.mkdtemp())
 
 from tisu import fmt  # noqa: E402
-from tisu.api import ApiClient, ApiError, _message_from  # noqa: E402
+from tisu import prefs  # noqa: E402
+from tisu.api import (CHUNK_SIZE, ApiClient, ApiError, _message_from, chunk_plan, external_allowed,  # noqa: E402
+                      new_upload_id)
 from tisu.public_settings import PublicSettings  # noqa: E402
 from tisu.qr import QrCode  # noqa: E402
 
@@ -137,6 +139,67 @@ class QrTest(unittest.TestCase):
                 ref.add_data(qu.QRData(text.encode(), mode=qu.MODE_8BIT_BYTE))
                 ref.make(fit=False)
                 self.assertEqual([[bool(v) for v in r] for r in ref.get_matrix()], mine.modules, (text, mask))
+
+
+class MoneyTest(unittest.TestCase):
+    def test_whole_amounts_with_separators(self):
+        for text in ("150000", "150 000", "150\u00a0000", "150\u202f000", "150,000", "150.000", "150'000", "150\u2019000",
+                     " 150000 ", "150000.00", "150 000,00", "150000.0", "150000,0"):
+            self.assertEqual(fmt.parse_amount(text), 150000, text)
+        self.assertEqual(fmt.parse_amount("1.500.000"), 1500000)
+        self.assertEqual(fmt.parse_amount("1,500,000.00"), 1500000)
+
+    def test_regression_decimal_tail_is_not_multiplied(self):
+        # Used to keep only the digits: "150000.00" → 15 000 000.
+        self.assertNotEqual(fmt.parse_amount("150000.00"), 15000000)
+
+    def test_rejects_fractions_and_non_ascii_digits(self):
+        for text in ("150000.50", "12,5", "0.01", "²", "150²", "١٢٣", "１２３", "1e5", "-5", "+5", "abc", "", "  ", "5 so'm"):
+            self.assertIsNone(fmt.parse_amount(text), text)
+
+
+class UploadTest(unittest.TestCase):
+    def test_small_file_is_one_request(self):
+        self.assertEqual(chunk_plan(0), [(0, 0)])
+        self.assertEqual(chunk_plan(10), [(0, 10)])
+        self.assertEqual(chunk_plan(CHUNK_SIZE), [(0, CHUNK_SIZE)])
+
+    def test_large_file_is_split_into_contiguous_chunks_under_2mb(self):
+        size = 5 * 1024 * 1024 + 7
+        plan = chunk_plan(size)
+        self.assertEqual(len(plan), 4)
+        self.assertEqual(plan[0][0], 0)
+        self.assertEqual(plan[-1][1], size)
+        for (a, b), (c, _d) in zip(plan, plan[1:]):
+            self.assertEqual(b, c)
+        self.assertTrue(all(b - a <= 1536 * 1024 for a, b in plan))
+        self.assertEqual(len(chunk_plan(CHUNK_SIZE + 1)), 2)
+
+    def test_upload_id_matches_server_rule(self):
+        import re
+
+        for _ in range(20):
+            self.assertRegex(new_upload_id(), re.compile(r"^[A-Za-z0-9_-]{8,64}$"))
+
+
+class LinksTest(unittest.TestCase):
+    def test_only_safe_schemes_leave_the_app(self):
+        for ok in ("https://t.me/bot", "http://example.com", "tg://resolve?domain=x", "tel:+998901234567", "HTTPS://X"):
+            self.assertTrue(external_allowed(ok), ok)
+        for bad in ("file:///etc/passwd", "javascript:alert(1)", "smb://host/share", "ftp://x", "mailto:a@b", "data:text/html,x",
+                    "/dashboard", "", None, "x-scheme-handler:foo"):
+            self.assertFalse(external_allowed(bad), bad)
+
+
+class PrefsTest(unittest.TestCase):
+    def test_last_notification_is_kept_per_user(self):
+        mem = prefs._MemorySettings()
+        self.assertEqual(prefs.get_last_notification(mem, 1), 0)
+        prefs.set_last_notification(mem, 1, 50)
+        prefs.set_last_notification(mem, 2, 7)
+        self.assertEqual(prefs.get_last_notification(mem, 1), 50)
+        self.assertEqual(prefs.get_last_notification(mem, 2), 7)
+        self.assertEqual(prefs.get_last_notification(mem, 3), 0)
 
 
 if __name__ == "__main__":

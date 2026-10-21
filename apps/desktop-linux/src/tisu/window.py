@@ -3,7 +3,8 @@
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import const, fmt, secret_store
-from .api import ApiError
+from .files import clear_cache
+from .api import ApiError, external_allowed
 from .pages.certificates import CertificatesPage
 from .pages.courses import CoursesPage
 from .pages.dashboard import DashboardPage
@@ -342,6 +343,7 @@ class TisuWindow(Adw.ApplicationWindow):
             self.api.post("auth/logout", {}, lambda *_: None)
         self.api.token = None
         secret_store.clear(self.api.base_url)
+        clear_cache()
         self._build_sidebar_empty()
         self.show_login()
 
@@ -350,6 +352,7 @@ class TisuWindow(Adw.ApplicationWindow):
             return
         self.api.token = None
         secret_store.clear(self.api.base_url)
+        clear_cache()
         self._build_sidebar_empty()
         self.show_login("Sessiya muddati tugadi. Qaytadan kiring.")
 
@@ -372,6 +375,9 @@ class TisuWindow(Adw.ApplicationWindow):
 
     def open_external(self, uri):
         if not uri:
+            return
+        if not external_allowed(uri):
+            self.toast("Bu havolani ochib bo'lmaydi.")
             return
         Gtk.UriLauncher.new(uri).launch(self, None, self._launched, None)
 
