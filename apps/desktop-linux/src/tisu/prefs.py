@@ -17,7 +17,7 @@ class _MemorySettings:
         "notified-announcements": [],
         "last-phone": "",
         "setup-dismissed": False,
-        "last-notification-id": 0,
+        "last-notification-ids": {},
     }
 
     def __init__(self):
@@ -39,12 +39,6 @@ class _MemorySettings:
         return self._values[k]
 
     def set_string(self, k, v):
-        self._values[k] = v
-
-    def get_int64(self, k):
-        return self._values[k]
-
-    def set_int64(self, k, v):
         self._values[k] = v
 
     def get_value(self, k):
@@ -88,3 +82,22 @@ def set_notified(settings, ids):
 
 def api_url(settings):
     return (os.environ.get("TISU_API_URL") or settings.get_string("api-url") or const.DEFAULT_API_URL).rstrip("/")
+
+
+def get_last_notification(settings, user_id):
+    """Newest notification id already shown on the desktop for this user (0 = none yet)."""
+    v = settings.get_value("last-notification-ids")
+    d = v.unpack() if hasattr(v, "unpack") else v
+    return int((d or {}).get(int(user_id), 0))
+
+
+def set_last_notification(settings, user_id, value):
+    v = settings.get_value("last-notification-ids")
+    d = dict(v.unpack() if hasattr(v, "unpack") else v or {})
+    d[int(user_id)] = int(value)
+    if isinstance(settings, _MemorySettings):
+        settings._values["last-notification-ids"] = d
+        return
+    from gi.repository import GLib
+
+    settings.set_value("last-notification-ids", GLib.Variant("a{xx}", d))

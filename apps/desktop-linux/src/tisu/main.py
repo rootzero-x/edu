@@ -16,6 +16,8 @@ from .api import ApiClient  # noqa: E402
 from .public_settings import PublicSettings  # noqa: E402
 from .widgets import Signal  # noqa: E402
 
+POLL_FLOOR_SECONDS = 30
+
 SHORTCUTS = [
     ("Umumiy", [
         ("Qidirish", ["<Control>k"]),
@@ -47,6 +49,7 @@ class TisuApplication(Adw.Application):
         self._notif_urls = {}
         self.api.on_unauthorized = lambda: self.window and self.window.session_expired()
         self.public.connect_changed(lambda: fmt.configure(self.public))
+        self.public.connect_changed(self._settings_changed)
         fmt.configure(self.public)
 
     # ── Startup ──────────────────────────────────────────────
@@ -180,11 +183,23 @@ class TisuApplication(Adw.Application):
         win.present()
 
     # ── Announcements: unread badge + desktop notifications ──
+    def poll_interval(self):
+        """Seconds between unread polls: ui.refresh_seconds, but never more often than every 30 s."""
+        return max(POLL_FLOOR_SECONDS, self.public.refresh_seconds)
+
     def start_polling(self):
         self.stop_polling()
         self._unread = None
         self._poll_unread()
-        self._poll_id = GLib.timeout_add_seconds(self.public.refresh_seconds, self._poll_unread)
+        self._poll_every = self.poll_interval()
+        self._poll_id = GLib.timeout_add_seconds(self._poll_every, self._poll_unread)
+
+    def _settings_changed(self):
+        # Re-arm the timer when the server changes ui.refresh_seconds (public settings refresh).
+        if self._poll_id and self.poll_interval() != getattr(self, "_poll_every", None):
+            GLib.source_remove(self._poll_id)
+            self._poll_every = self.poll_interval()
+            self._poll_id = GLib.timeout_add_seconds(self._poll_every, self._poll_unread)
 
     def stop_polling(self):
         if self._poll_id:
@@ -218,7 +233,7 @@ class TisuApplication(Adw.Application):
             return
         self.set_inbox_unread(int(data.get("unread") or 0), data.get("news_unread"))
         latest = data.get("latest") or []
-        last = self.prefs.get_int64("last-notification-id") if hasattr(self.prefs, "get_int64") else 0
+        last = prefs.get_last_notification(self.prefs, self._user_id())
         newest = max([int(x["id"]) for x in latest] + [last])
         if last == 0:
             self._set_last_notification(newest)  # first run: don't flood with old items
@@ -235,8 +250,10 @@ class TisuApplication(Adw.Application):
             self._set_last_notification(newest)
 
     def _set_last_notification(self, value):
-        if hasattr(self.prefs, "set_int64"):
-            self.prefs.set_int64("last-notification-id", int(value))
+        prefs.set_last_notification(self.prefs, self._user_id(), int(value))
+
+    def _user_id(self):
+        return int(((self.window and self.window.user) or {}).get("id") or 0)
 
     def set_inbox_unread(self, n, news_unread=None):
         self.bus.emit("inbox-changed", n)

@@ -39,9 +39,12 @@ def balance_pill(s, balance):
     return pill(money(s, balance), "error" if balance < 0 else "success" if balance > 0 else "dim")
 
 
-def _parse_amount(text):
-    digits = "".join(ch for ch in (text or "") if ch.isdigit())
-    return int(digits) if digits else 0
+def amount_error(s, amount, max_pay):
+    if amount is None or amount <= 0:
+        return "Summani butun son bilan kiriting (masalan 150 000)."
+    if amount > max_pay:
+        return f"Summa {money(s, max_pay)} dan oshmasin."
+    return None
 
 
 def payment_dialog(page, student_id, name, on_done):
@@ -51,9 +54,10 @@ def payment_dialog(page, student_id, name, on_done):
     today = fmt.now().format("%Y-%m-%d")
 
     def submit(v, done):
-        amount = _parse_amount(v["amount"])
-        if amount <= 0 or amount > max_pay:
-            done(ValueError(f"Summa 1 dan {money(s, max_pay)} gacha bo'lishi kerak."))
+        amount = fmt.parse_amount(v["amount"])
+        problem = amount_error(s, amount, max_pay)
+        if problem:
+            done(ValueError(problem))
             return
 
         def ok(data, err):
@@ -77,11 +81,13 @@ def payment_dialog(page, student_id, name, on_done):
 def adjustment_dialog(page, student_id, name, on_done):
     s = page.settings
     max_pay = s.int("billing.max_payment", 20_000_000)
+    request_id = uuid.uuid4().hex  # per dialog: a double click or a retry does not create a second adjustment
 
     def submit(v, done):
-        amount = _parse_amount(v["amount"])
-        if amount <= 0 or amount > max_pay:
-            done(ValueError(f"Summa 1 dan {money(s, max_pay)} gacha bo'lishi kerak."))
+        amount = fmt.parse_amount(v["amount"])
+        problem = amount_error(s, amount, max_pay)
+        if problem:
+            done(ValueError(problem))
             return
         if len(v["reason"]) < 3:
             done(ValueError("Sababni yozing (kamida 3 belgi)."))
@@ -95,7 +101,7 @@ def adjustment_dialog(page, student_id, name, on_done):
                 on_done()
 
         page.api.post(f"billing/students/{student_id}/adjustments",
-                      {"amount": signed, "reason": v["reason"], "date": v["date"]}, ok)
+                      {"amount": signed, "reason": v["reason"], "date": v["date"], "request_id": request_id}, ok)
 
     form(page.win, f"Tuzatish — {name}", [
         {"name": "direction", "label": "Yo'nalish", "type": "choice",

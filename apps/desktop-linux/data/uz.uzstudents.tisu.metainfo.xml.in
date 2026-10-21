@@ -57,6 +57,13 @@
     <color type="primary" scheme_preference="dark">#1e3a8a</color>
   </branding>
   <releases>
+    <release version="1.4.0" date="2026-10-21">
+      <description>
+        <p>Security and reliability fixes: uploads go through a one-time ticket in chunks (large files work on the
+        hosting), whole-sum money input, de-duplicated adjustments, downloaded files are streamed and removed on sign-out,
+        only web/Telegram/phone links leave the app, gentler polling.</p>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-10-21">
       <description>
         <p>Calendar and rooms, homework with files and grading, lesson marks, notifications centre,

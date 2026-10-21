@@ -1,5 +1,7 @@
 """Date/number formatting in the school's timezone (from public settings), Uzbek style."""
 
+import re
+
 from gi.repository import GLib
 
 MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust",
@@ -122,3 +124,24 @@ def money(amount, currency="so'm"):
         return "—"
     a = int(amount)
     return ("-" if a < 0 else "") + f"{abs(a):,}".replace(",", " ") + (f" {currency}" if currency else "")
+
+
+_AMOUNT_FRACTION = re.compile(r"[.,]([0-9]{1,2})$")
+_AMOUNT_SEPARATORS = re.compile(r"[\s\u00a0\u202f,.'\u2019]")
+_ASCII_DIGITS = re.compile(r"[0-9]+")
+
+
+def parse_amount(text):
+    """Money input → int, or None if it is not a whole amount (mirrors the web EntryDialog parseAmount).
+
+    "1 500 000", "1,500,000", "1.500.000", "150000.00", "150 000,00" → 150000…; a non-zero fraction
+    ("150000.50", "12,5") and anything that is not ASCII digits ("²", "١٢", "1e5", "-5") → None.
+    """
+    s = (text or "").strip()
+    m = _AMOUNT_FRACTION.search(s)
+    if m:
+        if any(ch != "0" for ch in m.group(1)):
+            return None
+        s = s[: m.start()]
+    s = _AMOUNT_SEPARATORS.sub("", s)
+    return int(s) if _ASCII_DIGITS.fullmatch(s) else None
