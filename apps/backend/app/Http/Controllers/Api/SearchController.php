@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Support\Phone;
 use App\Support\Settings;
+use App\Support\TextSearch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,11 +23,13 @@ class SearchController
     {
         $data = $request->validate(['q' => ['required', 'string', 'min:2', 'max:64']]);
         $q = trim($data['q']);
+        if (mb_strlen(trim(TextSearch::strip($q))) < 2) {
+            return response()->json(['data' => [], 'total' => 0]);
+        }
         $user = $request->user();
         $limit = $settings->int('ui.search_limit');
         // Bir tur (masalan, o'quvchilar) butun ro'yxatni egallab olmasin.
         $per = max(3, intdiv($limit, 2));
-        $like = '%'.addcslashes($q, '%_\\').'%';
         $digits = Phone::searchDigits($q);
         $staff = $user->hasPermission('attendance.mark') || $user->hasPermission('group.manage');
         $out = [];
@@ -51,14 +54,14 @@ class SearchController
 
         // Guruhlar
         if (! $digits) {
-            foreach (GroupController::visible($user)->with('course:id,title')->where('name', 'like', $like)->orderByDesc('active')->orderBy('name')->limit($per)->get() as $g) {
+            foreach (TextSearch::where(GroupController::visible($user)->with('course:id,title'), ['name'], $q)->orderByDesc('active')->orderBy('name')->limit($per)->get() as $g) {
                 $out[] = ['type' => 'group', 'id' => $g->id, 'title' => $g->name, 'subtitle' => (string) $g->course?->title, 'href' => "/dashboard/groups/{$g->id}", 'active' => $g->active];
             }
         }
 
         // Kurslar
         if (! $digits && $user->hasPermission('course.view')) {
-            $courses = Course::query()->where('title', 'like', $like)
+            $courses = TextSearch::where(Course::query(), ['title'], $q)
                 ->when(! $user->hasPermission('course.manage'), fn ($c) => $c->where('published', true))->orderBy('title')->limit($per)->get(['id', 'title', 'published']);
             foreach ($courses as $c) {
                 $out[] = ['type' => 'course', 'id' => $c->id, 'title' => $c->title, 'subtitle' => '', 'href' => "/dashboard/courses/{$c->id}", 'active' => (bool) $c->published];
@@ -67,7 +70,7 @@ class SearchController
 
         // Arizalar
         if ($user->hasPermission('lead.manage')) {
-            $leads = Lead::query()->where(fn ($w) => $digits ? $w->where('phone', 'like', "%$digits%") : $w->where('name', 'like', $like))
+            $leads = Lead::query()->where(fn ($w) => $digits ? $w->where('phone', 'like', "%$digits%") : TextSearch::where($w, ['name'], $q))
                 ->orderByRaw("case when status in ('NEW','CONTACTED','TRIAL') then 0 else 1 end")->orderByDesc('id')->limit($per)->get();
             $labels = (array) $settings->get('leads.status_labels');
             foreach ($leads as $l) {
