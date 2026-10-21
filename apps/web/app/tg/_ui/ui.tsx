@@ -96,12 +96,15 @@ export function Failed({ onRetry, text, home }: { onRetry?: () => void; text?: s
 
 /** Kursga yozilmagan foydalanuvchi: murojaat tugmasi bilan (matnlar sozlamalardan). */
 export function Denied({ denial }: { denial: Denial }) {
-  const url = denial.contact_url || (denial.contact?.startsWith("@") ? `https://t.me/${denial.contact.slice(1)}` : "");
+  const { t, can } = useTg();
+  // Xodim (o'qituvchi) kursga "yozilmaydi": o'quvchiga mo'ljallangan murojaat matni va tugmasi o'rniga — tushuntirish.
+  const staff = denial.code === "COURSE_ACCESS_DENIED" && can("attendance.mark");
+  const url = staff ? "" : denial.contact_url || (denial.contact?.startsWith("@") ? `https://t.me/${denial.contact.slice(1)}` : "");
   return (
     <div className="tg-empty">
       <div className="tg-empty-icon" aria-hidden>🔒</div>
-      <p><b>{denial.title}</b></p>
-      <p className="tg-hint">{denial.message}</p>
+      <p><b>{staff ? t("staff_denied_title") : denial.title}</b></p>
+      <p className="tg-hint">{staff ? t("staff_denied_text") : denial.message}</p>
       {backToCourse(denial) && (
         <Link className="tg-btn" href={`/tg/courses/${denial.course!.id}`} onClick={() => haptic.tap()}>‹ {denial.course!.title}</Link>
       )}

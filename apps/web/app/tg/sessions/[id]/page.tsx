@@ -37,6 +37,8 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
   const [topic, setTopic] = useState(sheet.session.topic ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // "Sabab yozing" xatosi maydon yonida ko'rsatiladi (varaq pastidagi umumiy xabar ko'rinmay qolardi).
+  const [reasonErr, setReasonErr] = useState(false);
   const reasonRef = useRef<HTMLInputElement>(null);
   const saving = useRef(false); // state'dan farqli — ketma-ket ikki bosishda darhol ko'rinadi.
   useEffect(() => setStatus(initial()), [sheet]);
@@ -56,8 +58,9 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
     // Sabab majburiy bo'lsa — tugmani o'chirib qo'yish o'rniga nima yetishmayotganini aytamiz.
     if (reasonRequired && changed.length > 0 && !reason.trim()) {
       haptic.error();
-      setMsg({ ok: false, text: t("sheet_reason_required") });
+      setReasonErr(true);
       reasonRef.current?.focus();
+      reasonRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
     saving.current = true;
@@ -98,7 +101,8 @@ function SheetView({ sheet, reload }: { sheet: Sheet; reload: () => void }) {
       {lockedMsg && <p className="tg-hint" style={{ textAlign: "center", margin: "10px 0" }}>🔒 {lockedMsg}</p>}
       {reasonRequired && (
         <Section title={t("sheet_reason")}>
-          <div className="tg-pad"><input ref={reasonRef} className="tg-input" value={reason} maxLength={255} placeholder={t("sheet_reason_hint")} aria-label={t("sheet_reason")} onChange={(e) => setReason(e.target.value)} /></div>
+          <div className="tg-pad"><input ref={reasonRef} className="tg-input" value={reason} maxLength={255} placeholder={t("sheet_reason_hint")} aria-label={t("sheet_reason")} onChange={(e) => { setReason(e.target.value); setReasonErr(false); }} />
+            {reasonErr && <p className="tg-hint tg-msg bad" role="alert">{t("sheet_reason_required")}</p>}</div>
         </Section>
       )}
       {canMark && (

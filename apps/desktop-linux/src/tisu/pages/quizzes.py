@@ -206,7 +206,13 @@ class QuizPage(Page):
                     done(ValueError("Bitta javobli savolda faqat bitta to'g'ri variant bo'ladi."))
                     return
                 body["options"] = opts
-            cb = lambda _d, err: (done(err), err is None and self.changed())  # noqa: E731
+            def cb(data, err):
+                done(err)
+                if err is None:
+                    if (data or {}).get("versioned"):
+                        self.win.toast("Test topshirilgan: savol yangi versiya sifatida saqlandi, eski javoblar o'zgarmaydi.", timeout=6)
+                    self.changed()
+
             if question:
                 self.api.patch(f"questions/{existing['id']}", body, cb)
             else:
@@ -228,7 +234,9 @@ class QuizPage(Page):
 
     def delete_question(self, question):
         confirm(self.win, "Savol o'chirilsinmi?", question["text"][:200], "O'chirish",
-                lambda: self.api.delete(f"questions/{question['id']}", done_toast(self.win, "Savol o'chirildi", self.changed)))
+                lambda: self.api.delete(f"questions/{question['id']}", done_toast(
+                    self.win, None, lambda d: (self.win.toast("Savol arxivlandi (topshirilgan javoblar tarixi saqlanadi)"
+                                                              if (d or {}).get("archived") else "Savol o'chirildi"), self.changed()))))
 
     def start(self, button):
         button.set_sensitive(False)

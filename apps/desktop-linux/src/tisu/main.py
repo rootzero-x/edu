@@ -18,6 +18,7 @@ from .widgets import Signal  # noqa: E402
 
 SHORTCUTS = [
     ("Umumiy", [
+        ("Qidirish", ["<Control>k"]),
         ("Yangilash", ["<Control>r", "F5"]),
         ("Asosiy menyu", ["F10"]),
         ("Klaviatura yorliqlari", ["<Control>question"]),
@@ -43,6 +44,7 @@ class TisuApplication(Adw.Application):
         self._poll_id = 0
         self._unread = None
         self._held = False
+        self._notif_urls = {}
         self.api.on_unauthorized = lambda: self.window and self.window.session_expired()
         self.public.connect_changed(lambda: fmt.configure(self.public))
         fmt.configure(self.public)
@@ -64,6 +66,9 @@ class TisuApplication(Adw.Application):
         self._action("about", lambda *_: self.show_about())
         self._action("shortcuts", lambda *_: self.show_shortcuts(), ["<Control>question"])
         self.add_action(self.prefs.create_action("run-in-background"))
+        open_n = Gio.SimpleAction.new("open-notification", GLib.VariantType.new("x"))
+        open_n.connect("activate", lambda _a, p: self._open_notification(p.get_int64()))
+        self.add_action(open_n)
         open_ann = Gio.SimpleAction.new("open-announcement", GLib.VariantType.new("x"))
         open_ann.connect("activate", lambda _a, p: self._open_announcement(p.get_int64()))
         self.add_action(open_ann)
@@ -96,6 +101,7 @@ class TisuApplication(Adw.Application):
 
         add("refresh", lambda *_: win.refresh(), ["<Control>r", "F5"])
         add("logout", lambda *_: self.confirm_logout())
+        add("search", lambda *_: win.open_search(), ["<Control>k", "<Control>f"])
         sec = Gio.SimpleAction.new("section", GLib.VariantType.new("i"))
         sec.connect("activate", lambda _a, p: win.section_index(p.get_int32()))
         win.add_action(sec)
@@ -188,6 +194,9 @@ class TisuApplication(Adw.Application):
     def _poll_unread(self):
         if not self.api.token:
             return True
+        if self.public.get("notifications.inbox_enabled", True) is not False:
+            self.api.get("notifications/unread", self._inbox_polled)
+            return True
 
         def done(data, err):
             if err or data is None:
@@ -201,6 +210,47 @@ class TisuApplication(Adw.Application):
 
         self.api.get("announcements/unread", done)
         return True
+
+    def _inbox_polled(self, data, err):
+        if err or not data:
+            if err and err.status == 404:  # older server without the inbox → announcements only
+                self.public.values["notifications.inbox_enabled"] = False
+            return
+        self.set_inbox_unread(int(data.get("unread") or 0), data.get("news_unread"))
+        latest = data.get("latest") or []
+        last = self.prefs.get_int64("last-notification-id") if hasattr(self.prefs, "get_int64") else 0
+        newest = max([int(x["id"]) for x in latest] + [last])
+        if last == 0:
+            self._set_last_notification(newest)  # first run: don't flood with old items
+            return
+        fresh = sorted((x for x in latest if int(x["id"]) > last), key=lambda x: x["id"])
+        for x in fresh[-3:]:
+            self._notif_urls[int(x["id"])] = (x.get("url"), int(x["id"]))
+            n = Gio.Notification.new(x.get("label") or self.public.site_name)
+            n.set_body((x.get("text") or "")[:240])
+            n.set_icon(Gio.ThemedIcon.new(const.APP_ID))
+            n.set_default_action(f"app.open-notification({int(x['id'])})")
+            self.send_notification(f"notification-{x['id']}", n)
+        if newest > last:
+            self._set_last_notification(newest)
+
+    def _set_last_notification(self, value):
+        if hasattr(self.prefs, "set_int64"):
+            self.prefs.set_int64("last-notification-id", int(value))
+
+    def set_inbox_unread(self, n, news_unread=None):
+        self.bus.emit("inbox-changed", n)
+        if news_unread is not None:
+            self._unread = int(news_unread)
+            self.bus.emit("unread-changed", int(news_unread))
+
+    def _open_notification(self, nid):
+        self.activate()
+        url, _ = self._notif_urls.get(nid, (None, nid))
+        self.api.post("notifications/read", {"ids": [nid]},
+                      lambda d, e: d and self.set_inbox_unread(int(d.get("unread") or 0), d.get("news_unread")))
+        if self.window and self.window.user:
+            self.window.navigate(url or "/dashboard/notifications")
 
     def set_unread(self, n):
         self._unread = n

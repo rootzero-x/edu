@@ -5,6 +5,7 @@ from gi.repository import Gtk, GLib
 from .. import fmt
 from ..widgets import Page, group, join, label, pill, prefs_page, row, stat_card
 from .groups import SessionSheetPage
+from .system import setup_group, status_group
 
 
 class DashboardPage(Page):
@@ -30,11 +31,14 @@ class DashboardPage(Page):
         return True
 
     def fetch(self, done):
-        keys = ["summary"] + (["?unmarked"] if self.win.has("attendance.mark") else [])
+        keys = ["summary"] + (["?unmarked"] if self.win.has("attendance.mark") else []) \
+            + (["?status"] if self.win.has("user.manage") else [])
         cb = join(done, keys)
         self.api.get("dashboard/summary", cb("summary"))
         if "?unmarked" in keys:
             self.api.get("attendance/unmarked", cb("?unmarked"))
+        if "?status" in keys:
+            self.api.get("system/status", cb("?status"))
 
     def render(self, data):
         s = self.settings
@@ -90,7 +94,11 @@ class DashboardPage(Page):
             today.add(row(title, " · ".join(p for p in parts if p), on_activate=self._open_session(t["id"], t["group_name"]),
                           suffix=suffix))
 
-        result = [hello, stats_group, today]
+        result = [hello]
+        setup = summary.get("setup")
+        if setup and setup.get("done", 0) < setup.get("total", 0) and not self.win.prefs.get_boolean("setup-dismissed"):
+            result.append(setup_group(self.win, setup, self._dismiss_setup))
+        result += [stats_group, today]
         unmarked = (data.get("unmarked") or {}).get("data") if data.get("unmarked") else None
         if unmarked:
             g = group("Davomati belgilanmagan darslar",
@@ -100,7 +108,13 @@ class DashboardPage(Page):
                           None, icon="alarm-symbolic", suffix=pill(f"{u['marked']}/{u['members']}", "warning"),
                           on_activate=self._open_session(u["id"], u["group"]["name"])))
             result.append(g)
+        if data.get("status"):
+            result.append(status_group(self.win, data["status"]))
         return prefs_page(*result)
+
+    def _dismiss_setup(self):
+        self.win.prefs.set_boolean("setup-dismissed", True)
+        self.reload()
 
     def _open_session(self, session_id, group_name):
         return lambda: self.push(SessionSheetPage(self.win, session_id, group_name, on_saved=self.reload))

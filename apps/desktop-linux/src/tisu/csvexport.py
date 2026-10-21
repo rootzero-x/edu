@@ -1,12 +1,16 @@
-"""Save a CSV report from the API to a file chosen with the system file dialog."""
+"""Save a file (CSV report, import template …) from the API to a place chosen with the system file dialog."""
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
 
 def save_csv(win, api, path, query, default_name, button=None):
-    dialog = Gtk.FileDialog(title="CSV faylni saqlash", initial_name=default_name)
-    f = Gtk.FileFilter(name="CSV (Excel)")
-    f.add_pattern("*.csv")
+    save_file(win, api, path, query, default_name, button, "CSV (Excel)", "*.csv")
+
+
+def save_file(win, api, path, query, default_name, button=None, filter_name=None, pattern=None):
+    dialog = Gtk.FileDialog(title="Faylni saqlash", initial_name=default_name)
+    f = Gtk.FileFilter(name=filter_name or "Fayl")
+    f.add_pattern(pattern or "*")
     filters = Gio.ListStore.new(Gtk.FileFilter)
     filters.append(f)
     dialog.set_filters(filters)

@@ -56,6 +56,14 @@ class ReportsPage(Page):
         self.csv_button = Gtk.Button(icon_name="document-save-symbolic", tooltip_text="Davomatni CSV (Excel) ga yuklab olish")
         self.csv_button.connect("clicked", lambda *_: self.export_csv())
         self.header.pack_start(self.csv_button)
+        from .kpi import HomeworkReportPage, KpiPage
+
+        kpi = Gtk.Button(icon_name="tisu-chart-symbolic", tooltip_text="Ko'rsatkichlar (KPI)")
+        kpi.connect("clicked", lambda *_: self.push(KpiPage(self.win)))
+        hw = Gtk.Button(icon_name="tisu-quiz-symbolic", tooltip_text="Uyga vazifa hisoboti")
+        hw.connect("clicked", lambda *_: self.push(HomeworkReportPage(self.win)))
+        self.header.pack_start(kpi)
+        self.header.pack_start(hw)
         self._content_page = None
         self._load_groups()
 
