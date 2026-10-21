@@ -21,6 +21,8 @@ public sealed partial class UsersPage : ViewPage
 
     private void Search_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args) => ViewModel.SearchCommand.Execute(null);
 
+    private void Profile_Click(object sender, RoutedEventArgs e) => ViewModel.OpenProfileCommand.Execute(Item(sender));
+
     private void Edit_Click(object sender, RoutedEventArgs e) => ViewModel.EditUserCommand.Execute(Item(sender));
 
     private void Password_Click(object sender, RoutedEventArgs e) => ViewModel.SetPasswordCommand.Execute(Item(sender));

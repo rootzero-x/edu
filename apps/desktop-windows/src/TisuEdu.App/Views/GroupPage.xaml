@@ -24,6 +24,11 @@
                 <AppBarButton Label="Sertifikatlar" Command="{x:Bind ViewModel.LoadCandidatesCommand}">
                     <AppBarButton.Icon><FontIcon Glyph="&#xEB95;" /></AppBarButton.Icon>
                 </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Label="Guruhni bitirish (hamma o'quvchilar)" Command="{x:Bind ViewModel.GraduateAllCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE7BE;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar.SecondaryCommands>
             </CommandBar>
 
             <controls:StatusBanner Model="{x:Bind ViewModel}" />
@@ -146,7 +151,13 @@
                                         </Grid.ColumnDefinitions>
                                         <PersonPicture DisplayName="{x:Bind Name}" Width="32" Height="32" />
                                         <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{x:Bind Name}" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <HyperlinkButton Content="{x:Bind Name}" Tag="{x:Bind}" Click="Profile_Click" Padding="0" IsEnabled="{x:Bind CanOpenProfile}" />
+                                                <Border Style="{StaticResource PillStyle}" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Visibility="{x:Bind Frozen}">
+                                                    <TextBlock Text="muzlatilgan" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{x:Bind StatusText}" Style="{StaticResource SecondaryTextStyle}" />
                                             <TextBlock Text="{x:Bind Phone}" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind HasPhone}" IsTextSelectionEnabled="True" />
                                             <TextBlock Text="{x:Bind Counts}" Style="{StaticResource SecondaryTextStyle}" />
                                         </StackPanel>
@@ -155,9 +166,9 @@
                                                 <TextBlock Text="{x:Bind Rate}" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right" />
                                                 <ProgressBar Value="{x:Bind RateValue}" Maximum="100" />
                                             </StackPanel>
-                                            <Button Tag="{x:Bind}" Click="RemoveMember_Click" Visibility="{x:Bind CanManage}" ToolTipService.ToolTip="Guruhdan chiqarish"
-                                                    AutomationProperties.Name="Guruhdan chiqarish">
-                                                <FontIcon Glyph="&#xE8F8;" FontSize="12" />
+                                            <Button Tag="{x:Bind}" Click="ManageMember_Click" Visibility="{x:Bind CanManage}" ToolTipService.ToolTip="Muzlatish, o'tkazish, bitirish, chiqarish"
+                                                    AutomationProperties.Name="O'quvchi amallari">
+                                                <FontIcon Glyph="&#xE712;" FontSize="12" />
                                             </Button>
                                         </StackPanel>
                                     </Grid>
@@ -165,6 +176,16 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <Expander Header="Sobiq a'zolar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,8,0,0"
+                              Visibility="{x:Bind ViewModel.HasFormer, Mode=OneWay}">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Former}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{x:Bind}" TextWrapping="Wrap" Margin="0,2" Style="{StaticResource SecondaryTextStyle}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Expander>
                 </StackPanel>
             </Grid>
         </StackPanel>

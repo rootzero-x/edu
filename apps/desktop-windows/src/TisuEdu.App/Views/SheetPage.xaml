@@ -68,7 +68,12 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="4" Width="72" MaxLength="4" VerticalAlignment="Center" PlaceholderText="{x:Bind ScaleHint, Mode=OneWay}"
+                                             ToolTipService.ToolTip="Darsdagi baho" AutomationProperties.Name="Baho"
+                                             Text="{x:Bind Score, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Visibility="{x:Bind HasMarks, Mode=OneWay}"
+                                             IsEnabled="{x:Bind CanMark, Mode=OneWay}" />
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
                                         <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />

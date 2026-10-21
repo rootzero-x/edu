@@ -3,6 +3,7 @@
     x:Class="TisuEdu.App.Views.ShellPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:TisuEdu.Core.ViewModels"
     Background="Transparent">
 
     <Page.KeyboardAccelerators>
@@ -10,6 +11,18 @@
         <KeyboardAccelerator Key="GoBack" Invoked="Back_Invoked" />
         <KeyboardAccelerator Key="F5" Invoked="Reload_Invoked" />
         <KeyboardAccelerator Key="R" Modifiers="Control" Invoked="Reload_Invoked" />
+        <KeyboardAccelerator Key="K" Modifiers="Control" Invoked="Search_Invoked" />
+        <KeyboardAccelerator Key="Escape" Invoked="Back_Invoked" />
+        <KeyboardAccelerator Key="F1" Invoked="Shortcuts_Invoked" />
+        <KeyboardAccelerator Key="Number1" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number2" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number3" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number4" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number5" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number6" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number7" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number8" Modifiers="Control" Invoked="Section_Invoked" />
+        <KeyboardAccelerator Key="Number9" Modifiers="Control" Invoked="Section_Invoked" />
     </Page.KeyboardAccelerators>
 
     <NavigationView
@@ -23,6 +36,27 @@
         ExpandedModeThresholdWidth="1100"
         BackRequested="Nav_BackRequested"
         ItemInvoked="Nav_ItemInvoked">
+
+        <NavigationView.AutoSuggestBox>
+            <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Qidirish (Ctrl+K)" QueryIcon="Find" AutomationProperties.Name="Global qidiruv"
+                            TextChanged="Search_TextChanged" SuggestionChosen="Search_SuggestionChosen" QuerySubmitted="Search_QuerySubmitted">
+                <AutoSuggestBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SearchHitItem">
+                        <Grid ColumnSpacing="10" Padding="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </AutoSuggestBox.ItemTemplate>
+            </AutoSuggestBox>
+        </NavigationView.AutoSuggestBox>
 
         <NavigationView.PaneHeader>
             <StackPanel Orientation="Horizontal" Spacing="12" Margin="4,4,0,8" Visibility="{x:Bind Nav.IsPaneOpen, Mode=OneWay}">
@@ -38,11 +72,17 @@
             <NavigationViewItem x:Name="HomeItem" Tag="Dashboard" Content="{x:Bind ViewModel.NavHome, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem x:Name="CalendarItem" Tag="Calendar" Content="{x:Bind ViewModel.NavCalendar, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
             <NavigationViewItem x:Name="CoursesItem" Tag="Courses" Content="{x:Bind ViewModel.NavCourses, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanCourses, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE7BE;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="GroupsItem" Tag="Groups" Content="{x:Bind ViewModel.NavGroups, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE716;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="HomeworkItem" Tag="Homework" Content="{x:Bind ViewModel.NavHomework, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanHomework, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE70B;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="AttendanceItem" Tag="Attendance" Content="{x:Bind ViewModel.NavAttendance, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanAttendance, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D5;" /></NavigationViewItem.Icon>
@@ -53,11 +93,23 @@
                     <InfoBadge Value="{x:Bind ViewModel.Unread, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasUnread, Mode=OneWay}" />
                 </NavigationViewItem.InfoBadge>
             </NavigationViewItem>
+            <NavigationViewItem x:Name="NotificationsItem" Tag="Notifications" Content="{x:Bind ViewModel.NavNotifications, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanNotifications, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xEA8F;" /></NavigationViewItem.Icon>
+                <NavigationViewItem.InfoBadge>
+                    <InfoBadge Value="{x:Bind ViewModel.InboxUnread, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasInboxUnread, Mode=OneWay}" />
+                </NavigationViewItem.InfoBadge>
+            </NavigationViewItem>
             <NavigationViewItem x:Name="CertificatesItem" Tag="Certificates" Content="{x:Bind ViewModel.NavCertificates, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xEB95;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="ReportsItem" Tag="Reports" Content="{x:Bind ViewModel.NavReports, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanReports, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D2;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="KpiItem" Tag="Kpi" Content="{x:Bind ViewModel.NavKpi, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanReports, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D9;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="LeadsItem" Tag="Leads" Content="{x:Bind ViewModel.NavLeads, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanLeads, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE8C3;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="BillingItem" Tag="Billing" Content="{x:Bind ViewModel.NavBilling, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanBilling, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE8C7;" /></NavigationViewItem.Icon>
@@ -67,6 +119,12 @@
         <NavigationView.FooterMenuItems>
             <NavigationViewItem x:Name="UsersItem" Tag="Users" Content="{x:Bind ViewModel.NavUsers, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanUsers, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE716;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="AuditItem" Tag="Audit" Content="{x:Bind ViewModel.NavAudit, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanAudit, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE81C;" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="SystemItem" Tag="System" Content="{x:Bind ViewModel.NavSystem, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanSystem, Mode=OneWay}">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9F5;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="AdminSettingsItem" Tag="AdminSettings" Content="{x:Bind ViewModel.NavSettings, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanSettings, Mode=OneWay}">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE7EF;" /></NavigationViewItem.Icon>

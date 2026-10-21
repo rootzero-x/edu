@@ -85,3 +85,9 @@ public static class FormsExtensions
         return ok ? result : null;
     }
 }
+
+/// <summary>Ro'yxatdagi tanlov (ComboBox elementlari ToString() orqali ko'rsatiladi).</summary>
+public sealed record Option(string Key, string Label)
+{
+    public override string ToString() => Label;
+}

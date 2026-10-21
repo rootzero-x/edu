@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.HomeworkPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels">
+    <Grid MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                <ToggleSwitch OnContent="Faqat ochiqlar" OffContent="Faqat ochiqlar" MinWidth="0" IsOn="{x:Bind ViewModel.OnlyOpen, Mode=TwoWay}" />
+                <Button Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.NewAssignmentCommand}" Visibility="{x:Bind ViewModel.IsTeacher, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE710;" FontSize="14" />
+                        <TextBlock Text="Yangi vazifa" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+        <controls:StatusBanner Grid.Row="1" Model="{x:Bind ViewModel}" />
+        <Pivot Grid.Row="2" SelectedIndex="{x:Bind ViewModel.TabIndex, Mode=TwoWay}">
+            <PivotItem Header="Vazifalar">
+                <Grid>
+                    <TextBlock Text="Vazifalar yo'q." Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" Margin="0,8" />
+                    <ListView ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Item_Click"
+                              ItemContainerStyle="{StaticResource CardListViewItemStyle}" Margin="0,8,0,0">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AssignmentItem">
+                                <Border Style="{StaticResource ListCardStyle}">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Glyph="&#xE70B;" FontSize="20" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <FontIcon Glyph="&#xE723;" FontSize="12" Visibility="{x:Bind HasFiles}" ToolTipService.ToolTip="Fayl biriktirilgan" />
+                                            </StackPanel>
+                                            <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" />
+                                            <TextBlock Text="{x:Bind State}" Style="{StaticResource SecondaryTextStyle}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4">
+                                            <TextBlock Text="{x:Bind Due}" Style="{StaticResource SecondaryTextStyle}" HorizontalAlignment="Right" />
+                                            <Border Style="{StaticResource PillStyle}" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Visibility="{x:Bind NeedsAction}" HorizontalAlignment="Right">
+                                                <TextBlock Text="E'tibor kerak" Style="{StaticResource CaptionTextBlockStyle}" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </PivotItem>
+            <PivotItem Header="Baholarim" Visibility="{x:Bind ViewModel.IsStudent, Mode=OneWay}">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <TextBlock Text="{x:Bind ViewModel.AverageText, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock Text="Hali baho qo'yilmagan." Style="{StaticResource SecondaryTextStyle}"
+                               Visibility="{x:Bind ViewModel.HasMarks, Mode=OneWay, Converter={StaticResource InverseVisibility}}" />
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Marks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MarkEntryItem">
+                                <Border Style="{StaticResource ListCardStyle}" Margin="0,0,0,4">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" />
+                                            <TextBlock Text="{x:Bind Note}" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind HasNote}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Score}" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </PivotItem>
+        </Pivot>
+    </Grid>
+</local:ViewPage>

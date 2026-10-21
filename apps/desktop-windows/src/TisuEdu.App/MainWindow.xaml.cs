@@ -102,6 +102,8 @@ public sealed partial class MainWindow : Window
 
     public void SetUnread(int unread) => (RootFrame.Content as ShellPage)?.SetUnread(unread);
 
+    public void SetInboxUnread(int unread) => (RootFrame.Content as ShellPage)?.SetInboxUnread(unread);
+
     public void BringToFront()
     {
         if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } p) p.Restore();

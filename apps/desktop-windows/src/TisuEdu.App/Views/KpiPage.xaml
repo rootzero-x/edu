@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.KpiPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" Spacing="8">
+            <Grid>
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+                <ComboBox HorizontalAlignment="Right" SelectedIndex="{x:Bind ViewModel.MonthsIndex, Mode=TwoWay}" AutomationProperties.Name="Davr">
+                    <ComboBoxItem Content="3 oy" />
+                    <ComboBoxItem Content="6 oy" />
+                    <ComboBoxItem Content="12 oy" />
+                    <ComboBoxItem Content="24 oy" />
+                </ComboBox>
+            </Grid>
+            <TextBlock Text="{x:Bind ViewModel.TargetsText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.ReachText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+
+            <TextBlock Text="Oylar bo'yicha" Style="{StaticResource SectionHeaderStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Months}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KpiMonthItem">
+                        <Border Style="{StaticResource ListCardStyle}" Margin="0,0,0,4">
+                            <Grid ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140" />
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="{x:Bind Month}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{x:Bind Teaching}" Style="{StaticResource SecondaryTextStyle}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="Davomat" Style="{StaticResource SecondaryTextStyle}" />
+                                        <TextBlock Text="{x:Bind Attendance}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="{x:Bind BelowTarget}"
+                                                  ToolTipService.ToolTip="Maqsaddan past" />
+                                    </StackPanel>
+                                    <ProgressBar Value="{x:Bind AttendanceValue}" Maximum="100" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{x:Bind Students}" TextWrapping="Wrap" />
+                                    <TextBlock Text="{x:Bind Churn}" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock Text="{x:Bind Quizzes}" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock Text="{x:Bind Homework}" Style="{StaticResource SecondaryTextStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Style="{StaticResource CardStyle}" Visibility="{x:Bind ViewModel.HasMoney, Mode=OneWay}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Moliya" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock Text="{x:Bind ViewModel.MoneyText, Mode=OneWay}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="O'qituvchilar (dars soatlari)" Style="{StaticResource SectionHeaderStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Teachers}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KpiTeacherItem">
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="{x:Bind Hours}" Style="{StaticResource SecondaryTextStyle}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="Ketish sabablari (oxirgi oy)" Style="{StaticResource SectionHeaderStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.LeaveReasons}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" TextWrapping="Wrap" Margin="0,2" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+            <TextBlock Text="Uyga vazifa (guruhlar bo'yicha, 30 kun)" Style="{StaticResource SectionHeaderStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.HomeworkRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" TextWrapping="Wrap" Margin="0,2" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</local:ViewPage>

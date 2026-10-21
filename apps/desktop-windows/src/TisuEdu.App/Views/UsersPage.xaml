@@ -16,12 +16,26 @@
         </Grid.RowDefinitions>
         <Grid>
             <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
-            <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.NewUserCommand}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE8FA;" FontSize="14" />
-                    <TextBlock Text="Yangi foydalanuvchi" />
-                </StackPanel>
-            </Button>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <DropDownButton>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8B5;" FontSize="14" />
+                        <TextBlock Text="Import (Excel/CSV)" />
+                    </StackPanel>
+                    <DropDownButton.Flyout>
+                        <MenuFlyout Placement="Bottom">
+                            <MenuFlyoutItem Text="Fayldan import qilish…" Command="{x:Bind ViewModel.ImportCommand}" />
+                            <MenuFlyoutItem Text="Shablonni yuklab olish" Command="{x:Bind ViewModel.DownloadTemplateCommand}" />
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+                <Button Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.NewUserCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8FA;" FontSize="14" />
+                        <TextBlock Text="Yangi foydalanuvchi" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </Grid>
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
             <AutoSuggestBox Width="300" PlaceholderText="Ism yoki telefon" QueryIcon="Find" QuerySubmitted="Search_QuerySubmitted"
@@ -64,6 +78,9 @@
                             </StackPanel>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                 <Button Content="Tasdiqlash" Tag="{x:Bind}" Click="Approve_Click" Visibility="{x:Bind Pending}" Style="{StaticResource AccentButtonStyle}" />
+                                <Button Tag="{x:Bind}" Click="Profile_Click" ToolTipService.ToolTip="Profil" AutomationProperties.Name="Profil">
+                                    <FontIcon Glyph="&#xE77B;" FontSize="14" />
+                                </Button>
                                 <Button Tag="{x:Bind}" Click="Edit_Click" ToolTipService.ToolTip="Tahrirlash" AutomationProperties.Name="Tahrirlash">
                                     <FontIcon Glyph="&#xE70F;" FontSize="14" />
                                 </Button>

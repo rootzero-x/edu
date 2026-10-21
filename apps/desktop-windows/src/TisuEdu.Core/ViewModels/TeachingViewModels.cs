@@ -46,9 +46,9 @@ public sealed partial class CalendarViewModel(AppServices services) : PageViewMo
     private bool _filtersLoaded;
 
     public ObservableCollection<CalendarDay> Days { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> Teachers { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> Rooms { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> Groups { get; } = [];
+    public ObservableCollection<Option> Teachers { get; } = [];
+    public ObservableCollection<Option> Rooms { get; } = [];
+    public ObservableCollection<Option> Groups { get; } = [];
 
     [ObservableProperty] private int _viewIndex = services.Settings.Current.Str("calendar.default_view", "week") == "month" ? 1 : 0;
     [ObservableProperty] private int _teacherIndex;
@@ -76,7 +76,7 @@ public sealed partial class CalendarViewModel(AppServices services) : PageViewMo
         return (monday, monday.AddDays(6));
     }
 
-    private static int? Pick(ObservableCollection<KeyValuePair<string, string>> list, int index) =>
+    private static int? Pick(ObservableCollection<Option> list, int index) =>
         index > 0 && index < list.Count && int.TryParse(list[index].Key, out var id) ? id : null;
 
     protected override async Task LoadCoreAsync(CancellationToken ct)
@@ -91,6 +91,7 @@ public sealed partial class CalendarViewModel(AppServices services) : PageViewMo
             Fill(Teachers, "Barcha o'qituvchilar", r.Value.Filters.Teachers);
             Fill(Rooms, "Barcha xonalar", r.Value.Filters.Rooms);
             Fill(Groups, "Barcha guruhlar", r.Value.Filters.Groups);
+            TeacherIndex = RoomIndex = GroupIndex = 0;
             _filtersLoaded = true;
         }
         RangeText = ViewIndex == 1
@@ -107,11 +108,11 @@ public sealed partial class CalendarViewModel(AppServices services) : PageViewMo
         IsEmpty = r.Value.Data.Count == 0;
     }
 
-    private static void Fill(ObservableCollection<KeyValuePair<string, string>> target, string all, IEnumerable<IdName> items)
+    private static void Fill(ObservableCollection<Option> target, string all, IEnumerable<IdName> items)
     {
         target.Clear();
-        target.Add(Editing.Opt("", all));
-        foreach (var i in items) target.Add(Editing.Opt(i.Id.ToString(CultureInfo.InvariantCulture), i.Name));
+        target.Add(new Option("", all));
+        foreach (var i in items) target.Add(new Option(i.Id.ToString(CultureInfo.InvariantCulture), i.Name));
     }
 
     [RelayCommand]

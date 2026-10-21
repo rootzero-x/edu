@@ -25,6 +25,9 @@
                 <AppBarButton Label="Material qo'shish" Command="{x:Bind ViewModel.AddMaterialCommand}">
                     <AppBarButton.Icon><FontIcon Glyph="&#xE710;" /></AppBarButton.Icon>
                 </AppBarButton>
+                <AppBarButton Label="Fayl yuklash" Command="{x:Bind ViewModel.UploadMaterialCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE898;" /></AppBarButton.Icon>
+                </AppBarButton>
                 <CommandBar.SecondaryCommands>
                     <AppBarButton Label="Darsni o'chirish" Command="{x:Bind ViewModel.DeleteLessonCommand}">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE74D;" /></AppBarButton.Icon>

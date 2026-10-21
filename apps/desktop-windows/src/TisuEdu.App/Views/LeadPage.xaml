@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.LeadPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="960" Padding="{StaticResource PagePadding}" Spacing="8">
+            <TextBlock Text="{x:Bind ViewModel.Name, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.Sub, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" IsTextSelectionEnabled="True" />
+            <CommandBar DefaultLabelPosition="Right" Background="Transparent" HorizontalAlignment="Left">
+                <AppBarButton Label="Holat" Command="{x:Bind ViewModel.ChangeStatusCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE8AB;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="Qo'ng'iroq / izoh" Command="{x:Bind ViewModel.AddActivityCommand}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE717;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="O'quvchiga aylantirish" Command="{x:Bind ViewModel.ConvertCommand}" Visibility="{x:Bind ViewModel.CanConvert, Mode=OneWay}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE8FA;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Label="O'quvchi profili" Command="{x:Bind ViewModel.OpenStudentCommand}" Visibility="{x:Bind ViewModel.HasStudent, Mode=OneWay}">
+                    <AppBarButton.Icon><FontIcon Glyph="&#xE77B;" /></AppBarButton.Icon>
+                </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Label="Tahrirlash" Command="{x:Bind ViewModel.EditCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE70F;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Label="Qo'ng'iroq qilish" Command="{x:Bind ViewModel.CallCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE717;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Label="O'chirish" Command="{x:Bind ViewModel.DeleteCommand}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE74D;" /></AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar.SecondaryCommands>
+            </CommandBar>
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+            <InfoBar Severity="Informational" IsClosable="False" IsOpen="{x:Bind ViewModel.HasExisting, Mode=OneWay}" Message="{x:Bind ViewModel.Existing, Mode=OneWay}">
+                <InfoBar.ActionButton>
+                    <Button Content="Profil" Command="{x:Bind ViewModel.OpenStudentCommand}" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock Text="{x:Bind ViewModel.Details, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                </StackPanel>
+            </Border>
+            <TextBlock Text="Tarix" Style="{StaticResource SectionHeaderStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Activities}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ActivityItem">
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="{x:Bind Header}" Style="{StaticResource SecondaryTextStyle}" />
+                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="{x:Bind Text}" TextWrapping="Wrap" Visibility="{x:Bind HasText}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</local:ViewPage>

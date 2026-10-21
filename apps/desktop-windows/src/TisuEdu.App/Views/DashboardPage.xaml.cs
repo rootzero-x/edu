@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using TisuEdu.Core.Models;
 using TisuEdu.Core.ViewModels;
@@ -12,6 +13,10 @@ public sealed partial class DashboardPage : ViewPage
     public DashboardViewModel ViewModel { get; private set; } = null!;
 
     protected override PageViewModel CreateModel(object? parameter) => ViewModel = new DashboardViewModel(App.Services);
+
+    public static bool Not(bool value) => !value;
+
+    private void Setup_Click(object sender, RoutedEventArgs e) => ViewModel.OpenSetupStepCommand.Execute((sender as FrameworkElement)?.Tag as SetupStepItem);
 
     private void Stat_ItemClick(object sender, ItemClickEventArgs e) => ViewModel.OpenStatCommand.Execute(e.ClickedItem as StatCard);
 

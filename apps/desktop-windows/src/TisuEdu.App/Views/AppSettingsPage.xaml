@@ -60,7 +60,7 @@
                     </StackPanel>
                     <TextBlock Style="{StaticResource SecondaryTextStyle}"><Run Text="Server: " /><Run Text="{x:Bind ViewModel.Server}" /></TextBlock>
                     <HyperlinkButton Content="{x:Bind ViewModel.SiteUrl}" Command="{x:Bind ViewModel.OpenSiteCommand}" Padding="0" />
-                    <TextBlock Text="Klaviatura: Alt+← — orqaga, F5 — yangilash, Ctrl+S — davomatni saqlash, Ctrl+Enter — testni topshirish."
+                    <TextBlock Text="Klaviatura: Ctrl+K — qidiruv, Ctrl+1…9 — bo'limlar, Alt+← yoki Esc — orqaga, F5 — yangilash, Ctrl+S — davomatni saqlash, Ctrl+Enter — testni topshirish, F1 — yordam."
                                Style="{StaticResource SecondaryTextStyle}" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>

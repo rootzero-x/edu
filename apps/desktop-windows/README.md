@@ -47,6 +47,17 @@ Biznes mantiq `TisuEdu.Core` da — shuning uchun u har qanday OS'da quriladi va
 | Foydalanuvchilar | qidiruv, rol va "tasdiq kutmoqda" filtrlari, yaratish, tahrirlash, parol o'rnatish, bloklash, botdan kelganlarni tasdiqlash | `user.manage` |
 | Tizim sozlamalari | barcha sozlamalar bo'lim va qidiruv bo'yicha, turiga mos tahrir (son, ha/yo'q, matn, ro'yxat/obyekt — JSON), standartga qaytarish | `settings.manage` |
 | Kontentni tahrirlash | kurs (yaratish, tahrirlash, chop etish, o'chirish), modullar, darslar, materiallar (video/fayl/havola/matn), testlar va savollar (`*` — to'g'ri variant), e'lonlar (qoralama, auditoriya, chop etish/yashirish), guruhlar (haftalik jadval, darslarni yaratish, a'zolar), sertifikat berish/bekor qilish, darsni bekor qilish | kurs muallifi (`can_edit`), `quiz.manage`, `announcement.manage`, `group.manage` |
+| Taqvim | hafta/oy, o'qituvchi/xona/guruh filtrlari, bekor qilingan darslar chizilgan, darsni bosish → davomat varaqasi; xonalarni boshqarish | hamma / xonalar — `group.manage` |
+| Uyga vazifa va baholar | o'qituvchi: vazifa (matn, muddat, ball, fayl), topshirganlar, baholash; o'quvchi: topshirish (matn, havola, fayl), natija, "Baholarim"; darsdagi baholar davomat varaqasida | o'qituvchi (guruhi) / o'quvchi |
+| Fayllar | dars materiali, vazifa va javob fayllarini yuklash (`uploads.*` cheklovlari oldindan tekshiriladi), yuklab olish — vaqtinchalik imzolangan havola orqali | kontent huquqi bo'yicha |
+| Arizalar (CRM) | holat filtrlari va sonlar, voronka, bugun bog'lanish kerak bo'lganlar; holat (sinov darsi, rad etish sababi), qo'ng'iroq/izoh, o'quvchiga aylantirish (guruhga qo'shish bilan) | `lead.manage` |
+| O'quvchi profili va holatlari | guruhlar, davomat, testlar, sertifikatlar, balans, a'zolik tarixi; muzlatish, qayta faollashtirish, boshqa guruhga o'tkazish, bitirish, chiqarish (sabablar sozlamadan), guruhni bitirish; Excel/CSV import (tekshiruv → tasdiq) | `group.manage`, `user.manage` |
+| Bildirishnomalar markazi | ro'yxat, o'qilmaganlar belgisi, hammasini o'qilgan qilish, bosilganda tegishli sahifa; yangi elementlar — Windows bildirishnomasi | hamma |
+| Audit jurnali | amal/obyekt/foydalanuvchi/sana filtrlari, o'zgarishlar (oldin → keyin) | `audit.view` |
+| Ko'rsatkichlar (KPI) | oylar bo'yicha davomat, o'quvchilar oqimi, testlar, uyga vazifa, o'qituvchi soatlari, moliya | `report.view` |
+| Tizim holati | cron, vazifalar, zaxira nusxa, Telegram navbati, ogohlantirishlar | `user.manage` |
+| Sozlash ro'yxati | bosh sahifada (administrator), qadamlar tegishli bo'limga olib boradi | `user.manage` |
+| Global qidiruv | **Ctrl+K** — o'quvchilar, guruhlar, kurslar, arizalar, sertifikatlar | rolga qarab |
 
 Tahrirlash formalari bitta umumiy dialogda (`IForms` → ContentDialog): server validatsiya xatosi (422) qaytarsa dialog
 yopilmaydi va xato matni ko'rsatiladi. Telegram orqali kirishda **QR-kod** ko'rsatiladi (telefon kamerasi bilan
@@ -151,6 +162,6 @@ oyna sarlavhasi — `site.name` dan.
 ## Ma'lum cheklovlar
 
 - Fayl va havola materiallari brauzerda ochiladi; video WebView2 runtime bo'lmasa ham brauzerga o'tadi.
-- Sprint 3 bo'limlari (uyga vazifa, taqvim, arizalar/CRM, audit jurnali, fayllar) hozircha faqat saytda.
+- Bildirishnomalar hisoboti va "yetib bormaganlar" ro'yxati (`/notifications/report`) — saytda.
 - Bildirishnomalar ilova ochiq (yoki vazifalar panelida yig'ilgan) paytda so'rov orqali keladi; ilova
   yopilganda push yo'q (server Windows push xizmatiga ulanmagan).

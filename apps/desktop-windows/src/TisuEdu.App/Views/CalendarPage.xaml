@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.CalendarPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels">
+    <Grid MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+                <TextBlock Text="{x:Bind ViewModel.RangeText, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Command="{x:Bind ViewModel.PrevCommand}" AutomationProperties.Name="Oldingi">
+                    <FontIcon Glyph="&#xE76B;" FontSize="12" />
+                </Button>
+                <Button Content="Bugun" Command="{x:Bind ViewModel.TodayCommand}" />
+                <Button Command="{x:Bind ViewModel.NextCommand}" AutomationProperties.Name="Keyingi">
+                    <FontIcon Glyph="&#xE76C;" FontSize="12" />
+                </Button>
+                <ComboBox SelectedIndex="{x:Bind ViewModel.ViewIndex, Mode=TwoWay}" AutomationProperties.Name="Ko'rinish">
+                    <ComboBoxItem Content="Hafta" />
+                    <ComboBoxItem Content="Oy" />
+                </ComboBox>
+                <Button Content="Xonalar" Command="{x:Bind ViewModel.OpenRoomsCommand}" Visibility="{x:Bind ViewModel.CanManageRooms}" />
+            </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
+            <ComboBox x:Name="TeacherBox" MinWidth="200" ItemsSource="{x:Bind ViewModel.Teachers}"
+                      SelectedIndex="{x:Bind ViewModel.TeacherIndex, Mode=TwoWay}" AutomationProperties.Name="O'qituvchi" />
+            <ComboBox x:Name="RoomBox" MinWidth="160" ItemsSource="{x:Bind ViewModel.Rooms}"
+                      SelectedIndex="{x:Bind ViewModel.RoomIndex, Mode=TwoWay}" AutomationProperties.Name="Xona" />
+            <ComboBox x:Name="GroupBox" MinWidth="200" ItemsSource="{x:Bind ViewModel.Groups}"
+                      SelectedIndex="{x:Bind ViewModel.GroupIndex, Mode=TwoWay}" AutomationProperties.Name="Guruh" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Spacing="8">
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+            <TextBlock Text="Bu davrda dars yo'q." Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+        </StackPanel>
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Days}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CalendarDay">
+                        <StackPanel Margin="0,0,0,12" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <Border Style="{StaticResource PillStyle}" Background="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind IsToday}">
+                                    <TextBlock Text="Bugun" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Dars yo'q" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind IsEmpty}" />
+                            <ItemsControl ItemsSource="{x:Bind Items}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CalendarItem">
+                                        <Button Tag="{x:Bind}" Click="Event_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,0,0,4" Padding="12,8">
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{x:Bind Time}" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"
+                                                           TextDecorations="{x:Bind local:CalendarPage.Strike(Cancelled)}" />
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" TextDecorations="{x:Bind local:CalendarPage.Strike(Cancelled)}" />
+                                                    <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" />
+                                                    <TextBlock Text="{x:Bind Topic}" Style="{StaticResource SecondaryTextStyle}" Visibility="{x:Bind HasTopic}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="2">
+                                                    <Border Style="{StaticResource PillStyle}" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" Visibility="{x:Bind Cancelled}">
+                                                        <TextBlock Text="{x:Bind CancelledText}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                    </Border>
+                                                    <TextBlock Text="{x:Bind Extra}" Style="{StaticResource SecondaryTextStyle}" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</local:ViewPage>

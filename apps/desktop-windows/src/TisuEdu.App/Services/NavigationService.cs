@@ -77,6 +77,17 @@ internal sealed class NavigationService : INavigator
         AppPage.AdminSettings => typeof(AdminSettingsPage),
         AppPage.Billing => typeof(BillingPage),
         AppPage.BillingStudent => typeof(BillingStudentPage),
+        AppPage.Calendar => typeof(CalendarPage),
+        AppPage.Rooms => typeof(RoomsPage),
+        AppPage.Homework => typeof(HomeworkPage),
+        AppPage.Assignment => typeof(AssignmentPage),
+        AppPage.Leads => typeof(LeadsPage),
+        AppPage.Lead => typeof(LeadPage),
+        AppPage.StudentProfile => typeof(StudentProfilePage),
+        AppPage.Notifications => typeof(NotificationsPage),
+        AppPage.Audit => typeof(AuditPage),
+        AppPage.Kpi => typeof(KpiPage),
+        AppPage.System => typeof(SystemPage),
         _ => typeof(DashboardPage),
     };
 
@@ -94,5 +105,13 @@ internal sealed class NavigationService : INavigator
         : t == typeof(UsersPage) ? AppPage.Users
         : t == typeof(AdminSettingsPage) ? AppPage.AdminSettings
         : t == typeof(BillingPage) || t == typeof(BillingStudentPage) ? AppPage.Billing
+        : t == typeof(CalendarPage) || t == typeof(RoomsPage) ? AppPage.Calendar
+        : t == typeof(HomeworkPage) || t == typeof(AssignmentPage) ? AppPage.Homework
+        : t == typeof(LeadsPage) || t == typeof(LeadPage) ? AppPage.Leads
+        : t == typeof(StudentProfilePage) ? AppPage.Users
+        : t == typeof(NotificationsPage) ? AppPage.Notifications
+        : t == typeof(AuditPage) ? AppPage.Audit
+        : t == typeof(KpiPage) ? AppPage.Kpi
+        : t == typeof(SystemPage) ? AppPage.System
         : null;
 }

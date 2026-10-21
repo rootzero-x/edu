@@ -15,6 +15,32 @@
 
             <controls:StatusBanner Model="{x:Bind ViewModel}" />
 
+            <!-- Sozlash ro'yxati (faqat administratorlar; ui.setup_labels) -->
+            <Border Style="{StaticResource CardStyle}" Visibility="{x:Bind ViewModel.HasSetup, Mode=OneWay}" Margin="0,4">
+                <StackPanel Spacing="6">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{x:Bind ViewModel.SetupTitle, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.SetupProgress, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <HyperlinkButton HorizontalAlignment="Right" Content="Yashirish" Command="{x:Bind ViewModel.DismissSetupCommand}" Padding="0" />
+                    </Grid>
+                    <TextBlock Text="{x:Bind ViewModel.SetupText, Mode=OneWay}" Style="{StaticResource SecondaryTextStyle}" />
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Setup}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SetupStepItem">
+                                <HyperlinkButton Tag="{x:Bind}" Click="Setup_Click" Padding="0,2" IsEnabled="{x:Bind local:DashboardPage.Not(Done)}">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="14" />
+                                        <TextBlock Text="{x:Bind Label}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </HyperlinkButton>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <InfoBar Severity="Warning" IsClosable="False" IsOpen="{x:Bind ViewModel.HasUnmarked, Mode=OneWay}" Message="{x:Bind ViewModel.UnmarkedText, Mode=OneWay}">
                 <InfoBar.ActionButton>
                     <Button Content="Ko'rish" Command="{x:Bind ViewModel.OpenUnmarkedCommand}" />

@@ -37,9 +37,9 @@ public sealed partial class AuditViewModel(AppServices services) : PageViewModel
     private bool _facetsLoaded;
 
     public ObservableCollection<AuditItem> Items { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> Actions { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> Entities { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> Actors { get; } = [];
+    public ObservableCollection<Option> Actions { get; } = [];
+    public ObservableCollection<Option> Entities { get; } = [];
+    public ObservableCollection<Option> Actors { get; } = [];
 
     [ObservableProperty] private int _actionIndex;
     [ObservableProperty] private int _entityIndex;
@@ -68,7 +68,7 @@ public sealed partial class AuditViewModel(AppServices services) : PageViewModel
         _ = RefreshAsync();
     }
 
-    private static string? Key(ObservableCollection<KeyValuePair<string, string>> list, int i) =>
+    private static string? Key(ObservableCollection<Option> list, int i) =>
         i > 0 && i < list.Count ? list[i].Key : null;
 
     protected override async Task LoadCoreAsync(CancellationToken ct)
@@ -77,16 +77,17 @@ public sealed partial class AuditViewModel(AppServices services) : PageViewModel
         {
             var f = await S.Api.AuditFacetsAsync(ct);
             Actions.Clear();
-            Actions.Add(Editing.Opt("", "Barcha amallar"));
+            Actions.Add(new Option("", "Barcha amallar"));
             // Prefiks bo'yicha guruhlar (masalan, "group" → group.*) va aniq amallar.
-            foreach (var p in f.Actions.Select(a => a.Split('.')[0]).Distinct().OrderBy(x => x)) Actions.Add(Editing.Opt(p, p + ".*"));
-            foreach (var a in f.Actions.OrderBy(x => x)) Actions.Add(Editing.Opt(a, f.ActionLabels.GetValueOrDefault(a) is { } l ? $"{l} ({a})" : a));
+            foreach (var p in f.Actions.Select(a => a.Split('.')[0]).Distinct().OrderBy(x => x)) Actions.Add(new Option(p, p + ".*"));
+            foreach (var a in f.Actions.OrderBy(x => x)) Actions.Add(new Option(a, f.ActionLabels.GetValueOrDefault(a) is { } l ? $"{l} ({a})" : a));
             Entities.Clear();
-            Entities.Add(Editing.Opt("", "Barcha obyektlar"));
-            foreach (var e in f.Entities.OrderBy(x => x)) Entities.Add(Editing.Opt(e, f.EntityLabels.GetValueOrDefault(e) ?? e));
+            Entities.Add(new Option("", "Barcha obyektlar"));
+            foreach (var e in f.Entities.OrderBy(x => x)) Entities.Add(new Option(e, f.EntityLabels.GetValueOrDefault(e) ?? e));
             Actors.Clear();
-            Actors.Add(Editing.Opt("", "Hamma"));
-            foreach (var a in f.Actors) Actors.Add(Editing.Opt(a.Id.ToString(CultureInfo.InvariantCulture), a.Name + (a.Role is null ? "" : $" ({Settings.RoleLabel(a.Role)})")));
+            Actors.Add(new Option("", "Hamma"));
+            foreach (var a in f.Actors) Actors.Add(new Option(a.Id.ToString(CultureInfo.InvariantCulture), a.Name + (a.Role is null ? "" : $" ({Settings.RoleLabel(a.Role)})")));
+            ActionIndex = EntityIndex = ActorIndex = 0;
             _facetsLoaded = true;
         }
         var actor = Key(Actors, ActorIndex) is { } k && int.TryParse(k, out var id) ? id : (int?)null;
@@ -366,7 +367,7 @@ public sealed class LeadItem(Lead l, SiteSettings st)
 public sealed partial class LeadsViewModel(AppServices services) : PageViewModel(services)
 {
     public ObservableCollection<LeadItem> Items { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> StatusFilters { get; } = [];
+    public ObservableCollection<Option> StatusFilters { get; } = [];
 
     [ObservableProperty] private int _statusIndex = 1;
     [ObservableProperty] private string _search = "";
@@ -390,15 +391,15 @@ public sealed partial class LeadsViewModel(AppServices services) : PageViewModel
     private void BuildFilters(Dictionary<string, int> counts)
     {
         var index = StatusIndex;
-        var items = new List<KeyValuePair<string, string>>
+        var items = new List<Option>
         {
-            Editing.Opt("", "Hammasi"),
-            Editing.Opt("NEW,CONTACTED,TRIAL", $"Ochiq ({counts.GetValueOrDefault("NEW") + counts.GetValueOrDefault("CONTACTED") + counts.GetValueOrDefault("TRIAL")})"),
+            new("", "Hammasi"),
+            new("NEW,CONTACTED,TRIAL", $"Ochiq ({counts.GetValueOrDefault("NEW") + counts.GetValueOrDefault("CONTACTED") + counts.GetValueOrDefault("TRIAL")})"),
         };
-        items.AddRange(LeadText.Statuses.Select(s => Editing.Opt(s, $"{LeadText.Status(s, Settings)} ({counts.GetValueOrDefault(s)})")));
+        items.AddRange(LeadText.Statuses.Select(s => new Option(s, $"{LeadText.Status(s, Settings)} ({counts.GetValueOrDefault(s)})")));
         if (StatusFilters.Count == items.Count)
         {
-            for (var i = 0; i < items.Count; i++) if (StatusFilters[i].Value != items[i].Value) StatusFilters[i] = items[i];
+            for (var i = 0; i < items.Count; i++) if (StatusFilters[i].Label != items[i].Label) StatusFilters[i] = items[i];
         }
         else
         {

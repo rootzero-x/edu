@@ -75,6 +75,7 @@ public partial class App : Application
         Services = new AppServices(session, settings, Platform, Navigation, watcher, prefs, new FormDialogService(_window));
 
         notifier.Invoked += (_, id) => _dispatcher.TryEnqueue(() => OpenAnnouncement(id));
+        notifier.UrlInvoked += (_, url) => _dispatcher.TryEnqueue(() => OpenLink(url));
         notifier.Register();
 
         session.SignedIn += (_, _) => _dispatcher.TryEnqueue(OnSignedIn);
@@ -82,6 +83,7 @@ public partial class App : Application
         settings.Changed += (_, _) => _dispatcher.TryEnqueue(() => _window?.OnSettingsChanged());
         http.ConnectivityChanged += (_, online) => _dispatcher.TryEnqueue(() => _window?.SetOffline(!online));
         watcher.UnreadChanged += (_, n) => _dispatcher.TryEnqueue(() => _window?.SetUnread(n));
+        watcher.InboxUnreadChanged += (_, n) => _dispatcher.TryEnqueue(() => _window?.SetInboxUnread(n));
 
         _window.ApplyTheme(prefs.Theme);
         _window.ShowSplash();
@@ -128,6 +130,19 @@ public partial class App : Application
         {
             OpenAnnouncement(id);
         }
+        else if (args.Kind == ExtendedActivationKind.AppNotification && args.Data is AppNotificationActivatedEventArgs n2
+                 && ToastNotifier.TryGetUrl(n2.Arguments, out var url))
+        {
+            OpenLink(url);
+        }
+    }
+
+    private void OpenLink(string url)
+    {
+        _window?.BringToFront();
+        if (!Services.Session.IsSignedIn) return;
+        if (Links.Map(url) is { } t) Navigation.Navigate(t.Page, t.Parameter);
+        else Navigation.Navigate(Page.Notifications);
     }
 
     private void OpenAnnouncement(int id)

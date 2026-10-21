@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:ViewPage
+    x:Class="TisuEdu.App.Views.SystemPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TisuEdu.App.Views"
+    xmlns:controls="using:TisuEdu.App.Controls"
+    xmlns:vm="using:TisuEdu.Core.ViewModels">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="960" Padding="{StaticResource PagePadding}" Spacing="8" HorizontalAlignment="Left">
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitleStyle}" />
+            <controls:StatusBanner Model="{x:Bind ViewModel}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings}" Visibility="{x:Bind ViewModel.HasWarnings, Mode=OneWay}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <InfoBar Severity="Warning" IsClosable="False" IsOpen="True" Message="{x:Bind}" Margin="0,0,0,4" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE73E;" Foreground="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind ViewModel.SchedulerOk, Mode=OneWay}" />
+                        <TextBlock Text="Rejalashtiruvchi (cron)" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.Scheduler, Mode=OneWay}" TextWrapping="Wrap" />
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Jobs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:JobItem">
+                                <Grid ColumnSpacing="10" Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid>
+                                        <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind Ok}" />
+                                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="{x:Bind Overdue}" />
+                                    </Grid>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{x:Bind Name}" FontFamily="Consolas" />
+                                        <TextBlock Text="{x:Bind Sub}" Style="{StaticResource SecondaryTextStyle}" />
+                                        <TextBlock Text="{x:Bind Error}" Style="{StaticResource SecondaryTextStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="{x:Bind HasError}" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE73E;" Foreground="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind ViewModel.BackupOk, Mode=OneWay}" />
+                        <TextBlock Text="Zaxira nusxa" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.Backup, Mode=OneWay}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Telegram va foydalanuvchilar" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock Text="{x:Bind ViewModel.Telegram, Mode=OneWay}" TextWrapping="Wrap" />
+                    <TextBlock Text="{x:Bind ViewModel.Users, Mode=OneWay}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</local:ViewPage>
