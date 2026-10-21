@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Huquq tekshiruvi model binding'dan oldin: ruxsati yo'q foydalanuvchi 404/403 farqidan ID mavjudligini bilolmaydi.
         $middleware->prependToPriorityList(\Illuminate\Routing\Middleware\SubstituteBindings::class, \App\Http\Middleware\RequirePermission::class);
         $middleware->prepend(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\RestrictUploadTicket::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $r) => true);

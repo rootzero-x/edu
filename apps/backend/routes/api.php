@@ -216,6 +216,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/sessions/{session}/marks', [MarksController::class, 'update'])->middleware('perm:attendance.mark');
 
         // Fayllar
+        Route::post('/uploads/ticket', [\App\Http\Controllers\Api\UploadTicketController::class, 'store'])->middleware('throttle:30,1');
         Route::get('/files/{file}/link', [FileController::class, 'link'])->whereNumber('file');
         Route::delete('/files/{file}', [FileController::class, 'destroy'])->whereNumber('file');
         Route::get('/files/usage', [FileController::class, 'usage'])->middleware('perm:settings.manage');

@@ -195,6 +195,9 @@ final class Spreadsheet
         $pos = $e['offset'];
         $out = [];
         $total = 0;
+        if ($e['entries'] > 2000) {
+            throw new RuntimeException('Fayl juda katta.');
+        }
         for ($i = 0; $i < $e['entries']; $i++) {
             if (substr($zip, $pos, 4) !== "PK\x01\x02") {
                 throw new RuntimeException("Faylni o'qib bo'lmadi (buzilgan .xlsx).");
@@ -207,17 +210,18 @@ final class Spreadsheet
             }
             $l = unpack('vnlen/velen', substr($zip, $h['offset'] + 26, 4));
             $data = substr($zip, $h['offset'] + 30 + $l['nlen'] + $l['elen'], $h['csize']);
-            $total += $h['usize'];
-            if ($total > self::MAX_UNPACKED) {
-                throw new RuntimeException('Fayl juda katta.');
-            }
+            // Sarlavhadagi usize fayl tomonidan aytiladi — haqiqiy ochilgan hajm bo'yicha cheklaymiz (zip-bomba).
             $data = match ($h['method']) {
                 0 => $data,
-                8 => @gzinflate($data, self::MAX_UNPACKED),
+                8 => @gzinflate($data, max(1, self::MAX_UNPACKED - $total)),
                 default => throw new RuntimeException("Faylni o'qib bo'lmadi (siqish usuli qo'llab-quvvatlanmaydi)."),
             };
             if ($data === false) {
-                throw new RuntimeException("Faylni o'qib bo'lmadi (buzilgan .xlsx).");
+                throw new RuntimeException("Faylni o'qib bo'lmadi yoki juda katta (.xlsx).");
+            }
+            $total += strlen($data);
+            if ($total > self::MAX_UNPACKED) {
+                throw new RuntimeException('Fayl juda katta.');
             }
             $out[$name] = $data;
         }

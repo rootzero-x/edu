@@ -53,6 +53,11 @@ class BillingRemindDebtsCommand extends Command
                 if (! self::isDueDate($anchor, $due) || ($m->end_date && substr((string) $m->end_date, 0, 10) < $due->toDateString())) {
                     continue;
                 }
+                // To'lov kunida muzlatilgan o'quvchiga "to'lov kuni" eslatmasi yuborilmaydi.
+                if (DB::table('enrollments')->where(['group_id' => $m->group_id, 'student_id' => $m->student_id, 'status' => 'FROZEN'])
+                    ->whereNull('outcome')->where('starts_on', '<=', $due->toDateString())->where('ends_on', '>=', $due->toDateString())->exists()) {
+                    continue;
+                }
                 $fee = $billing->feeOn($due->toDateString());
                 $balance = $balances[$m->student_id] ??= $billing->balance((int) $m->student_id);
                 // Keyingi oy(lar) uchun oldindan to'lagan — eslatma kerak emas.

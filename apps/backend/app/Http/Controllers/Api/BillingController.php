@@ -238,11 +238,21 @@ class BillingController
             'amount' => ['required', 'integer', 'not_in:0', 'min:-'.$max, 'max:'.$max],
             'reason' => ['required', 'string', 'min:3', 'max:500'],
             'date' => $this->dateRules(),
+            'request_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9_-]+$/'],
         ]);
-        $entry = BillingEntry::create([
-            'student_id' => $student->id, 'type' => BillingEntry::ADJUSTMENT, 'amount' => $data['amount'],
-            'entry_date' => $data['date'], 'note' => $data['reason'], 'created_by' => $request->user()->id,
-        ]);
+        // Ikki marta bosish / qayta yuborish ikkinchi tuzatish yaratmaydi (to'lovdagi kabi).
+        $key = isset($data['request_id']) ? 'a:'.$data['request_id'] : null;
+        if ($key && ($existing = BillingEntry::where('dedupe_key', $key)->first())) {
+            return $this->duplicate($existing, $student);
+        }
+        try {
+            $entry = BillingEntry::create([
+                'student_id' => $student->id, 'type' => BillingEntry::ADJUSTMENT, 'amount' => $data['amount'],
+                'entry_date' => $data['date'], 'note' => $data['reason'], 'dedupe_key' => $key, 'created_by' => $request->user()->id,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return $this->duplicate(BillingEntry::where('dedupe_key', $key)->firstOrFail(), $student);
+        }
         Audit::log('billing.adjustment', 'billing_entry', $entry->id, ['student_id' => $student->id, 'amount' => $entry->amount, 'reason' => $data['reason']]);
 
         return response()->json(['entry' => $entry->fresh()->toApi(), 'balance' => $this->billing->balance($student->id)], 201);
@@ -288,7 +298,7 @@ class BillingController
 
     private function duplicate(BillingEntry $existing, User $student): JsonResponse
     {
-        abort_unless($existing->student_id === $student->id && $existing->type === BillingEntry::PAYMENT, 409, "So'rov kaliti boshqa yozuvga tegishli.");
+        abort_unless($existing->student_id === $student->id && in_array($existing->type, [BillingEntry::PAYMENT, BillingEntry::ADJUSTMENT], true), 409, "So'rov kaliti boshqa yozuvga tegishli.");
 
         return response()->json(['entry' => $existing->toApi(), 'balance' => $this->billing->balance($student->id), 'duplicate' => true]);
     }

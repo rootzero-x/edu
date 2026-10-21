@@ -41,14 +41,14 @@ $tracked = fn (Event $e, string $job): Event => $e
 
 // Telegram navbati: har daqiqada ≈40 soniya (bo'sh bo'lsa darhol tugaydi).
 $tracked(Schedule::command('tisu:outbox-drain')->everyMinute()->withoutOverlapping(5), 'tisu:outbox-drain');
-$tracked(Schedule::command('tisu:generate-sessions')->dailyAt('03:10')->withoutOverlapping(), 'tisu:generate-sessions');
-$tracked(Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping(), 'tisu:remind-lessons');
-$tracked(Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping(), 'tisu:remind-unmarked');
-$tracked(Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping(), 'tisu:cleanup');
-$tracked(Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping(), 'tisu:backup');
+$tracked(Schedule::command('tisu:generate-sessions')->dailyAt('03:10')->withoutOverlapping(120), 'tisu:generate-sessions');
+$tracked(Schedule::command('tisu:remind-lessons')->everyFiveMinutes()->withoutOverlapping(10), 'tisu:remind-lessons');
+$tracked(Schedule::command('tisu:remind-unmarked')->everyTenMinutes()->withoutOverlapping(20), 'tisu:remind-unmarked');
+$tracked(Schedule::command('tisu:cleanup')->dailyAt('04:20')->withoutOverlapping(120), 'tisu:cleanup');
+$tracked(Schedule::command('tisu:backup')->dailyAt('02:30')->withoutOverlapping(120), 'tisu:backup');
 // To'lovlar: bugungi kunni hisoblash (o'tkazib yuborilgan kunlar bilan) va qarz eslatmasi — vaqt app.timezone bo'yicha.
-$tracked(Schedule::command('tisu:billing-accrue')->dailyAt('00:20')->withoutOverlapping(), 'tisu:billing-accrue');
-$tracked(Schedule::command('tisu:billing-remind-debts')->dailyAt('10:00')->withoutOverlapping(), 'tisu:billing-remind-debts');
+$tracked(Schedule::command('tisu:billing-accrue')->dailyAt('00:20')->withoutOverlapping(120), 'tisu:billing-accrue');
+$tracked(Schedule::command('tisu:billing-remind-debts')->dailyAt('10:00')->withoutOverlapping(120), 'tisu:billing-remind-debts');
 // Uyga vazifa: muddat eslatmasi va o'qituvchiga natija; egasiz qolgan yuklangan fayllarni tozalash.
-$tracked(Schedule::command('tisu:remind-homework')->everyFifteenMinutes()->withoutOverlapping(), 'tisu:remind-homework');
-$tracked(Schedule::command('tisu:files-sweep')->dailyAt('04:40')->withoutOverlapping(), 'tisu:files-sweep');
+$tracked(Schedule::command('tisu:remind-homework')->everyFifteenMinutes()->withoutOverlapping(30), 'tisu:remind-homework');
+$tracked(Schedule::command('tisu:files-sweep')->dailyAt('04:40')->withoutOverlapping(120), 'tisu:files-sweep');

@@ -223,4 +223,22 @@ class UploadsTest extends TestCase
         $this->assertSame(0, DB::table('files')->count());
         $this->assertSame([], Storage::disk(Uploads::DISK)->allFiles());
     }
+
+    public function test_upload_ticket_allows_one_direct_upload_to_its_own_path_only(): void
+    {
+        $this->postJson('/v1/uploads/ticket', ['path' => 'users/1'])->assertNotFound();
+        $ticket = $this->postJson('/v1/uploads/ticket', ['path' => "lessons/{$this->lesson->id}/materials/upload"])->assertOk()->json();
+        $this->assertStringEndsWith("/v1/lessons/{$this->lesson->id}/materials/upload", $ticket['url']);
+
+        // Brauzer tokeni (cookie/Sanctum::actingAs) emas — faqat chipta bilan.
+        $this->app['auth']->forgetGuards();
+        $headers = ['Authorization' => 'Bearer '.$ticket['token'], 'Accept' => 'application/json'];
+        $this->withHeaders($headers)->getJson('/v1/auth/me')->assertForbidden();
+        $this->withHeaders($headers)->post("/v1/lessons/{$this->lesson->id}/materials/upload",
+            ['file' => UploadedFile::fake()->createWithContent('a.pdf', $this->pdf()), 'title' => 'Material'])->assertCreated();
+        // Bir martalik: ikkinchi marta ishlamaydi.
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($headers)->post("/v1/lessons/{$this->lesson->id}/materials/upload",
+            ['file' => UploadedFile::fake()->createWithContent('b.pdf', $this->pdf()), 'title' => 'Material'])->assertUnauthorized();
+    }
 }

@@ -16,6 +16,9 @@ final class PhoneDuplicates
         ['group_members', 'student_id'], ['attendances', 'student_id'], ['attendances', 'marked_by'],
         ['quiz_attempts', 'student_id'], ['certificates', 'student_id'], ['billing_entries', 'student_id'],
         ['ledger_entries', 'student_id'], ['study_groups', 'teacher_id'], ['courses', 'created_by'], ['announcements', 'created_by'],
+        ['enrollments', 'student_id'], ['leads', 'student_id'], ['lead_activities', 'user_id'], ['assignments', 'created_by'],
+        ['assignment_submissions', 'student_id'], ['assignment_submissions', 'graded_by'], ['session_marks', 'student_id'],
+        ['session_marks', 'marked_by'], ['files', 'uploaded_by'],
     ];
 
     /** @return array{phone_groups: list<array>, non_canonical: list<array>, name_groups: list<array>} */

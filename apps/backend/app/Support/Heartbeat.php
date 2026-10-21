@@ -26,6 +26,8 @@ final class Heartbeat
         'tisu:backup' => 1440,
         'tisu:billing-accrue' => 1440,
         'tisu:billing-remind-debts' => 1440,
+        'tisu:remind-homework' => 15,
+        'tisu:files-sweep' => 1440,
     ];
 
     public static function tick(): void

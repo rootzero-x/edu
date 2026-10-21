@@ -6,6 +6,7 @@ use App\Support\Backup\BackupShipper;
 use App\Support\Backup\BackupVault;
 use App\Support\Settings;
 use App\Support\SystemStatus;
+use App\Support\Uploads;
 use App\Telegram\BotAdmin;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -44,6 +45,7 @@ class BackupCommand extends Command
 
             return self::SUCCESS;
         }
+        $file = null;
         try {
             if (! is_dir($dir)) {
                 mkdir($dir, 0700, true);
@@ -55,15 +57,19 @@ class BackupCommand extends Command
                 $file = $dir.'/db-daily-'.now()->format('Ymd-Hi').'.sql.gz';
                 $this->dump($db, $file);
             }
-            if (BackupVault::keyConfigured()) {
-                BackupVault::encrypt($file, $file.'.enc');
-                @unlink($file);
-                $file .= '.enc';
-            }
+            $file = $this->seal($file);
             $status += ['file' => basename($file), 'size' => filesize($file), 'encrypted' => str_ends_with($file, '.enc')];
             $status['ok'] = true;
             $this->info('Zaxira: '.basename($file).' ('.BackupShipper::human((int) filesize($file)).')'.($status['encrypted'] ? ', shifrlangan' : ', SHIFRLANMAGAN'));
         } catch (Throwable $e) {
+            // Yarim yozilgan / shifrlanmagan qoldiqlar qolmasin.
+            // (shifrlashdagi xatoda seal() o'zi tozalaydi; bu yerda — dump/nusxa qoldiqlari).
+            if ($file !== null) {
+                @unlink($file.'.part');
+                if (! str_ends_with($file, '.enc')) {
+                    @unlink($file);
+                }
+            }
             $msg = mb_substr($e->getMessage(), 0, 300);
             $this->error($msg);
             SystemStatus::put('backup.last', $status + ['error' => $msg]);
@@ -73,6 +79,9 @@ class BackupCommand extends Command
         }
 
         $status['offsite'] = $this->offsite($settings, $admin, $shipper, $file, $status['encrypted']);
+        if ($settings->bool('backup.include_files') && ! $this->option('file')) {
+            $status['files'] = $this->files($dir, $settings, $admin, $shipper);
+        }
         SystemStatus::put('backup.last', $status);
         $this->cleanup($dir, $settings->int('backup.keep_days'));
 
@@ -137,11 +146,67 @@ class BackupCommand extends Command
         return $target;
     }
 
+    /** Kalit bo'lsa shifrlaydi (ochiq nusxa o'chiriladi). @return string yakuniy fayl yo'li */
+    private function seal(string $file): string
+    {
+        if (! BackupVault::keyConfigured()) {
+            return $file;
+        }
+        try {
+            BackupVault::encrypt($file, $file.'.enc');
+        } catch (Throwable $e) {
+            @unlink($file.'.enc');
+            @unlink($file);
+            throw $e;
+        }
+        @unlink($file);
+
+        return $file.'.enc';
+    }
+
+    /** Yuklangan fayllar arxivi (tar.gz → shifrlangan) va tashqariga yuborish. Xato bo'lsa — ogohlantirish, baza zaxirasi bekor qilinmaydi. */
+    private function files(string $dir, Settings $settings, BotAdmin $admin, BackupShipper $shipper): array
+    {
+        $roots = array_filter(Uploads::backupPaths(), fn ($p) => is_dir($p) && (new \FilesystemIterator($p))->valid());
+        if (! $roots) {
+            return ['ok' => true, 'skipped' => 'empty'];
+        }
+        $file = $dir.'/files-daily-'.now()->format('Ymd-Hi').'.tar.gz';
+        try {
+            $args = ['tar', '-czf', $file.'.part'];
+            foreach ($roots as $root) {
+                array_push($args, '-C', $root, '.');
+            }
+            $p = new Process($args, null, null, null, 900);
+            $p->run();
+            if (! $p->isSuccessful() || ! is_file($file.'.part') || filesize($file.'.part') === 0) {
+                throw new \RuntimeException('tar: '.trim($p->getErrorOutput() ?: 'exit '.$p->getExitCode()));
+            }
+            rename($file.'.part', $file);
+            @chmod($file, 0600);
+            $file = $this->seal($file);
+            $result = ['ok' => true, 'file' => basename($file), 'size' => filesize($file), 'encrypted' => str_ends_with($file, '.enc')];
+            $result['offsite'] = $this->offsite($settings, $admin, $shipper, $file, $result['encrypted']);
+            $this->info('Fayllar zaxirasi: '.basename($file).' ('.BackupShipper::human((int) filesize($file)).')');
+
+            return $result;
+        } catch (Throwable $e) {
+            @unlink($file.'.part');
+            @unlink($file);
+            $msg = mb_substr($e->getMessage(), 0, 300);
+            $this->error($msg);
+            $admin->alert(strtr((string) $settings->get('telegram.text.alert_backup_failed'), ['{message}' => 'Fayllar: '.$msg]));
+
+            return ['ok' => false, 'error' => $msg];
+        }
+    }
+
     private function cleanup(string $dir, int $keepDays): void
     {
         $cutoff = now()->subDays($keepDays)->getTimestamp();
         $removed = 0;
-        foreach (array_merge(glob($dir.'/db-*.sql.gz') ?: [], glob($dir.'/db-*.sql.gz.enc') ?: []) as $f) {
+        foreach (array_merge(glob($dir.'/db-*.sql.gz') ?: [], glob($dir.'/db-*.sql.gz.enc') ?: [],
+            glob($dir.'/files-*.tar.gz') ?: [], glob($dir.'/files-*.tar.gz.enc') ?: []) as $f) {
             if (filemtime($f) < $cutoff && @unlink($f)) {
                 $removed++;
             }
@@ -159,15 +224,30 @@ class BackupCommand extends Command
             throw new \RuntimeException("Faylni ochib bo'lmadi: $file");
         }
         $err = '';
+        $tail = '';
+        $writeFailed = false;
         // Parol buyruq satrida emas, muhit o'zgaruvchisida (ps orqali ko'rinmaydi).
         $p = new Process($args, null, ['MYSQL_PWD' => (string) $db['password']], null, 900);
-        $p->run(function ($type, $buf) use ($gz, &$err) {
-            $type === Process::OUT ? gzwrite($gz, $buf) : $err .= $buf;
+        $p->run(function ($type, $buf) use ($gz, &$err, &$tail, &$writeFailed) {
+            if ($type !== Process::OUT) {
+                $err .= $buf;
+
+                return;
+            }
+            // Disk to'lsa gzwrite 0/false qaytaradi — bunday nusxa "muvaffaqiyatli" deb hisoblanmaydi.
+            if ($buf !== '' && ! gzwrite($gz, $buf)) {
+                $writeFailed = true;
+            }
+            $tail = substr($tail.$buf, -512);
         });
-        gzclose($gz);
-        if (! $p->isSuccessful()) {
+        $closed = gzclose($gz);
+        // mysqldump to'liq tugaganini oxirgi qatordagi belgi bilan tekshiramiz.
+        $complete = str_contains($tail, '-- Dump completed');
+        if (! $p->isSuccessful() || $writeFailed || ! $closed || ! $complete) {
             @unlink($file.'.part');
-            throw new \RuntimeException('mysqldump: '.trim($err ?: 'exit '.$p->getExitCode()));
+            $why = ! $p->isSuccessful() ? trim($err ?: 'exit '.$p->getExitCode())
+                : ($writeFailed || ! $closed ? "faylga yozib bo'lmadi (disk to'lgan bo'lishi mumkin)" : "dump to'liq emas (yakunlovchi belgi yo'q)");
+            throw new \RuntimeException('mysqldump: '.$why);
         }
         rename($file.'.part', $file);
         @chmod($file, 0600);

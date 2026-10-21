@@ -263,4 +263,65 @@ class EnrollmentTest extends TestCase
         $this->assertSame(3, DB::table('enrollments')->count());
         $this->assertSame('2026-09-20', substr((string) DB::table('enrollments')->orderBy('starts_on')->value('starts_on'), 0, 10));
     }
+
+    // ── Audit: har kun bir martadan ortiq qaytarilmaydi, qayta faollashganda qayta hisoblanadi ──
+
+    private function refundedNet(): int
+    {
+        return (int) BillingEntry::where('student_id', $this->student->id)->where('type', 'ADJUSTMENT')->whereNull('voided_at')->sum('amount');
+    }
+
+    public function test_backdated_leave_after_backdated_freeze_does_not_refund_twice(): void
+    {
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-01'])->assertCreated();
+        Carbon::setTestNow('2026-10-15 09:00:00');
+        $this->accrue('2026-10-01', '2026-10-15');
+        $this->postJson($this->url('/freeze'), ['from' => '2026-10-10', 'to' => '2026-10-19', 'reason' => 'Kasallik'])->assertOk()->assertJson(['refunded' => 60000]);
+        // Chiqish 9-oktabr bilan: faqat hali qaytarilmagan kunlar qoladi — 10..15 yana qaytarilmaydi.
+        $this->postJson($this->url('/leave'), ['reason' => 'Narx qimmat', 'date' => '2026-10-09'])->assertOk();
+        $this->assertSame(60000, $this->refundedNet());
+        // Yakun: 1..9 oktabr — 9 kun.
+        $this->assertSame(-90000, app(Billing::class)->balance($this->student->id));
+    }
+
+    public function test_cancelling_a_backdated_freeze_recharges_refunded_days_and_refreeze_refunds_once(): void
+    {
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-01'])->assertCreated();
+        Carbon::setTestNow('2026-10-15 09:00:00');
+        $this->accrue('2026-10-01', '2026-10-15');
+        $this->postJson($this->url('/freeze'), ['from' => '2026-10-10', 'to' => '2026-10-19', 'reason' => 'Kasallik'])->assertOk();
+        $this->assertSame(60000, $this->refundedNet());
+
+        // Muzlatish xato edi — boshlanish sanasidan bekor qilinadi: 10..15 yana faol, qaytarish qaytariladi.
+        $this->postJson($this->url('/unfreeze'), ['date' => '2026-10-10'])->assertOk();
+        $this->assertSame(0, $this->refundedNet());
+        $this->assertSame(-150000, app(Billing::class)->balance($this->student->id));
+
+        // Qayta muzlatish — yana aynan bir marta qaytariladi.
+        $this->postJson($this->url('/freeze'), ['from' => '2026-10-12', 'to' => '2026-10-20', 'reason' => 'Kasallik'])->assertOk()->assertJson(['refunded' => 40000]);
+        $this->assertSame(40000, $this->refundedNet());
+    }
+
+    public function test_backdated_transfer_on_join_day_charges_that_day_once(): void
+    {
+        Carbon::setTestNow('2026-10-14 09:00:00');
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-14'])->assertCreated();
+        Carbon::setTestNow('2026-10-15 01:00:00');
+        $this->accrue('2026-10-14', '2026-10-14'); // A guruh 14-oktabr uchun hisoblandi
+        Carbon::setTestNow('2026-10-15 09:00:00');
+        $this->postJson($this->url('/transfer'), ['to_group_id' => $this->group2->id, 'date' => '2026-10-14'])->assertOk();
+        $this->accrue('2026-10-14', '2026-10-15');
+        // 14 va 15 oktabr — har biri bir marta (B guruhda); A dagi 14-oktabr qaytarilgan.
+        $this->assertSame(-20000, app(Billing::class)->balance($this->student->id));
+    }
+
+    public function test_undoing_todays_leave_restores_a_planned_freeze(): void
+    {
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-01'])->assertCreated();
+        $this->postJson($this->url('/freeze'), ['from' => '2026-11-01', 'to' => '2026-11-10', 'reason' => 'Safar'])->assertOk();
+        Carbon::setTestNow('2026-10-10 12:00:00');
+        $this->postJson($this->url('/leave'), ['reason' => 'Narx qimmat'])->assertOk();
+        $this->postJson("/v1/groups/{$this->group->id}/members", ['student_id' => $this->student->id])->assertCreated()->assertJson(['result' => 'restored']);
+        $this->assertSame('2026-11-01', $this->getJson("/v1/groups/{$this->group->id}/members")->json('current.0.frozen_from'));
+    }
 }

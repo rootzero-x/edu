@@ -85,20 +85,7 @@ final class Billing
     {
         $fromDate = $from->toDateString();
         $toDate = $to->toDateString();
-        // Faqat ACTIVE kunlar hisoblanadi: muzlatilgan, chiqib ketgan, bitirgan kunlar — yo'q (Enrollments::chargeable).
-        $groups = DB::table('study_groups')->where('active', true)
-            ->where('start_date', '<=', $toDate)
-            ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $fromDate))
-            ->get(['id', 'start_date', 'end_date'])->keyBy('id');
-        $students = DB::table('users')->where('role', Role::Student->value)->pluck('id')->flip();
-        $members = Enrollments::chargeable($fromDate, $toDate)
-            ->filter(fn ($m) => isset($groups[$m->group_id], $students[$m->student_id]))
-            ->map(fn ($m) => (object) [
-                'group_id' => $m->group_id, 'student_id' => $m->student_id,
-                'joined' => $m->from, 'left' => $m->to, 'skip_same_day' => $m->skip_same_day,
-                'start' => substr((string) $groups[$m->group_id]->start_date, 0, 10),
-                'end' => $groups[$m->group_id]->end_date ? substr((string) $groups[$m->group_id]->end_date, 0, 10) : null,
-            ])->values();
+        $members = $this->members($fromDate, $toDate);
 
         $rows = [];
         $now = now();
@@ -109,10 +96,7 @@ final class Billing
                 continue;
             }
             foreach ($members as $m) {
-                // Qo'shilgan va chiqib ketgan kunlar ham hisoblanadi (tongdagi hisoblash bilan bir xil natija);
-                // o'sha kuni qo'shilib, o'sha kuni chiqarilgan a'zolik (xato qo'shish) hisoblanmaydi.
-                if ($m->joined > $date || $m->start > $date || ($m->end !== null && $m->end < $date)
-                    || ($m->left !== null && ($m->left < $date || ($m->skip_same_day && $m->left === $m->joined)))) {
+                if (! self::chargesOn($m, $date)) {
                     continue;
                 }
                 $rows[] = [
@@ -144,6 +128,61 @@ final class Billing
         }
 
         return ['days' => Carbon::parse($fromDate)->diffInDays(Carbon::parse($toDate)) + 1, 'memberships' => $members->unique(fn ($m) => $m->group_id.':'.$m->student_id)->count(), 'created' => $created, 'amount' => -$total];
+    }
+
+    /**
+     * [from..to] bilan kesishgan, hisoblanadigan a'zolik qatorlari (faqat ACTIVE kunlar: muzlatilgan, chiqib ketgan,
+     * bitirgan kunlar — yo'q; Enrollments::chargeable). Faol guruh va o'quvchi roli shart.
+     */
+    private function members(string $fromDate, string $toDate, ?int $groupId = null, ?int $studentId = null, bool $currentOnly = true): \Illuminate\Support\Collection
+    {
+        // O'tgan kunlarni qayta ko'rishda (reconcile) guruhning hozirgi "faol"ligi va foydalanuvchining hozirgi roli
+        // hisobga olinmaydi — o'sha kunlar a'zolik tarixi va guruh sanalari bo'yicha baholanadi.
+        $groups = DB::table('study_groups')->when($currentOnly, fn ($q) => $q->where('active', true))
+            ->when($groupId, fn ($q) => $q->where('id', $groupId))
+            ->where('start_date', '<=', $toDate)
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $fromDate))
+            ->get(['id', 'start_date', 'end_date'])->keyBy('id');
+        $students = DB::table('users')->when($currentOnly, fn ($q) => $q->where('role', Role::Student->value))
+            ->when($studentId, fn ($q) => $q->where('id', $studentId))->pluck('id')->flip();
+
+        return Enrollments::chargeable($fromDate, $toDate)
+            ->filter(fn ($m) => isset($groups[$m->group_id], $students[$m->student_id]))
+            ->map(fn ($m) => (object) [
+                'group_id' => $m->group_id, 'student_id' => $m->student_id,
+                'joined' => $m->from, 'left' => $m->to, 'skip_same_day' => $m->skip_same_day,
+                'start' => substr((string) $groups[$m->group_id]->start_date, 0, 10),
+                'end' => $groups[$m->group_id]->end_date ? substr((string) $groups[$m->group_id]->end_date, 0, 10) : null,
+            ])->values();
+    }
+
+    /**
+     * Shu a'zolik qatori bo'yicha kun hisoblanadimi. Qo'shilgan va chiqib ketgan kunlar ham hisoblanadi
+     * (tongdagi hisoblash bilan bir xil natija); o'sha kuni qo'shilib, o'sha kuni chiqarilgan a'zolik (xato qo'shish) — yo'q.
+     */
+    private static function chargesOn(object $m, string $date): bool
+    {
+        return ! ($m->joined > $date || $m->start > $date || ($m->end !== null && $m->end < $date)
+            || ($m->left !== null && ($m->left < $date || ($m->skip_same_day && $m->left === $m->joined))));
+    }
+
+    /**
+     * A'zolikning hozirgi holati bo'yicha [from..to] dagi hisoblanishi kerak bo'lgan kunlar (accrue bilan aynan bir qoida).
+     *
+     * @return array<string, true>
+     */
+    public function chargeableDays(int $groupId, int $studentId, string $from, string $to): array
+    {
+        $members = $this->members($from, $to, $groupId, $studentId, currentOnly: false);
+        $days = [];
+        for ($day = Carbon::parse($from); $day->toDateString() <= $to; $day = $day->addDay()) {
+            $date = $day->toDateString();
+            if ($members->contains(fn ($m) => self::chargesOn($m, $date))) {
+                $days[$date] = true;
+            }
+        }
+
+        return $days;
     }
 
     public function balance(int $studentId): int

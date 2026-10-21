@@ -85,8 +85,16 @@ class TelegramClient
 
     public function answerCallback(string $callbackId, ?string $text = null, bool $alert = false): void
     {
-        $this->call('answerCallbackQuery', array_filter([
-            'callback_query_id' => $callbackId, 'text' => $text, 'show_alert' => $alert ?: null,
-        ], fn ($v) => $v !== null));
+        try {
+            $this->call('answerCallbackQuery', array_filter([
+                'callback_query_id' => $callbackId, 'text' => $text, 'show_alert' => $alert ?: null,
+            ], fn ($v) => $v !== null));
+        } catch (TelegramApiException $e) {
+            // Eskirgan tugma bosilishi (javob 15 s dan kech qoldi): amal bajarilgan, faqat tugmadagi "soat" o'chmagan.
+            // Bu xato emas — ishlov to'xtatilmaydi va adminga ogohlantirish ketmaydi.
+            if (! str_contains($e->getMessage(), 'query is too old') && ! str_contains($e->getMessage(), 'query ID is invalid')) {
+                throw $e;
+            }
+        }
     }
 }

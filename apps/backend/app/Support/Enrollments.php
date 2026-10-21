@@ -90,8 +90,18 @@ final class Enrollments
             || substr((string) $last->ends_on, 0, 10) !== $today || $date > $today) {
             return false;
         }
-        DB::table('enrollments')->where('id', $last->id)
-            ->update(['ends_on' => null, 'outcome' => null, 'reason' => null, 'note' => null, 'transfer_group_id' => null, 'updated_at' => now()]);
+        // Yopishda o'chirilgan rejalashtirilgan qatorlar (masalan, kelgusi muzlatish) va asl tugash sanasi tiklanadi.
+        $undo = $last->undo ? json_decode((string) $last->undo, true) : [];
+        DB::table('enrollments')->where('id', $last->id)->update([
+            'ends_on' => $undo['ends_on'] ?? null, 'outcome' => null, 'reason' => $undo['reason'] ?? null, 'note' => $undo['note'] ?? null,
+            'transfer_group_id' => null, 'undo' => null, 'updated_at' => now(),
+        ]);
+        foreach ($undo['deleted'] ?? [] as $row) {
+            DB::table('enrollments')->insert(array_intersect_key($row, array_flip([
+                'group_id', 'student_id', 'status', 'starts_on', 'ends_on', 'outcome', 'reason', 'note', 'created_by', 'created_at',
+            ])) + ['updated_at' => now()]);
+        }
+        $this->reconcile(StudyGroup::findOrFail($groupId), $studentId, $today, self::ACTIVE, null);
 
         return true;
     }
@@ -110,13 +120,17 @@ final class Enrollments
                 throw ValidationException::withMessages(['date' => "Sana o'quvchi guruhga qo'shilgan kundan (".$this->fmt($periodStart).") oldin bo'lishi mumkin emas."]);
             }
             // Sanadan keyin boshlanadigan (rejalashtirilgan) qatorlar olib tashlanadi, sanani qamragan qator yopiladi.
+            // Ular "bugungi chiqarishni bekor qilish" uchun yopilgan qatorda saqlanadi.
+            $deleted = [];
             foreach ($segments as $seg) {
                 if ($seg->starts_on > $date) {
+                    $deleted[] = array_diff_key((array) $seg, ['id' => 1, 'undo' => 1]);
                     DB::table('enrollments')->where('id', $seg->id)->delete();
                 }
             }
             $last = $segments->last(fn ($s) => $s->starts_on <= $date);
             DB::table('enrollments')->where('id', $last->id)->update([
+                'undo' => json_encode(['ends_on' => $last->ends_on, 'reason' => $last->reason, 'note' => $last->note, 'deleted' => $deleted]),
                 'ends_on' => $date, 'outcome' => $outcome, 'transfer_group_id' => $transferGroupId,
                 // Muzlatish sababi ustiga yozilmaydi: chiqish sababi faqat bo'sh bo'lsa yoki ACTIVE qatorga yoziladi.
                 'reason' => $last->status === self::ACTIVE || $reason !== null ? ($reason ?? $last->reason) : $last->reason,
@@ -124,7 +138,8 @@ final class Enrollments
             ]);
             DB::table('group_members')->where(['group_id' => $group->id, 'student_id' => $student->id])
                 ->update(['left_at' => $date === today()->toDateString() ? now() : Carbon::parse($date)->endOfDay()]);
-            $this->refundCharged($group, $student->id, Carbon::parse($date)->addDay()->toDateString(), null, $outcome, $actorId);
+            // Yopilgan kunning o'zi ham qayta ko'riladi: qo'shilgan kuniyoq chiqarish/ko'chirish (xato qo'shish) — hisoblanmaydi.
+            $this->reconcile($group, $student->id, $date, $outcome, $actorId);
         });
     }
 
@@ -164,7 +179,7 @@ final class Enrollments
             if ($seg->ends_on === null || $seg->ends_on > $to) {
                 $this->insert($group->id, $student->id, self::ACTIVE, Carbon::parse($to)->addDay()->toDateString(), $seg->ends_on, $actorId);
             }
-            $refund = $this->refundCharged($group, $student->id, $from, $to, self::FROZEN, $actorId);
+            $refund = $this->reconcile($group, $student->id, $from, self::FROZEN, $actorId);
 
             return ['id' => $frozenId, 'days' => $days, 'refunded' => $refund];
         });
@@ -177,7 +192,7 @@ final class Enrollments
     public function unfreeze(StudyGroup $group, User $student, ?string $date = null, ?int $actorId = null): void
     {
         $date = $this->date($date, 'date', allowFuture: true);
-        DB::transaction(function () use ($group, $student, $date) {
+        DB::transaction(function () use ($group, $student, $date, $actorId) {
             $segments = $this->openPeriod($group->id, $student->id, lock: true);
             // Sanani qamragan yoki undan keyingi eng yaqin muzlatish.
             $frozen = $segments->first(fn ($s) => $s->status === self::FROZEN && $s->ends_on >= $date);
@@ -198,6 +213,8 @@ final class Enrollments
                         DB::table('enrollments')->where('id', $next->id)->delete();
                     }
                 }
+                // Qaytarilgan kunlar yana ACTIVE bo'ldi — ular qayta hisoblanadi.
+                $this->reconcile($group, $student->id, min($frozen->starts_on, $date), self::ACTIVE, $actorId);
 
                 return;
             }
@@ -207,6 +224,7 @@ final class Enrollments
             } else {
                 $this->insert($group->id, $student->id, self::ACTIVE, $date, null, null);
             }
+            $this->reconcile($group, $student->id, $date, self::ACTIVE, $actorId);
         });
     }
 
@@ -430,34 +448,83 @@ final class Enrollments
     }
 
     /**
-     * Orqa sana bilan muzlatish/chiqishda shu kunlar uchun allaqachon hisoblangan summa tuzatish (ADJUSTMENT) bilan qaytariladi.
-     * Kunlik hisoblash o'sha kunlarni qayta hisoblamaydi (dedupe_key), jurnal o'zgarmas qoladi.
+     * Orqa sana bilan muzlatish/chiqish/ko'chirish yoki muzlatishni bekor qilishdan keyin [from..bugun] dagi allaqachon
+     * hisoblangan kunlarni a'zolikning hozirgi holati bilan solishtirish (Billing::chargeableDays — accrue bilan bir qoida):
+     *  - hisoblanmasligi kerak, lekin hali qaytarilmagan kun → qaytariladi (ADJUSTMENT +, meta.refund_days);
+     *  - yana hisoblanishi kerak, lekin avval qaytarilgan kun → qayta hisoblanadi (ADJUSTMENT −, meta.recharge_days).
+     * Har kun bir martadan ortiq qaytarilmaydi; kunlik CHARGE yozuvlari o'zgarmaydi (jurnal o'zgarmas).
+     *
+     * @return int sof qaytarilgan summa (manfiy — qayta hisoblangan)
      */
-    private function refundCharged(StudyGroup $group, int $studentId, string $from, ?string $to, string $status, ?int $actorId): int
+    private function reconcile(StudyGroup $group, int $studentId, string $from, string $status, ?int $actorId): int
     {
         if (! $this->settings->bool('enrollment.refund_backdated')) {
             return 0;
         }
-        $charges = DB::table('billing_entries')->where(['student_id' => $studentId, 'group_id' => $group->id, 'type' => BillingEntry::CHARGE])
-            ->whereNull('voided_at')->where('entry_date', '>=', $from)->when($to, fn ($q) => $q->where('entry_date', '<=', $to));
-        $sum = -(int) (clone $charges)->sum('amount');
-        if ($sum <= 0) {
+        $to = today()->toDateString();
+        if ($from > $to) {
             return 0;
         }
-        $days = (clone $charges)->count();
-        $first = substr((string) (clone $charges)->min('entry_date'), 0, 10);
-        $last = substr((string) (clone $charges)->max('entry_date'), 0, 10);
+        $charged = DB::table('billing_entries')->where(['student_id' => $studentId, 'group_id' => $group->id, 'type' => BillingEntry::CHARGE])
+            ->whereNull('voided_at')->whereBetween('entry_date', [$from, $to])->get(['entry_date', 'amount'])
+            ->mapWithKeys(fn ($c) => [substr((string) $c->entry_date, 0, 10) => -(int) $c->amount])->all();
+        if (! $charged) {
+            return 0;
+        }
+        // Har kunning hozirgi "qaytarilgan" holati (avvalgi qaytarishlar − qayta hisoblashlar).
+        $refunded = [];
+        $adjustments = DB::table('billing_entries')->where(['student_id' => $studentId, 'group_id' => $group->id, 'type' => BillingEntry::ADJUSTMENT])
+            ->whereNull('voided_at')->whereNotNull('meta')->get(['meta']);
+        foreach ($adjustments as $a) {
+            $meta = json_decode((string) $a->meta, true) ?: [];
+            foreach ($meta['refund_days'] ?? [] as $d => $_) {
+                $refunded[$d] = ($refunded[$d] ?? 0) + 1;
+            }
+            foreach ($meta['recharge_days'] ?? [] as $d => $_) {
+                $refunded[$d] = ($refunded[$d] ?? 0) - 1;
+            }
+            // Eski formatdagi qaytarish (kunlar ro'yxatisiz, oraliq bilan).
+            if (isset($meta['enrollment'], $meta['from'], $meta['to']) && ! isset($meta['refund_days']) && ! isset($meta['recharge_days'])) {
+                foreach ($charged as $d => $_) {
+                    if ($d >= $meta['from'] && $d <= $meta['to']) {
+                        $refunded[$d] = ($refunded[$d] ?? 0) + 1;
+                    }
+                }
+            }
+        }
+        $should = app(Billing::class)->chargeableDays($group->id, $studentId, $from, $to);
+        $refund = [];
+        $recharge = [];
+        foreach ($charged as $d => $amount) {
+            $isRefunded = ($refunded[$d] ?? 0) > 0;
+            if (! isset($should[$d]) && ! $isRefunded) {
+                $refund[$d] = $amount;
+            } elseif (isset($should[$d]) && $isRefunded) {
+                $recharge[$d] = $amount;
+            }
+        }
         $labels = (array) $this->settings->get('enrollment.status_labels');
-        $note = strtr((string) $this->settings->get('enrollment.refund_note'), [
-            '{status}' => $labels[$status] ?? $status, '{group}' => $group->name, '{from}' => $this->fmt($first), '{to}' => $this->fmt($last), '{days}' => $days,
-        ]);
-        BillingEntry::create([
-            'student_id' => $studentId, 'group_id' => $group->id, 'type' => BillingEntry::ADJUSTMENT, 'amount' => $sum,
-            'entry_date' => today()->toDateString(), 'note' => mb_substr($note, 0, 500), 'created_by' => $actorId,
-            'meta' => ['enrollment' => $status, 'from' => $first, 'to' => $last, 'days' => $days],
-        ]);
+        $make = function (array $days, int $sign, string $noteKey, string $metaKey) use ($group, $studentId, $status, $labels, $actorId): int {
+            if (! $days) {
+                return 0;
+            }
+            ksort($days);
+            $sum = array_sum($days);
+            $first = array_key_first($days);
+            $last = array_key_last($days);
+            $note = strtr((string) $this->settings->get($noteKey), [
+                '{status}' => $labels[$status] ?? $status, '{group}' => $group->name, '{from}' => $this->fmt($first), '{to}' => $this->fmt($last), '{days}' => count($days),
+            ]);
+            BillingEntry::create([
+                'student_id' => $studentId, 'group_id' => $group->id, 'type' => BillingEntry::ADJUSTMENT, 'amount' => $sign * $sum,
+                'entry_date' => today()->toDateString(), 'note' => mb_substr($note, 0, 500), 'created_by' => $actorId,
+                'meta' => ['enrollment' => $status, 'from' => $first, 'to' => $last, 'days' => count($days), $metaKey => $days],
+            ]);
 
-        return $sum;
+            return $sum;
+        };
+
+        return $make($refund, 1, 'enrollment.refund_note', 'refund_days') - $make($recharge, -1, 'enrollment.recharge_note', 'recharge_days');
     }
 
     /** Sana: bo'sh — bugun; orqa sana enrollment.max_backdate_days dan oshmaydi. */

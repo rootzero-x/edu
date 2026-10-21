@@ -150,4 +150,18 @@ class ProfileSearchSetupTest extends TestCase
         $this->assertSame(['group:ENG-1'], $types($this->getJson('/v1/search?q=eng')));
         $this->getJson('/v1/search?q=a')->assertStatus(422);
     }
+
+    public function test_teacher_sees_only_own_groups_in_student_profile_overview(): void
+    {
+        $other = User::factory()->role(Role::Teacher)->create();
+        $course2 = Course::create(['title' => 'Matematika', 'created_by' => $this->admin->id, 'published' => true]);
+        $g2 = StudyGroup::create(['name' => 'MATH-1', 'course_id' => $course2->id, 'teacher_id' => $other->id, 'start_date' => '2026-09-01', 'active' => true]);
+        $this->postJson("/v1/groups/{$g2->id}/members", ['student_id' => $this->student->id, 'start_date' => '2026-10-01'])->assertCreated();
+
+        $this->getJson("/v1/users/{$this->student->id}/profile")->assertOk()->assertJsonCount(2, 'overview.groups');
+        Sanctum::actingAs($this->teacher);
+        $r = $this->getJson("/v1/users/{$this->student->id}/profile")->assertOk();
+        $this->assertSame(['ENG-1'], array_column($r->json('overview.groups'), 'name'));
+        $this->assertSame([$this->group->id], array_values(array_unique(array_column($r->json('timeline'), 'group_id'))));
+    }
 }

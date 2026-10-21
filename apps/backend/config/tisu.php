@@ -643,13 +643,14 @@ return [
         'enrollment.max_backdate_days' => ['group' => 'enrollment', 'type' => 'int', 'min' => 0, 'max' => 366, 'label' => "Muzlatish/chiqish/ko'chirishni necha kun orqaga yozish mumkin", 'default' => 31],
         'enrollment.refund_backdated' => ['group' => 'enrollment', 'type' => 'bool', 'label' => "Orqa sana bilan muzlatish/chiqishda o'sha kunlar uchun hisoblangan summani tuzatish bilan qaytarish", 'default' => true],
         'enrollment.refund_note' => ['group' => 'enrollment', 'type' => 'string', 'label' => "Qaytarish yozuvi izohi ({status}, {group}, {from}, {to}, {days})", 'default' => '{status} · {group}: {from} — {to} ({days} kun) hisoblash qaytarildi'],
+        'enrollment.recharge_note' => ['group' => 'enrollment', 'type' => 'string', 'label' => "Qayta hisoblash yozuvi izohi ({status}, {group}, {from}, {to}, {days})", 'default' => '{group}: {from} — {to} ({days} kun) yana faol — avval qaytarilgan hisoblash qayta yozildi'],
 
         // ── Import (Excel/CSV) ──
         'import.columns' => ['group' => 'import', 'type' => 'object', 'public' => true, 'label' => "Import ustunlari (kalit → shablondagi sarlavha)", 'default' => [
             'first_name' => 'Ism', 'last_name' => 'Familiya', 'phone' => 'Telefon', 'group' => 'Guruh', 'start_date' => "Qo'shilgan sana",
         ]],
         'import.max_rows' => ['group' => 'import', 'type' => 'int', 'min' => 10, 'max' => 10000, 'label' => 'Bir fayldagi eng ko\'p qatorlar', 'default' => 2000],
-        'import.max_file_kb' => ['group' => 'import', 'type' => 'int', 'min' => 50, 'max' => 10240, 'label' => 'Fayl hajmi chegarasi (KB)', 'default' => 3072],
+        'import.max_file_kb' => ['group' => 'import', 'type' => 'int', 'min' => 50, 'max' => 3072, 'label' => "Import fayli hajmi chegarasi (KB, 3072 gacha — sayt proksisi orqali yuboriladi)", 'default' => 3072],
         'import.update_names' => ['group' => 'import', 'type' => 'bool', 'label' => "Mavjud o'quvchining ism-familiyasini fayldagisi bilan yangilash", 'default' => false],
 
         // ── Qidiruv va boshlang'ich sozlash ro'yxati ──
@@ -678,6 +679,7 @@ return [
 
         // ── Zaxira va ogohlantirishlar ───────────────────────
         'backup.enabled' => ['group' => 'automation', 'type' => 'bool', 'label' => 'Har kuni bazadan zaxira nusxa olish', 'default' => true],
+        'backup.include_files' => ['group' => 'automation', 'type' => 'bool', 'label' => "Yuklangan fayllarni (materiallar, uy vazifalari) ham zaxiralash va yuborish", 'default' => true],
         'backup.keep_days' => ['group' => 'automation', 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => 'Zaxira nusxalar necha kun saqlansin', 'default' => 14],
         'backup.offsite_telegram' => ['group' => 'automation', 'type' => 'bool', 'label' => "Zaxirani admin Telegram chat(lar)iga hujjat sifatida yuborish (serverdan tashqarida saqlash)", 'default' => true],
         'backup.offsite_require_encryption' => ['group' => 'automation', 'type' => 'bool', 'label' => "Shifrlanmagan zaxirani tashqariga yubormaslik (BACKUP_ENCRYPTION_KEY kerak)", 'default' => true],
@@ -709,7 +711,7 @@ return [
 
         // ── Sprint 3: fayllar ────────────────────────────────
         'uploads.enabled' => ['group' => 'uploads', 'type' => 'bool', 'public' => true, 'label' => 'Fayl yuklashga ruxsat (dars materiallari, uyga vazifa)', 'default' => true],
-        'uploads.max_mb' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 200, 'public' => true, 'label' => "Bitta faylning maksimal hajmi (MB). Serverdagi upload_max_filesize dan oshmasin", 'default' => 10],
+        'uploads.max_mb' => ['group' => 'uploads', 'type' => 'int', 'min' => 1, 'max' => 64, 'public' => true, 'label' => "Bitta faylning maksimal hajmi (MB, 64 gacha — serverdagi chegara public/.user.ini da)", 'default' => 10],
         'uploads.allowed_types' => ['group' => 'uploads', 'type' => 'list', 'public' => true, 'label' => "Ruxsat etilgan fayl turlari (kengaytmalar). Tur fayl ichidan tekshiriladi; dastur/skript fayllari hech qachon qabul qilinmaydi", 'default' => [
             'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'odp', 'ods', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'mp3', 'm4a', 'mp4',
         ]],

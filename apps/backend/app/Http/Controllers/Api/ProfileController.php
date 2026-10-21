@@ -33,7 +33,7 @@ class ProfileController
                 'telegram' => DB::table('telegram_links')->where('user_id', $user->id)->exists(),
             ],
             'can_manage' => $manager,
-            'overview' => $user->role === Role::Student ? $this->overview->build($user, Billing::canView($viewer, $user->id), 20) : null,
+            'overview' => $user->role === Role::Student ? $this->overview->build($user, Billing::canView($viewer, $user->id), 20, $teacherGroups) : null,
             'timeline' => $user->role === Role::Student ? $this->enrollments->timeline($user->id, $teacherGroups) : [],
             'leads' => $viewer->hasPermission('lead.manage')
                 ? Lead::where('student_id', $user->id)->orWhere('phone', $user->phone)->orderByDesc('id')->limit(10)->get()
