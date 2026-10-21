@@ -171,9 +171,11 @@ function MySubmission({ a, mine, onSaved, tz }: { a: Assignment; mine: Mine; onS
   async function submit() {
     setBusy(true);
     setErr(null);
+    // Yuklangan fayl darhol ro'yxatdan olinadi: keyingisi xato bersa, qayta urinishda u ikkinchi marta yuklanmaydi.
     for (const f of files) {
       const u = await upload(`assignments/${a.id}/submission/files`, f);
       if (!u.ok) { setBusy(false); return setErr(`${f.name}: ${errorText(u.data)}`); }
+      setFiles((xs) => xs.filter((x) => x !== f));
     }
     const r = await call<{ my: Mine }>("PUT", `assignments/${a.id}/submission`, { body: body.trim() || null, link_url: link.trim() || null });
     setBusy(false);

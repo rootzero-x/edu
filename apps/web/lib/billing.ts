@@ -46,7 +46,9 @@ export function billingLabels(s: Settings) {
     currency,
     money: (n: number) => (n < 0 ? "−" : "") + fmtMoney(Math.abs(n), currency),
     signed: (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "") + fmtMoney(Math.abs(n), currency),
-    methods: { CASH: "Naqd", CARD: "Karta", TRANSFER: "O'tkazma", ...obj<Record<string, string>>(s, "billing.method_labels") } as Record<string, string>,
+    // Faqat sozlamadagi usullar (server ham shularni qabul qiladi); sozlama bo'sh bo'lsagina standartlar.
+    methods: (Object.keys(obj<Record<string, string>>(s, "billing.method_labels")).length
+      ? obj<Record<string, string>>(s, "billing.method_labels") : { CASH: "Naqd", CARD: "Karta", TRANSFER: "O'tkazma" }) as Record<string, string>,
     types: { CHARGE: "Hisoblandi", PAYMENT: "To'lov", ADJUSTMENT: "Tuzatish", ...obj<Record<string, string>>(s, "billing.type_labels") } as Record<string, string>,
   };
 }

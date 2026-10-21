@@ -16,6 +16,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ path: string[] 
     headers: { Authorization: `Bearer ${token}`, Accept: "text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" },
     cache: "no-store",
   });
+  // Xato (ruxsat yo'q, noto'g'ri sana oralig'i va h.k.) JSON ".csv" fayl bo'lib saqlanib qolmasin — tushunarli sahifa.
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = String((data as { message?: string })?.message || "Faylni tayyorlab bo'lmadi.").replace(/[<>&"]/g, "");
+    const html = `<!doctype html><html lang="uz"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
+      + `<title>Yuklab olinmadi</title><body style="font-family:system-ui,sans-serif;max-width:560px;margin:15vh auto;padding:0 16px;color:#1f2937">`
+      + `<h1 style="font-size:1.3rem">Fayl yuklab olinmadi</h1><p>${msg}</p><p><a href="javascript:history.back()">Orqaga qaytish</a></p></body></html>`;
+    return new Response(html, { status: res.status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+  }
   const headers = new Headers({ "Cache-Control": "no-store" });
   for (const h of ["content-type", "content-disposition"]) {
     const v = res.headers.get(h);

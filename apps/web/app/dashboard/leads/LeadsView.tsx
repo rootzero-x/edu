@@ -53,6 +53,8 @@ export default function LeadsView({ initial, options, openId }: { initial: LeadL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
   useEffect(() => setCard(openId), [openId]);
+  // Sahifaga qaytilganda (30 s mijoz keshidagi eski ro'yxat o'rniga) yangi ma'lumot olinadi.
+  useEffect(() => { void load(DEFAULT); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCard = (id: number | null) => {
     setCard(id);
@@ -159,7 +161,7 @@ export default function LeadsView({ initial, options, openId }: { initial: LeadL
           )}
         </>
       )}
-      <LeadCard id={card} options={options} onClose={() => openCard(null)} onChanged={() => load(f)} />
+      <LeadCard id={card} options={options} onClose={() => openCard(null)} onChanged={() => { void load(f); router.refresh(); }} />
     </>
   );
 }

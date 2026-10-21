@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarClock, MessageSquare, Pencil, Phone, PhoneCall, Send, Trash2, UserCheck, UserPlus, XCircle } from "lucide-react";
 import { Badge, Button, Dialog, EmptyState, Field, Input, Select, Textarea, useConfirm, usePrompt, useToast } from "@/components/ui";
 import { useSiteSettings } from "@/components/SiteProvider";
@@ -35,12 +35,18 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
   const [busy, setBusy] = useState(false);
   const [converting, setConverting] = useState(false);
 
+  // Ota komponent har renderda yangi onClose/toast berishi mumkin — ular ref orqali olinadi, aks holda kartochka
+  // har o'zgarishda "Yuklanmoqda…" holatiga qaytib, so'rovlar takrorlanardi. Yuklash faqat id o'zgarganda.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const load = useCallback(async () => {
     if (!id) return;
     const r = await call<Detail>("GET", `leads/${id}`);
     if (r.ok) setD(r.data);
-    else { toast.error("Ariza topilmadi", errorText(r.data)); onClose(); }
-  }, [id, toast, onClose]);
+    else { toastRef.current.error("Ariza topilmadi", errorText(r.data)); closeRef.current(); }
+  }, [id]);
   useEffect(() => { setD(null); setNote(""); setConverting(false); void load(); }, [load]);
 
   const changed = () => { void load(); onChanged(); };
@@ -48,7 +54,7 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
   const open = lead ? OPEN_STATUSES.includes(lead.status) : false;
 
   async function addActivity(type: "CALL" | "NOTE") {
-    if (!lead || !note.trim()) return;
+    if (!lead || !note.trim() || busy) return;
     setBusy(true);
     const r = await call("POST", `leads/${lead.id}/activities`, { type, text: note.trim() });
     setBusy(false);
@@ -59,8 +65,9 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
   }
 
   const setStatus = async (status: string, extra: Record<string, unknown> = {}) => {
-    if (!lead) return "";
-    const r = await call("POST", `leads/${lead.id}/status`, { status, ...extra });
+    if (!lead || busy) return "";
+    setBusy(true);
+    const r = await call("POST", `leads/${lead.id}/status`, { status, ...extra }).finally(() => setBusy(false));
     if (!r.ok) return errorText(r.data);
     toast.success(statusLabels[status] ?? status);
     changed();
@@ -167,13 +174,13 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
 
           {open && (
             <div className={s.actions}>
-              {lead.status === "NEW" && <Button size="sm" variant="secondary" icon={<PhoneCall />} onClick={() => setStatus("CONTACTED")}>Bog&apos;lanildi</Button>}
+              {lead.status === "NEW" && <Button size="sm" variant="secondary" icon={<PhoneCall />} disabled={busy} onClick={() => setStatus("CONTACTED")}>Bog&apos;lanildi</Button>}
               <Button size="sm" variant="secondary" icon={<CalendarClock />} onClick={trial}>Sinov darsi</Button>
               <Button size="sm" icon={<UserPlus />} onClick={() => setConverting(true)}>O&apos;quvchiga aylantirish</Button>
               <Button size="sm" variant="dangerGhost" icon={<XCircle />} onClick={lose}>Rad etdi</Button>
             </div>
           )}
-          {!open && lead.status === "LOST" && <div className={s.actions}><Button size="sm" variant="secondary" onClick={() => setStatus("CONTACTED")}>Qayta ochish</Button></div>}
+          {!open && lead.status === "LOST" && <div className={s.actions}><Button size="sm" variant="secondary" disabled={busy} onClick={() => setStatus("CONTACTED")}>Qayta ochish</Button></div>}
 
           <div className={s.compose}>
             <Field label="Qo'ng'iroq natijasi yoki izoh">
@@ -181,7 +188,7 @@ export default function LeadCard({ id, options, onClose, onChanged }: { id: numb
             </Field>
             <div className={s.composeBtns}>
               <Button size="sm" variant="secondary" icon={<PhoneCall />} disabled={!note.trim()} loading={busy} onClick={() => addActivity("CALL")}>Qo&apos;ng&apos;iroq qayd etish</Button>
-              <Button size="sm" variant="ghost" icon={<MessageSquare />} disabled={!note.trim()} onClick={() => addActivity("NOTE")}>Izoh</Button>
+              <Button size="sm" variant="ghost" icon={<MessageSquare />} disabled={!note.trim() || busy} onClick={() => addActivity("NOTE")}>Izoh</Button>
             </div>
           </div>
 

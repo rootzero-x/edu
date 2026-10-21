@@ -47,6 +47,7 @@ function Submit({ a, mine, reload }: { a: Assignment; mine: Mine; reload: () => 
     for (const f of files) {
       const u = await tgUpload(`assignments/${a.id}/submission/files`, f);
       if (!u.ok) { setBusy(false); haptic.error(); return setMsg({ ok: false, text: `${f.name}: ${errorText(u.data, t("error"))}` }); }
+      setFiles((xs) => xs.filter((x) => x !== f)); // qayta urinishda takror yuklanmasin
     }
     const r = await tg<{ my: Mine }>("PUT", `assignments/${a.id}/submission`, { body: body.trim() || null, link_url: link.trim() || null });
     setBusy(false);

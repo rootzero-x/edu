@@ -1,6 +1,7 @@
 "use client";
 
 import { WEB_HEADER } from "./safe";
+import { sendWithTicket, type UploadTicket } from "./upload";
 
 export type CallResult<T = any> = { ok: boolean; status: number; data: T };
 
@@ -29,20 +30,17 @@ export function errorText(data: any): string {
   return data?.message ?? "Xatolik yuz berdi.";
 }
 
-/** Fayl yuklash (multipart) — /api/upload orqali. Maydonlar (masalan, title) FormData'ga qo'shiladi. */
+/**
+ * Fayl yuklash (multipart): avval proksi orqali bir martalik chipta olinadi, keyin fayl bevosita API ga yuboriladi
+ * (Vercel 4,5 MB dan katta so'rovni o'tkazmaydi). Maydonlar (masalan, title) FormData'ga qo'shiladi.
+ */
 export async function upload<T = any>(path: string, file: File, fields: Record<string, string> = {}): Promise<CallResult<T>> {
+  const ticket = await call<UploadTicket>("POST", "uploads/ticket", { path: path.replace(/^\//, "") });
+  if (!ticket.ok) return ticket as unknown as CallResult<T>;
   const form = new FormData();
   form.append("file", file);
   Object.entries(fields).forEach(([k, v]) => form.append(k, v));
-  let res: Response;
-  try {
-    res = await fetch(`/api/upload/${path.replace(/^\//, "")}`, { method: "POST", headers: { Accept: "application/json", [WEB_HEADER]: "1" }, body: form, cache: "no-store" });
-  } catch {
-    return { ok: false, status: 0, data: { message: "Tarmoq bilan aloqa yo'q." } as T };
-  }
-  const data = await res.json().catch(() => ({ message: res.status === 413 ? "Fayl juda katta." : "Xatolik yuz berdi." }));
-  if (res.status === 401) window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
-  return { ok: res.ok, status: res.status, data };
+  return sendWithTicket(ticket.data, form);
 }
 
 /**

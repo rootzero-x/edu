@@ -118,8 +118,8 @@ export default function ImportDialog({ open, onClose, onDone, defaultGroupId }: 
               <Input type="date" value={date} max={todayIso(timezone(st), 60)} onChange={(e) => setDate(e.target.value)} />
             </Field>
           </div>
-          <label className={s.drop} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void upload(f); }}>
-            <input ref={input} type="file" accept={ACCEPT} className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+          <label className={s.drop} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && !busy) void upload(f); }} aria-busy={busy}>
+            <input ref={input} type="file" accept={ACCEPT} className="sr-only" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
             <Upload aria-hidden />
             <b>{busy ? "Tekshirilmoqda…" : "Faylni tanlang yoki shu yerga tashlang"}</b>
             <span className="subtle">.xlsx yoki .csv</span>

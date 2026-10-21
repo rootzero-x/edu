@@ -70,6 +70,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
     if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
     toast.success(r.data.created ? `${r.data.created} ta yangi mashg'ulot qo'shildi` : "Jadval allaqachon to'liq", `${r.data.from} — ${r.data.to}`);
     void live.refresh();
+    router.refresh(); // 30 s mijoz keshi (boshqa sahifalar) yangilansin
   }
 
   async function graduateAll() {
@@ -78,6 +79,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
     if (!r.ok) return toast.error("Bajarilmadi", errorText(r.data));
     toast.success(`${r.data.graduated} ta o'quvchi bitirdi`);
     void live.refresh();
+    router.refresh(); // 30 s mijoz keshi (boshqa sahifalar) yangilansin
   }
 
   async function toggleActive() {
@@ -161,7 +163,7 @@ export default function GroupView({ initial, manage, canMark, seeAll }: { initia
         items={[
           {
             id: "students", label: "O'quvchilar", count: group.students.length,
-            content: <Members groupId={id} students={group.students} report={report} manage={manage} staff={canMark || manage} onChanged={() => void live.refresh()} />,
+            content: <Members groupId={id} students={group.students} report={report} manage={manage} staff={canMark || manage} onChanged={() => { void live.refresh(); router.refresh(); }} />,
           },
           {
             id: "attendance", label: "Davomat",

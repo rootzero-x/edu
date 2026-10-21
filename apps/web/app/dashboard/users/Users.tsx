@@ -48,7 +48,9 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
   const [dups, setDups] = useState<Duplicates | null>(null);
   useEffect(() => setRows(initialRows), [initialRows]);
 
-  const roles = ROLES.filter((r) => r !== "SUPER_ADMIN" || actorRole === "SUPER_ADMIN");
+  // Administratorlarni faqat bosh administrator boshqaradi (backend UserController::guardRole bilan bir xil).
+  const isSuper = actorRole === "SUPER_ADMIN";
+  const roles = ROLES.filter((r) => isSuper || (r !== "SUPER_ADMIN" && r !== "ADMIN"));
   const go = (params: Record<string, string>) => {
     const sp = new URLSearchParams({ role, q, view, ...params });
     for (const [k, v] of [...sp.entries()]) if (!v) sp.delete(k);
@@ -63,7 +65,7 @@ export default function Users({ rows: initialRows, meta, role, q, view, actorRol
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const canEdit = (u: UserRow) => u.id !== selfId && (u.role !== "SUPER_ADMIN" || actorRole === "SUPER_ADMIN");
+  const canEdit = (u: UserRow) => u.id !== selfId && (isSuper || (u.role !== "SUPER_ADMIN" && u.role !== "ADMIN"));
 
   const addUser = () => prompt({
     title: "Yangi foydalanuvchi",

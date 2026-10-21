@@ -26,7 +26,10 @@ export default function LeadForm({ labels, consentText, consentRequired, success
   useEffect(() => {
     const pick = () => {
       const m = /course=(\d+)/.exec(window.location.hash);
-      if (m) setForm((f) => ({ ...f, course_id: m[1] }));
+      if (!m) return;
+      setForm((f) => ({ ...f, course_id: m[1] }));
+      // "#ariza?course=5" degan id yo'q — brauzer o'zi aylantirmaydi, formaga o'zimiz olib boramiz.
+      document.getElementById("ariza")?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
     pick();
     window.addEventListener("hashchange", pick);

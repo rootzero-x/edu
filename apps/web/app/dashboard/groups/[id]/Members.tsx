@@ -18,6 +18,7 @@ import {
 } from "@/lib/enrollment";
 import { personName } from "@/lib/format";
 import { timezone } from "@/lib/settings";
+import { billingLabels } from "@/lib/billing";
 import type { GroupRow, Person, ReportRow } from "@/lib/types";
 import s from "./group.module.css";
 
@@ -65,7 +66,7 @@ export default function Members({ groupId, students, report, manage, staff, onCh
     onSubmit: async (v) => {
       const r = await call("POST", `groups/${groupId}/members/${m.id}/freeze`, { ...v, reason: v.reason || null, note: v.note || null });
       if (!r.ok) return errorText(r.data);
-      done("Muzlatildi", `${fmtDay(v.from)} — ${fmtDay(v.to)}${r.data.refunded ? ` · ${r.data.refunded} so'm qaytarildi` : ""}`);
+      done("Muzlatildi", `${fmtDay(v.from)} — ${fmtDay(v.to)}${r.data.refunded ? ` · ${billingLabels(st).money(r.data.refunded)} qaytarildi` : ""}`);
     },
   });
 

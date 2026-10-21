@@ -24,7 +24,7 @@ type Filters = { actor_id: string; entity: string; entity_id: string; action: st
 const entityHref = (entity: string, id: number | null) => {
   if (!id) return null;
   return ({ group: `/dashboard/groups/${id}`, session: `/dashboard/sessions/${id}`, course: `/dashboard/courses/${id}`, lesson: `/dashboard/lessons/${id}`,
-    assignment: `/dashboard/homework/${id}`, quiz: `/dashboard/quizzes/${id}/edit`, billing: `/dashboard/billing/${id}` } as Record<string, string>)[entity] ?? null;
+    assignment: `/dashboard/homework/${id}`, quiz: `/dashboard/quizzes/${id}/edit` } as Record<string, string>)[entity] ?? null;
 };
 
 function show(v: unknown) {

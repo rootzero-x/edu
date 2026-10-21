@@ -33,7 +33,7 @@ export default function NotificationBell({ onNews }: { onNews?: (n: number) => v
     return r.ok ? r.data : null;
   }, []);
   const apply = useCallback((d: UnreadSummary) => { setData(d); onNews?.(d.news_unread); }, [onNews]);
-  const live = usePolling(fetcher, apply, { seconds: Math.max(30, refreshSeconds(st) * 3), immediate: true, enabled });
+  const live = usePolling(fetcher, apply, { seconds: refreshSeconds(st) > 0 ? Math.max(30, refreshSeconds(st) * 3) : 0, immediate: true, enabled });
   useEffect(() => { setOpen(false); void live.refresh(); }, [path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

@@ -46,7 +46,7 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
     setError(null);
     return r.data;
   }, [qs]);
-  const live = usePolling(fetcher, setData, { seconds: Math.max(60, refreshSeconds(st) * 3), immediate: true });
+  const live = usePolling(fetcher, setData, { seconds: (refreshSeconds(st) > 0 ? Math.max(60, refreshSeconds(st) * 3) : 0), immediate: true });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const groups = refs.groups.filter((g) => (!f.course_id || g.course_id === +f.course_id) && (!f.teacher_id || g.teacher_id === +f.teacher_id));
 
@@ -59,7 +59,7 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
   return (
     <>
       <PageHeader title="Hisobotlar" description="Oylik ko'rsatkichlar: o'quvchilar, davomat, natijalar, o'qituvchi soatlari va to'lovlar"
-        actions={<LiveStatus {...live} lastUpdated={live.lastUpdated} onRefresh={live.refresh} seconds={Math.max(60, refreshSeconds(st) * 3)} />} />
+        actions={<LiveStatus {...live} lastUpdated={live.lastUpdated} onRefresh={live.refresh} seconds={(refreshSeconds(st) > 0 ? Math.max(60, refreshSeconds(st) * 3) : 0)} />} />
       {switcher}
       <Card className={s.filters}>
         <div className={s.grid} data-open>

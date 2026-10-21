@@ -1,6 +1,6 @@
 /**
- * Fayl yuklash yo'llari (multipart). Faqat shu ro'yxatdagi API yo'llari proksidan o'tadi —
- * web (/api/upload) va Mini App (/api/tg-upload) uchun bir xil.
+ * Fayl yuklash yo'llari (multipart; backend UploadTickets::PATHS bilan bir xil).
+ * Fayl Vercel orqali emas (4,5 MB chegara), bir martalik chipta bilan bevosita API ga yuboriladi.
  */
 export const UPLOAD_PATHS = [
   /^lessons\/\d+\/materials\/upload$/,
@@ -29,3 +29,20 @@ export function fmtSize(bytes: number) {
 }
 
 export type StoredFile = { id: number; name: string; mime: string; size: number; created_at?: string | null };
+
+export type UploadTicket = { url: string; token: string };
+
+/** Chipta bo'yicha faylni bevosita API ga yuborish (web va Mini App uchun umumiy). */
+export async function sendWithTicket(ticket: UploadTicket, form: FormData): Promise<{ ok: boolean; status: number; data: any }> {
+  let res: Response;
+  try {
+    res = await fetch(ticket.url, {
+      method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${ticket.token}` }, body: form,
+      cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(300000),
+    });
+  } catch {
+    return { ok: false, status: 0, data: { message: "Tarmoq bilan aloqa yo'q yoki yuklash juda uzoq davom etdi." } };
+  }
+  const data = await res.json().catch(() => ({ message: res.status === 413 ? "Fayl juda katta." : "Xatolik yuz berdi." }));
+  return { ok: res.ok, status: res.status, data };
+}

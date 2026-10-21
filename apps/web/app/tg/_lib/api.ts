@@ -1,5 +1,7 @@
 "use client";
 
+import { sendWithTicket, type UploadTicket } from "@/lib/upload";
+
 /** Mini App'dan API chaqiruvi: /api/tg proxy (token httpOnly cookie'da). 401 bo'lsa bir marta qayta kiradi. */
 let reauth: (() => Promise<boolean>) | null = null;
 let pending: Promise<boolean> | null = null;
@@ -66,19 +68,12 @@ export function errorText(data: any, fallback: string): string {
   return data?.message || fallback;
 }
 
-/** Fayl yuklash (multipart) — /api/tg-upload orqali (token Mini App cookie'sida). */
+/** Fayl yuklash: proksi orqali bir martalik chipta, keyin fayl bevosita API ga (Vercel 4,5 MB chegarasini chetlab). */
 export async function tgUpload<T = any>(path: string, file: File): Promise<ApiResult<T>> {
+  const ticket = await tg<UploadTicket>("POST", "uploads/ticket", { path: path.replace(/^\//, "") });
+  if (!ticket.ok) return ticket as unknown as ApiResult<T>;
   const form = new FormData();
   form.append("file", file);
-  let res: Response;
-  try {
-    res = await fetch(`/api/tg-upload/${path.replace(/^\//, "")}`, {
-      method: "POST", credentials: "same-origin", headers: { "x-tisu-tg": "1" }, body: form, signal: AbortSignal.timeout(120000),
-    });
-  } catch {
-    return { ok: false, status: 0, data: { message: "Internet bilan aloqa yo'q." } as T };
-  }
-  const data = await res.json().catch(() => ({ message: res.status === 413 ? "Fayl juda katta." : "" }));
-  return { ok: res.ok, status: res.status, data };
+  return sendWithTicket(ticket.data, form);
 }
 

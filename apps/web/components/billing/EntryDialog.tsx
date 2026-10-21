@@ -13,8 +13,20 @@ type Mode = "payment" | "adjustment";
 const newRequestId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-/** "400 000" / "400,000" / "400000" → 400000 (faqat butun so'm). */
-const parseAmount = (v: string) => (/^\d+$/.test(v.replace(/[\s,.'’]/g, "")) ? Number(v.replace(/[\s,.'’]/g, "")) : NaN);
+/**
+ * "400 000" / "400,000" / "400.000" / "400000" → 400000. So'm butun: "150000.00" → 150000,
+ * "150 000,50" kabi tiyinli summa rad etiladi (NaN) — oldin ajratuvchilar olib tashlanib 15 000 050 bo'lib qolardi.
+ */
+const parseAmount = (v: string) => {
+  let s = v.trim();
+  const frac = s.match(/[.,](\d{1,2})$/);
+  if (frac) {
+    if (/[1-9]/.test(frac[1])) return NaN;
+    s = s.slice(0, -frac[0].length);
+  }
+  s = s.replace(/[\s,.'’]/g, "");
+  return /^\d+$/.test(s) ? Number(s) : NaN;
+};
 
 /**
  * To'lov qabul qilish yoki tuzatish kiritish: 1) forma → 2) tasdiqlash (summa, usul, yangi balans) → saqlash.
@@ -71,7 +83,7 @@ export default function EntryDialog({ mode, open, onClose, student, balance, onD
         amount, method: f.method, date: f.date, note: f.note.trim() || null, request_id: requestId,
       })
       : await call<{ entry: BillingEntry; balance: number }>("POST", `billing/students/${student.id}/adjustments`, {
-        amount: signed, reason: f.note.trim(), date: f.date,
+        amount: signed, reason: f.note.trim(), date: f.date, request_id: requestId,
       });
     setBusy(false);
     if (!r.ok) {
