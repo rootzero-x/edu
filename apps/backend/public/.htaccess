@@ -13,10 +13,8 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
+    # (Laravel standartidagi "oxirgi / ni olib tashlash" yo'naltirishi olib tashlangan: loyiha ildizi domen katalogi
+    # bo'lgani uchun u /public/... ichki yo'lini oshkor qilib, HTTP ga yo'naltirardi. API marshrutlari / siz ham ishlaydi.)
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d

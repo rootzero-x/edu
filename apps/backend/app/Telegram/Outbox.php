@@ -137,7 +137,8 @@ class Outbox
             }
             if ($e->errorCode === 400) {
                 // Noto'g'ri so'rov (masalan, matn juda uzun) — qayta urinish foydasiz.
-                $this->finish($row, 'failed', mb_substr($e->getMessage(), 0, 250));
+                // "bad_request:" — yakuniy xato: eslatmalar uni qayta navbatga qo'ymaydi (AutomationCommands::alreadySent).
+                $this->finish($row, 'failed', mb_substr('bad_request: '.$e->getMessage(), 0, 250));
 
                 return 'failed';
             }

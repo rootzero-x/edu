@@ -32,7 +32,11 @@ class RemindLessonsCommand extends Command
         $items = [];
         foreach ($sessions as $s) {
             $kind = "lesson.reminder:{$s->id}";
-            $vars = ['group' => $s->name, 'time' => substr((string) $s->starts_at, 11, 5), 'room' => $s->room ?: '—', 'topic' => $s->topic ?? ''];
+            // Eslatma bir kun oldin ham yuborilishi mumkin — "bugun" o'rniga to'g'ri kun.
+            $day = substr((string) $s->starts_at, 0, 10);
+            $when = $day === now()->toDateString() ? (string) $settings->get('telegram.text.day_today')
+                : ($day === now()->addDay()->toDateString() ? (string) $settings->get('telegram.text.day_tomorrow') : \Illuminate\Support\Carbon::parse($day)->format('d.m'));
+            $vars = ['group' => $s->name, 'time' => substr((string) $s->starts_at, 11, 5), 'room' => $s->room ?: '—', 'topic' => $s->topic ?? '', 'when' => $when];
             $members = DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
                 ->where('group_members.group_id', $s->group_id)->whereNull('group_members.left_at')->where('users.active', true)
                 ->get(['users.id', 'users.first_name']);

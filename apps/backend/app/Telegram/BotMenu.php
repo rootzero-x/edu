@@ -91,6 +91,10 @@ class BotMenu
             }
         }
         $action = $command !== null ? $this->commandAction($command) : $this->buttonAction($text);
+        // Boshqa amal tanlandi — kutilayotgan "sabab" so'rovi bekor (keyingi tasodifiy matn sabab bo'lib qolmasin).
+        if ($command !== null || $action !== null) {
+            Cache::forget($this->reasonKey($chatId));
+        }
         if ($action === 'admin') {
             return $this->admin->onCommand($chatId, 'admin', '');
         }
@@ -144,6 +148,10 @@ class BotMenu
             $this->tg->answerCallback($cq['id'], $this->t->get('telegram.text.need_phone'), true);
 
             return;
+        }
+        // Davomatdan boshqa tugma bosildi — kutilayotgan "sabab" so'rovi bekor.
+        if (! str_starts_with($data, 'a:')) {
+            Cache::forget($this->reasonKey($chatId));
         }
         // Javob har doim bitta va har doim (kutilmagan xatoda ham) — tugma "yuklanmoqda" holatida osilib qolmasin.
         $answer = [null, false];
@@ -539,6 +547,15 @@ class BotMenu
     {
         $window = AttendanceController::editWindow($this->settings, $session, $user->hasPermission('group.manage'));
         if ($window['can_edit'] && $window['reason_required']) {
+            // Sabab yozilmay turib yana belgilansa — avvalgi o'zgarishlar yo'qolmaydi, birlashtiriladi (o'quvchi bo'yicha).
+            $prev = $this->pendingReason($chatId);
+            if ($prev && (int) $prev['session'] === (int) $session->id) {
+                $byStudent = [];
+                foreach (array_merge($prev['items'], $items) as $it) {
+                    $byStudent[(int) $it['student_id']] = $it;
+                }
+                $items = array_values($byStudent);
+            }
             Cache::put($this->reasonKey($chatId), ['session' => $session->id, 'items' => $items, 'message_id' => $messageId, 'page' => $page], 900);
             $this->tg->sendMessage($chatId, $this->t->get('telegram.text.reason_prompt', [
                 'days' => (int) floor($session->starts_at->diffInDays(now(), true)),

@@ -10,7 +10,7 @@
 .mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius); background: rgb(255 255 255 / 0.18); font-weight: 800; overflow: hidden; }
 .mark img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .asideText { position: relative; z-index: 1; max-width: 460px; }
-.asideText h2 { font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.3rem); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 var(--space-6); line-height: 1.15; }
+.asideText h2, .sideTitle { font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.3rem); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 var(--space-6); line-height: 1.15; }
 .points { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .points li { display: flex; gap: var(--space-3); align-items: center; margin: 0; font-size: var(--text-md); opacity: 0.95; }
 .points svg { width: 20px; height: 20px; flex: none; }

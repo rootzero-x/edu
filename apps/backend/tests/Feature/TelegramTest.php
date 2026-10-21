@@ -171,4 +171,38 @@ class TelegramTest extends TestCase
             && ($r['reply_markup']['keyboard'][0][0]['request_contact'] ?? false));
         Http::assertNotSent(fn ($r) => str_contains((string) ($r['text'] ?? ''), 'xush kelibsiz'));
     }
+
+    public function test_miniapp_reports_pending_applicant_and_relinking_ends_old_miniapp_sessions(): void
+    {
+        $initFor = function (int $tgId): string {
+            $fields = ['auth_date' => (string) time(), 'query_id' => 'AAA', 'user' => json_encode(['id' => $tgId, 'first_name' => 'Ali'])];
+            ksort($fields);
+            $check = implode("\n", array_map(fn ($k, $v) => "$k=$v", array_keys($fields), $fields));
+
+            return http_build_query($fields + ['hash' => hash_hmac('sha256', $check, hash_hmac('sha256', self::TOKEN, 'WebAppData', true))]);
+        };
+        $a = User::factory()->create(['phone' => '+998905555551']);
+        $this->update(['contact' => ['phone_number' => '998905555551', 'user_id' => 555]]);
+        $this->postJson('/v1/auth/telegram/miniapp', ['init_data' => $initFor(555)])->assertOk();
+        $this->assertSame(1, $a->tokens()->where('name', 'telegram-miniapp')->count());
+
+        // Shu Telegram boshqa akkauntga ulandi — eski akkauntning Mini App tokeni o'chadi.
+        User::factory()->create(['phone' => '+998905555552']);
+        $this->update(['contact' => ['phone_number' => '998905555552', 'user_id' => 555]]);
+        $this->assertSame(0, $a->tokens()->where('name', 'telegram-miniapp')->count());
+
+        // Tasdiq kutayotgan ariza egasi — "pending", "bloklangan" emas.
+        $p = User::factory()->create(['phone' => '+998905555553', 'active' => false, 'pending_at' => now()]);
+        \Illuminate\Support\Facades\DB::table('telegram_links')->insert(['user_id' => $p->id, 'telegram_id' => 557, 'chat_id' => 557, 'linked_at' => now()]);
+        $this->postJson('/v1/auth/telegram/miniapp', ['init_data' => $initFor(557)])->assertForbidden()->assertJsonPath('status', 'pending');
+    }
+
+    public function test_long_messages_are_fitted_to_telegram_limit(): void
+    {
+        $text = implode("\n", array_fill(0, 400, str_repeat('x', 20)));
+        $fit = \App\Telegram\TelegramClient::fit($text);
+        $this->assertLessThanOrEqual(4096, mb_strlen($fit));
+        $this->assertStringEndsWith("\n…", $fit);
+        $this->assertSame('qisqa', \App\Telegram\TelegramClient::fit('qisqa'));
+    }
 }

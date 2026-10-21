@@ -15,7 +15,7 @@ class AutomationCommands
     public static function alreadySent(int $userId, string $kind): bool
     {
         return DB::table('notifications_log')->where(['user_id' => $userId, 'kind' => $kind])
-            ->where(fn ($w) => $w->whereNotNull('sent_at')->orWhereIn('error', Notifier::FINAL_ERRORS))->exists()
+            ->where(fn ($w) => $w->whereNotNull('sent_at')->orWhereIn('error', Notifier::FINAL_ERRORS)->orWhere('error', 'like', 'bad_request%'))->exists()
             || DB::table('telegram_outbox')->where(['user_id' => $userId, 'kind' => $kind, 'status' => 'pending'])->exists();
     }
 

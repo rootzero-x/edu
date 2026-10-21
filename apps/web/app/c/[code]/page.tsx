@@ -24,6 +24,8 @@ async function load(code: string): Promise<Cert | null> {
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params;
   const c = await load(code);
+  // Oqim boshlanishidan oldin 404 — sahifa bo'sh "qobiq" emas, to'liq "topilmadi" HTML bilan qaytadi.
+  if (!c) notFound();
   return { title: !c ? "Sertifikat topilmadi" : c.status === "REVOKED" ? `Bekor qilingan sertifikat — ${c.code}` : `${c.name} — ${c.course}`, robots: { index: false } };
 }
 

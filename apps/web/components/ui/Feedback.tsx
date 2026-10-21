@@ -13,11 +13,12 @@ export function Spinner({ size = 18, label = "Yuklanmoqda" }: { size?: number; l
   return <span role="status" aria-label={label} className={s.spinner} style={{ "--size": `${size}px` } as CSSProperties} />;
 }
 
-export function EmptyState({ icon, title, children, action, compact }: { icon?: ReactNode; title: ReactNode; children?: ReactNode; action?: ReactNode; compact?: boolean }) {
+export function EmptyState({ icon, title, children, action, compact, level = 3 }: { icon?: ReactNode; title: ReactNode; children?: ReactNode; action?: ReactNode; compact?: boolean; level?: 1 | 2 | 3 }) {
+  const H = `h${level}` as "h1" | "h2" | "h3";
   return (
     <div className={cx(s.empty, compact && s.compact)}>
       {icon && <div className={s.emptyIcon} aria-hidden>{icon}</div>}
-      <h3>{title}</h3>
+      <H>{title}</H>
       {children && <p>{children}</p>}
       {action && <div className={s.emptyAction}>{action}</div>}
     </div>

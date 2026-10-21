@@ -14,7 +14,7 @@ export type TgUser = {
   permissions: string[];
 };
 
-type Phase = "boot" | "outside" | "need_phone" | "linking" | "blocked" | "expired" | "error" | "ready";
+type Phase = "boot" | "outside" | "need_phone" | "linking" | "pending" | "blocked" | "expired" | "error" | "ready";
 
 type Ctx = {
   me: TgUser;
@@ -66,6 +66,7 @@ const FALLBACK: Record<string, string> = {
   unmarked_title: "Belgilanmagan darslar ({n})",
   staff_denied_title: "Bu kurs sizga biriktirilmagan",
   staff_denied_text: "Kurs boshqa o'qituvchiga tegishli. Kirish kerak bo'lsa, administratorga murojaat qiling.",
+  account_pending: "Arizangiz administrator tasdig'ini kutmoqda. Tasdiqlangach, bot sizga xabar beradi.",
   quiz_start_confirm: "Testni boshlaysizmi? Boshlangan zahoti bitta urinish hisoblanadi va vaqt (bo'lsa) yura boshlaydi.",
 };
 
@@ -85,11 +86,16 @@ export default function TgProvider({ settings, children }: { settings: Record<st
   const pathname = usePathname();
   const bot = String(s["telegram.bot_username"] ?? "").replace(/^@/, "");
 
-  /** initData bilan kirish. true — tayyor. */
-  const auth = useCallback(async (): Promise<boolean> => {
+  /**
+   * initData bilan kirish. true — tayyor. silent — telefon ulanishini kutish paytida (polling) ekran almashmaydi;
+   * natija holati qaytariladi (lastPhase), yakuniy holatlarda (pending/blocked) polling to'xtaydi.
+   */
+  const lastPhase = useRef<Phase>("boot");
+  const auth = useCallback(async (silent = false): Promise<boolean> => {
     const wa = waRef.current;
+    const show = (p: Phase) => { lastPhase.current = p; if (!silent || p === "ready") setPhase(p); };
     if (!wa?.initData) {
-      setPhase(launchedFromTelegram() ? "error" : "outside");
+      show(launchedFromTelegram() ? "error" : "outside");
       return false;
     }
     try {
@@ -101,16 +107,17 @@ export default function TgProvider({ settings, children }: { settings: Record<st
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.status === "ok") {
         setMe(data.user);
-        setPhase("ready");
+        show("ready");
         return true;
       }
-      setPhase(
+      show(
         data.status === "need_phone" ? "need_phone"
           : data.status === "expired" ? "expired"
-            : data.status === "blocked" || res.status === 403 ? "blocked" : "error",
+            : data.status === "pending" ? "pending"
+              : data.status === "blocked" || res.status === 403 ? "blocked" : "error",
       );
     } catch {
-      setPhase("error");
+      show("error");
     }
     return false;
   }, []);
@@ -174,7 +181,9 @@ export default function TgProvider({ settings, children }: { settings: Record<st
       setPhase("linking");
       for (let i = 0; i < 10; i++) {
         await new Promise((r) => setTimeout(r, 1500));
-        if (await auth()) return haptic.success();
+        if (await auth(true)) return haptic.success();
+        // Yakuniy javob (tasdiq kutilmoqda / bloklangan) — kutishni to'xtatib, o'sha holatni ko'rsatamiz.
+        if (lastPhase.current === "pending" || lastPhase.current === "blocked") return setPhase(lastPhase.current);
       }
       setPhase("need_phone");
     });
@@ -219,6 +228,12 @@ export default function TgProvider({ settings, children }: { settings: Record<st
           </>
         )}
         {phase === "blocked" && <p className="tg-hint">{t("blocked")}</p>}
+        {phase === "pending" && (
+          <>
+            <div className="tg-emoji">⏳</div>
+            <p className="tg-hint">{t("account_pending")}</p>
+          </>
+        )}
         {phase === "expired" && (
           <>
             <div className="tg-emoji">⏳</div>

@@ -9,6 +9,7 @@ import { fmtDate } from "@/lib/format";
 import { bool, list, obj, siteName, str, timezone } from "@/lib/settings";
 import { ButtonLink, SafeImage } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
+import type { Metadata } from "next";
 import LeadForm from "./LeadForm";
 import s from "./landing.module.css";
 
@@ -39,6 +40,9 @@ function telegramUrl(v: string) {
   if (/^https?:\/\//.test(v)) return v;
   return `https://t.me/${v.replace(/^@/, "")}`;
 }
+
+// Faqat bosh sahifa: kanonik manzil va ijtimoiy tarmoq havolasi (ichki sahifalar root layout'dan meros olmasin).
+export const metadata: Metadata = { alternates: { canonical: "/" }, openGraph: { url: "/" } };
 
 export default async function Home() {
   const [st, courses, ok, news] = await Promise.all([publicSettings(), publicCourses(), apiStatus(), publicNews()]);
@@ -73,8 +77,21 @@ export default async function Home() {
   const login = str(st, "site.nav_login", "Kirish");
   const footer = str(st, "site.footer_text", "© {year} {name}").replace("{year}", String(new Date().getFullYear())).replace("{name}", name);
 
+  // Qidiruv tizimlari uchun tuzilgan ma'lumot (schema.org): markaz va uning kurslari.
+  const base = str(st, "site.url", "https://tisu.uzstudents.uz").replace(/\/$/, "");
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    name, url: base, description: str(st, "site.description") || undefined, logo: logo || undefined,
+    telephone: phone || undefined, email: email || undefined,
+    address: address ? { "@type": "PostalAddress", streetAddress: address, addressCountry: "UZ" } : undefined,
+    sameAs: socials.map((x) => x.url),
+    hasCourse: courses.map((c) => ({ "@type": "Course", name: c.title, description: c.description || c.title, provider: { "@type": "EducationalOrganization", name } })),
+  };
+
   return (
     <div className={s.page}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <a href="#hero" className="skip-link">{name}</a>
       <header className={s.header}>
         <div className={`${s.container} ${s.headerInner}`}>

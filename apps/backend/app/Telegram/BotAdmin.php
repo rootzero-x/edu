@@ -235,16 +235,18 @@ class BotAdmin
     private function search(int $chatId, string $query): void
     {
         $digits = preg_replace('/\D+/', '', $query);
-        if (strlen($digits) < 3) {
-            Cache::put($this->stateKey($chatId), 'search', self::STATE_TTL);
+        $name = trim(preg_replace('/[^\p{L}\s\'’ʻʼ-]+/u', '', $query) ?? '');
+        // Qidiruv rejimi bitta so'rovdan keyin tugaydi (keyingi matnlar qidiruv bo'lib qolmasin).
+        Cache::forget($this->stateKey($chatId));
+        if (strlen($digits) < 3 && mb_strlen($name) < 2) {
             $this->say($chatId, 'telegram.text.admin_search_prompt');
 
             return;
         }
-        Cache::forget($this->stateKey($chatId));
         $users = DB::table('users')
             ->leftJoin('telegram_links', 'telegram_links.user_id', '=', 'users.id')
-            ->where('users.phone', 'like', '%'.$digits.'%')
+            ->when(strlen($digits) >= 3, fn ($q) => $q->where('users.phone', 'like', '%'.$digits.'%'),
+                fn ($q) => $q->where(fn ($w) => $w->where('users.first_name', 'like', '%'.$name.'%')->orWhere('users.last_name', 'like', '%'.$name.'%')))
             ->orderBy('users.id')->limit($this->settings->int('telegram.list_limit'))
             ->get(['users.id', 'users.first_name', 'users.last_name', 'users.phone', 'users.role', 'users.active',
                 'telegram_links.username', 'telegram_links.telegram_id']);

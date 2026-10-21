@@ -446,6 +446,7 @@ return [
             'quiz_not_allowed' => 'Bu test sizning guruhingiz uchun emas.',
             'sheet_reason' => "O'zgartirish sababi",
             'sheet_reason_hint' => "Masalan: ma'lumotnoma keltirdi",
+            'account_pending' => "Arizangiz administrator tasdig'ini kutmoqda. Tasdiqlangach, bot sizga xabar beradi.",
             'quiz_manage_on_web' => "Testni tahrirlash va natijalarni ko'rish — saytdagi boshqaruv panelida.",
             'open_on_web' => 'Saytda ochish',
             'quiz_best' => 'Eng yaxshi natija: {percent}%',
@@ -673,8 +674,10 @@ return [
         'automation.unmarked_reminder' => ['group' => 'automation', 'type' => 'bool', 'label' => "Davomat belgilanmasa o'qituvchiga eslatma", 'default' => true],
         'automation.unmarked_after_minutes' => ['group' => 'automation', 'type' => 'int', 'min' => 0, 'max' => 1440, 'label' => "Mashg'ulot tugaganidan necha daqiqa keyin eslatilsin", 'default' => 30],
         'automation.cleanup_days' => ['group' => 'automation', 'type' => 'int', 'min' => 7, 'max' => 3650, 'label' => 'Bildirishnoma jurnali necha kun saqlansin', 'default' => 180],
-        'telegram.text.lesson_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: mashg'ulot eslatmasi ({name}, {group}, {time}, {room}, {topic})", 'default' => "⏰ {name}, bugun {time} da «{group}» mashg'uloti bor. Xona: {room}."],
-        'telegram.text.lesson_reminder_teacher' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga mashg'ulot eslatmasi ({name}, {group}, {time}, {room}, {topic}, {students})", 'default' => "📋 {name}, bugun {time} da «{group}» guruhida mashg'ulotingiz bor. Xona: {room}. O'quvchilar: {students} ta."],
+        'telegram.text.day_today' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: eslatmalarda 'bugun' so'zi ({when})", 'default' => 'bugun'],
+        'telegram.text.day_tomorrow' => ['group' => 'telegram', 'type' => 'string', 'label' => "Bot: eslatmalarda 'ertaga' so'zi ({when})", 'default' => 'ertaga'],
+        'telegram.text.lesson_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: mashg'ulot eslatmasi ({name}, {group}, {when}, {time}, {room}, {topic})", 'default' => "⏰ {name}, {when} {time} da «{group}» mashg'uloti bor. Xona: {room}."],
+        'telegram.text.lesson_reminder_teacher' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga mashg'ulot eslatmasi ({name}, {group}, {when}, {time}, {room}, {topic}, {students})", 'default' => "📋 {name}, {when} {time} da «{group}» guruhida mashg'ulotingiz bor. Xona: {room}. O'quvchilar: {students} ta."],
         'telegram.text.unmarked_reminder' => ['group' => 'telegram', 'type' => 'text', 'label' => "Bot: o'qituvchiga davomat eslatmasi ({name}, {group}, {time})", 'default' => "📋 {name}, «{group}» guruhining {time} dagi mashg'uloti uchun davomat hali belgilanmagan."],
 
         // ── Zaxira va ogohlantirishlar ───────────────────────

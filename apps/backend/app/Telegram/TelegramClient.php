@@ -40,11 +40,23 @@ class TelegramClient
         return $res['result'] ?? null;
     }
 
+    /** Telegram bitta xabarda 4096 belgigacha qabul qiladi — uzun ro'yxatlar xato bermasin, qator chegarasida qisqartiriladi. */
+    public static function fit(string $text, int $max = 4096): string
+    {
+        if (mb_strlen($text) <= $max) {
+            return $text;
+        }
+        $cut = mb_substr($text, 0, $max - 2);
+        $nl = mb_strrpos($cut, "\n");
+
+        return rtrim($nl !== false && $nl > $max * 0.6 ? mb_substr($cut, 0, $nl) : $cut)."\n…";
+    }
+
     public function sendMessage(int $chatId, string $text, ?array $replyMarkup = null): void
     {
         $this->call('sendMessage', array_filter([
             'chat_id' => $chatId,
-            'text' => $text,
+            'text' => self::fit($text),
             'reply_markup' => $replyMarkup,
         ], fn ($v) => $v !== null));
     }
@@ -73,7 +85,7 @@ class TelegramClient
     {
         try {
             $this->call('editMessageText', array_filter([
-                'chat_id' => $chatId, 'message_id' => $messageId, 'text' => $text, 'reply_markup' => $replyMarkup,
+                'chat_id' => $chatId, 'message_id' => $messageId, 'text' => self::fit($text), 'reply_markup' => $replyMarkup,
             ], fn ($v) => $v !== null));
         } catch (RuntimeException $e) {
             // Matn o'zgarmagan bo'lsa Telegram xato qaytaradi — bu xato emas.

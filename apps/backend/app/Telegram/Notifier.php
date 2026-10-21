@@ -50,7 +50,7 @@ class Notifier
                     Outbox::markBlocked((int) $link->chat_id, $e->getMessage());
                     $error = 'blocked';
                 } else {
-                    $error = mb_substr($e->getMessage(), 0, 250);
+                    $error = mb_substr(($e->errorCode === 400 ? 'bad_request: ' : '').$e->getMessage(), 0, 250);
                 }
             } catch (Throwable $e) {
                 $error = mb_substr($e->getMessage(), 0, 250);

@@ -95,6 +95,10 @@ class TelegramAuthController
 
     private function issue(User $user, string $device, Settings $settings): JsonResponse
     {
+        // Tasdiq kutayotgan ariza egasi "bloklangan" emas — Mini App unga to'g'ri matn ko'rsatsin.
+        if (! $user->active && $user->isPending()) {
+            return response()->json(['status' => 'pending', 'message' => "Arizangiz administrator tasdig'ini kutmoqda."], 403);
+        }
         abort_unless($user->active, 403, 'Akkaunt faol emas.');
         $token = $user->createToken($device, ['*'], now()->addDays($settings->int('auth.token_ttl_days')));
 

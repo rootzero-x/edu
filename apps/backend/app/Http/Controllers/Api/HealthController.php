@@ -24,9 +24,8 @@ class HealthController
         return response()->json([
             'status' => $db === 'ok' ? 'ok' : 'degraded',
             'cron' => $scheduler === null ? null : ($scheduler['last_tick'] === null ? 'never' : ($scheduler['stale'] ? 'stale' : 'ok')),
-            'version' => config('app.version'),
             'db' => $db,
-            'scheduler' => $scheduler ? ['last_tick' => $scheduler['last_tick'], 'minutes_since' => $scheduler['minutes_since'], 'stale' => $scheduler['stale']] : null,
+            'scheduler' => $scheduler ? ['minutes_since' => $scheduler['minutes_since'], 'stale' => $scheduler['stale']] : null,
             'time' => now()->toIso8601String(),
         ], $db === 'ok' ? 200 : 503);
     }

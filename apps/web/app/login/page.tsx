@@ -36,7 +36,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <aside className={s.aside}>
         <Link href="/" className={s.brand}>{mark}{name}</Link>
         <div className={s.asideText}>
-          <h2>{str(st, "login.side_title", str(st, "site.tagline"))}</h2>
+          <p className={s.sideTitle}>{str(st, "login.side_title", str(st, "site.tagline"))}</p>
           {points.length > 0 && (
             <ul className={s.points}>
               {points.map((p) => <li key={p}><CheckCircle2 aria-hidden />{p}</li>)}

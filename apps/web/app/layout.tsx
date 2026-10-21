@@ -15,11 +15,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const s = await publicSettings();
   const name = siteName(s);
   const logo = str(s, "site.logo_url");
+  const base = str(s, "site.url", "https://tisu.uzstudents.uz").replace(/\/$/, "");
+  const tagline = str(s, "site.tagline");
   return {
-    title: { default: name, template: `%s · ${name}` },
+    metadataBase: new URL(base),
+    title: { default: tagline ? `${name} — ${tagline}` : name, template: `%s · ${name}` },
     description: str(s, "site.description"),
-    icons: logo ? { icon: logo } : undefined,
-    openGraph: { title: name, description: str(s, "site.description"), siteName: name },
+    icons: logo ? { icon: logo, apple: logo } : undefined,
+    openGraph: { title: name, description: str(s, "site.description"), siteName: name, locale: "uz_UZ", type: "website" },
+    twitter: { card: "summary_large_image", title: name, description: str(s, "site.description") },
   };
 }
 

@@ -17,11 +17,11 @@ const nextConfig = {
       // Mini App Telegram Web ichida (iframe) ochiladi — faqat Telegram domenlariga ruxsat.
       {
         source: "/tg/:path*",
-        headers: [...common, { key: "Content-Security-Policy", value: "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org" }],
+        headers: [...common, { key: "Content-Security-Policy", value: "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org; object-src 'none'; base-uri 'self'" }],
       },
       {
         source: "/((?!tg(?:/|$)).*)",
-        headers: [...common, { key: "X-Frame-Options", value: "DENY" }, { key: "Content-Security-Policy", value: "frame-ancestors 'none'" }],
+        headers: [...common, { key: "X-Frame-Options", value: "DENY" }, { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" }],
       },
     ];
   },

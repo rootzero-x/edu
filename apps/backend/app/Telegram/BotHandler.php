@@ -87,6 +87,10 @@ class BotHandler
             return;
         }
         $text = trim($msg['text'] ?? '');
+        // /start va /cancel ariza jarayonini (telefon kutish holatini) bekor qiladi.
+        if (preg_match('/^\/(start|cancel)\b/', $text)) {
+            $this->leads->cancel((int) $from['id']);
+        }
         if (preg_match('/^\/start(?:@\S+)?(?:\s+(.*))?$/s', $text, $m)) {
             $this->onStart($from, $chatId, trim($m[1] ?? ''));
 
@@ -225,6 +229,13 @@ class BotHandler
     private function link(User $user, array $from, int $chatId): void
     {
         DB::transaction(function () use ($user, $from, $chatId) {
+            // Telegram boshqa akkauntga ko'chsa, eski akkauntning Mini App sessiyalari ham tugaydi
+            // (aks holda Mini App eski foydalanuvchi nomidan ishlashda davom etardi).
+            $previous = DB::table('telegram_links')->where('telegram_id', $from['id'])->where('user_id', '!=', $user->id)->pluck('user_id');
+            if ($previous->isNotEmpty()) {
+                DB::table('personal_access_tokens')->where('tokenable_type', User::class)->whereIn('tokenable_id', $previous)
+                    ->where('name', 'telegram-miniapp')->delete();
+            }
             DB::table('telegram_links')->where('telegram_id', $from['id'])->where('user_id', '!=', $user->id)->delete();
             DB::table('telegram_links')->updateOrInsert(
                 ['user_id' => $user->id],

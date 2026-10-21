@@ -81,6 +81,10 @@ class BotLeads
         if (! $phone) {
             return false;
         }
+        // Raqam allaqachon tizimdagi akkauntga tegishli — bu ariza emas, kirish: oddiy bog'lash davom etadi.
+        if (\App\Models\User::where('phone', $phone)->exists()) {
+            return false;
+        }
         $name = trim(($contact['first_name'] ?? $from['first_name'] ?? '').' '.($contact['last_name'] ?? $from['last_name'] ?? '')) ?: 'Telegram';
         $this->create($chatId, (int) $from['id'], $name, $phone, $state['course_id'] ?? null, ['remove_keyboard' => true], $from['username'] ?? null);
 
@@ -100,6 +104,11 @@ class BotLeads
         if ($r['created']) {
             $this->leads->notifyAdmins($r['lead']);
         }
+    }
+
+    public function cancel(int $telegramId): void
+    {
+        Cache::forget($this->key($telegramId));
     }
 
     private function key(int $telegramId): string

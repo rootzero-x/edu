@@ -1,7 +1,16 @@
 # Shared hosting: domen katalogi = loyiha ildizi. Hamma so'rov public/ ga yo'naltiriladi,
 # shuning uchun .env, vendor/, storage/ tashqaridan ochilmaydi.
+DirectorySlash Off
+Options -Indexes
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header unset X-Powered-By
+</IfModule>
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # Faqat HTTPS: proksi (nginx) HTTP so'rovni X-Forwarded-Proto: http bilan uzatadi.
+    RewriteCond %{HTTP:X-Forwarded-Proto} =http
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 <FilesMatch "^\.">
