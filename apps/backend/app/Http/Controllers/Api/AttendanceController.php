@@ -135,12 +135,16 @@ class AttendanceController
         if (! $groupIds) {
             return [];
         }
+        $canSeeAll = $user->hasPermission('attendance.mark');
+        // Har bir belgi PHP ga yuklanmaydi — SQL da sanaladi (guruh × o'quvchi × holat). O'quvchi faqat o'zinikini.
         $marks = DB::table('attendances')
             ->join('class_sessions', 'class_sessions.id', '=', 'attendances.session_id')
             ->whereIn('class_sessions.group_id', $groupIds)->where('class_sessions.cancelled', false)
-            ->get(['class_sessions.group_id', 'attendances.student_id', 'attendances.status'])
+            ->when(! $canSeeAll, fn ($q) => $q->where('attendances.student_id', $user->id))
+            ->groupBy('class_sessions.group_id', 'attendances.student_id', 'attendances.status')
+            ->selectRaw('class_sessions.group_id, attendances.student_id, attendances.status, count(*) as c')
+            ->get()
             ->groupBy(fn ($r) => $r->group_id.':'.$r->student_id);
-        $canSeeAll = $user->hasPermission('attendance.mark');
         $members = DB::table('group_members')->join('users', 'users.id', '=', 'group_members.student_id')
             ->whereIn('group_members.group_id', $groupIds)
             ->when(! $canSeeAll, fn ($q) => $q->where('group_members.student_id', $user->id))
@@ -149,7 +153,10 @@ class AttendanceController
 
         $out = [];
         foreach ($members as $s) {
-            $statuses = ($marks[$s->group_id.':'.$s->id] ?? collect())->pluck('status')->all();
+            $statuses = [];
+            foreach ($marks[$s->group_id.':'.$s->id] ?? [] as $m) {
+                array_push($statuses, ...array_fill(0, (int) $m->c, $m->status));
+            }
             if ($s->left_at !== null && ! $statuses) {
                 continue;
             }

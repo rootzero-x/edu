@@ -9,7 +9,6 @@ import { call, errorText } from "@/lib/client";
 import { MONTHS, fmtMoney } from "@/lib/format";
 import { monthTitle } from "@/lib/dates";
 import type { Kpi, KpiMonth, KpiStudent } from "@/lib/kpi";
-import { refreshSeconds } from "@/lib/settings";
 import { usePolling } from "@/lib/usePolling";
 import type { Refs } from "./ReportsView";
 import s from "./reports.module.css";
@@ -46,7 +45,7 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
     setError(null);
     return r.data;
   }, [qs]);
-  const live = usePolling(fetcher, setData, { seconds: (refreshSeconds(st) > 0 ? Math.max(60, refreshSeconds(st) * 3) : 0), immediate: true });
+  const live = usePolling(fetcher, setData, { seconds: 0 /* oylik ko'rsatkichlar — avtomatik so'rov yo'q, faqat "yangilash" tugmasi */, immediate: true });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const groups = refs.groups.filter((g) => (!f.course_id || g.course_id === +f.course_id) && (!f.teacher_id || g.teacher_id === +f.teacher_id));
 
@@ -59,7 +58,7 @@ export default function KpiView({ refs, switcher }: { refs: Refs; switcher: Reac
   return (
     <>
       <PageHeader title="Hisobotlar" description="Oylik ko'rsatkichlar: o'quvchilar, davomat, natijalar, o'qituvchi soatlari va to'lovlar"
-        actions={<LiveStatus {...live} lastUpdated={live.lastUpdated} onRefresh={live.refresh} seconds={(refreshSeconds(st) > 0 ? Math.max(60, refreshSeconds(st) * 3) : 0)} />} />
+        actions={<LiveStatus {...live} lastUpdated={live.lastUpdated} onRefresh={live.refresh} seconds={0 /* oylik ko'rsatkichlar — avtomatik so'rov yo'q, faqat "yangilash" tugmasi */} />} />
       {switcher}
       <Card className={s.filters}>
         <div className={s.grid} data-open>

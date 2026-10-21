@@ -40,7 +40,7 @@ asynchronous without threads and the UI never blocks.
 | Calendar | Week / month views of all visible lessons, teacher / room / group filters, homework and attendance badges; rooms management (capacity, active, clash-free schedules) | everyone (rooms: `group.manage`) |
 | Homework | Assignments with files and due dates, per-student grading with feedback, student submissions (text, link, files), "my marks", homework per lesson and per group, homework report | teachers / students |
 | Lesson marks | Per-lesson scores on the configured scale with notes, inside the attendance sheet | `attendance.mark` |
-| Files | Upload lesson materials and homework files (checked against the server's limits); files open with the local viewer or can be saved — no browser | by role |
+| Files | Upload lesson materials and homework files through a one-time upload ticket, split into 1.5 MB chunks (the hosting accepts ≤ 2 MB per request); files are streamed to disk and open with the local viewer or can be saved — no browser; downloaded files are deleted on sign-out | by role |
 | Notifications | Inbox of everything the platform sent you (homework, marks, attendance, billing…), unread badge, desktop notifications, Telegram delivery report and unreachable users with CSV for admins | everyone / `user.manage` |
 | Audit log | Who changed what and when, with per-field before/after, filters by person, action, object and dates; per-setting history | `audit.view` / `settings.manage` |
 | KPI | Monthly trends (active / new / left students, attendance, quiz pass, homework, teacher hours, income, debt) with drill-down to students | `report.view` |

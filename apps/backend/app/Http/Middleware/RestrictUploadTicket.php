@@ -93,6 +93,9 @@ class RestrictUploadTicket
         }
         fclose($out);
         $name = mb_substr((string) ($request->input('filename') ?: 'file'), 0, 200);
+        // "chunk" fayli allaqachon ko'chirilgan (vaqtinchalik fayl yo'q) — so'rovdan olib tashlanadi, aks holda
+        // Laravel fayllarni qayta o'girishda "fayl mavjud emas" xatosini beradi.
+        $request->files->remove('chunk');
         $request->files->set('file', new UploadedFile($assembled, $name, null, null, true));
         // Laravel fayllar ro'yxatini keshlaydi ("chunk" o'qilganda) — yangi "file" ko'rinishi uchun kesh tozalanadi.
         (fn () => $this->convertedFiles = null)->call($request);
