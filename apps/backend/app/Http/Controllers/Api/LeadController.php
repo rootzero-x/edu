@@ -258,7 +258,7 @@ class LeadController
             ->when(($data['due'] ?? null) === 'none', fn ($q) => $q->whereIn('status', Lead::OPEN)->whereNull('next_contact_on'));
         if ($s = trim((string) ($data['q'] ?? ''))) {
             $digits = Phone::searchDigits($s);
-            $q->where(fn ($w) => $digits ? $w->where('phone', 'like', "%$digits%") : $w->where('name', 'like', '%'.addcslashes($s, '%_\\').'%'));
+            $q->where(fn ($w) => $digits ? $w->where('phone', 'like', "%$digits%") : \App\Support\TextSearch::where($w, ['name'], $s));
         }
 
         return $q;

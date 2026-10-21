@@ -109,6 +109,23 @@ class ProfileSearchSetupTest extends TestCase
         $this->assertNull($this->getJson('/v1/dashboard/summary')->json('setup'));
     }
 
+    public function test_search_ignores_uzbek_apostrophes(): void
+    {
+        $oralov = User::factory()->create(['first_name' => "O'g'abek", 'last_name' => "O'ralov", 'phone' => '+998973580208']);
+        Course::create(['title' => "To'g'ri yozish", 'created_by' => $this->admin->id, 'published' => true]);
+        Lead::create(['name' => "Sho'xrux", 'phone' => '+998901119999', 'source' => 'site', 'status' => 'NEW']);
+
+        $titles = fn (string $q) => collect($this->getJson('/v1/search?q='.urlencode($q))->assertOk()->json('data'))->pluck('title')->all();
+        $this->assertContains("O'g'abek O'ralov", $titles('oralov'));
+        $this->assertContains("O'g'abek O'ralov", $titles('o‘ralov'));      // boshqa apostrof belgisi
+        $this->assertContains("O'g'abek O'ralov", $titles("ogabek o'ralov"));
+        $this->assertContains("To'g'ri yozish", $titles('togri'));
+        $this->assertContains("Sho'xrux", $titles('shoxrux'));
+        $this->getJson('/v1/users?q=oralov')->assertJsonPath('data.0.id', $oralov->id);
+        $this->getJson('/v1/leads?q=shoxrux')->assertJsonCount(1, 'data');
+        $this->assertSame([], $titles("''"));                              // faqat apostrof — shart qo'shilmaydi, lekin hech narsa topilmaydi
+    }
+
     public function test_global_search_is_scoped_by_role(): void
     {
         Lead::create(['name' => 'Aziza', 'phone' => '+998901112233', 'source' => 'site', 'status' => 'NEW']);
