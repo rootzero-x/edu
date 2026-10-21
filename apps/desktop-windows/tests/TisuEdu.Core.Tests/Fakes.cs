@@ -75,6 +75,8 @@ internal sealed class FakePlatform : IPlatform
     public Task<bool> SaveFileAsync(string suggestedName, string extensionLabel, string extension, byte[] content) => Task.FromResult(true);
     public Task<bool> ConfirmAsync(string title, string message, string primary, string close) => Task.FromResult(ConfirmResult);
     public void CopyText(string text) { }
+    public PickedFile? NextFile { get; set; }
+    public Task<PickedFile?> PickFileAsync(IReadOnlyList<string> extensions) => Task.FromResult(NextFile);
 }
 
 internal sealed class FakeNavigator : INavigator
@@ -108,6 +110,8 @@ internal sealed class FakeNotifier : INotifier
 {
     public List<Announcement> Shown { get; } = [];
     public void ShowAnnouncement(Announcement announcement, string siteName) => Shown.Add(announcement);
+    public List<NotificationItem> ShownItems { get; } = [];
+    public void ShowNotification(NotificationItem item, string siteName) => ShownItems.Add(item);
 }
 
 internal sealed class TestApp : IDisposable

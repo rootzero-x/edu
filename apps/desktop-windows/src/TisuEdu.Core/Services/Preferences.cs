@@ -38,6 +38,12 @@ public sealed class Preferences
         set { _data.Notifications = value; Save(); }
     }
 
+    public bool SetupDismissed
+    {
+        get => _data.SetupDismissed;
+        set { _data.SetupDismissed = value; Save(); }
+    }
+
     public string? LastPhone
     {
         get => _data.LastPhone;
@@ -59,5 +65,6 @@ public sealed class Preferences
         public AppTheme Theme { get; set; } = AppTheme.System;
         public bool Notifications { get; set; } = true;
         public string? LastPhone { get; set; }
+        public bool SetupDismissed { get; set; }
     }
 }

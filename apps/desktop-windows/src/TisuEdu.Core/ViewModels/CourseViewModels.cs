@@ -228,7 +228,7 @@ public sealed class MaterialItem(Material m)
     public string Title => m.Title;
     public string Type => m.Type;
     public bool IsText => m.Type == "TEXT";
-    public bool HasUrl => !string.IsNullOrWhiteSpace(m.Url);
+    public bool HasUrl => !string.IsNullOrWhiteSpace(m.Url) || m.FileId is not null;
     public string Content => m.Content ?? "";
     public string Host => Uri.TryCreate(m.Url, UriKind.Absolute, out var u) ? u.Host : "";
 
@@ -356,7 +356,28 @@ public sealed partial class LessonViewModel(AppServices services, int lessonId) 
         $"«{m.Title}» o'chirilsinmi?", "O'chirish", () => S.Api.DeleteMaterialAsync(m.Material.Id), "Material o'chirildi.");
 
     [RelayCommand]
-    private void OpenMaterial(MaterialItem? m)
+    private async Task UploadMaterialAsync()
+    {
+        var file = await S.Platform.PickFileAsync(Uploads.PickerExtensions(Settings));
+        if (file is null) return;
+        if (Uploads.Validate(file, Settings) is { } problem) { ActionError = problem; return; }
+        await EditAsync($"Fayl: {file.Name}", [new FormField("title", "Material nomi", FieldKind.Text, Path.GetFileNameWithoutExtension(file.Name)) { MaxLength = 200 }],
+            v => S.Api.UploadMaterialAsync(_lessonId, file.Name, file.Content, file.Mime, v.StrOrNull("title")), "Fayl yuklandi.", "Yuklash");
+    }
+
+    [RelayCommand]
+    private async Task OpenMaterialAsync(MaterialItem? m)
+    {
+        if (m?.Material.FileId is { } fileId)
+        {
+            // Yuklangan fayl: vaqtinchalik imzolangan havola orqali (brauzer yuklab oladi yoki ko'rsatadi).
+            await ActAsync(async () => S.Platform.Open(new Uri((await S.Api.FileLinkAsync(fileId)).Url)));
+            return;
+        }
+        OpenMaterialLink(m);
+    }
+
+    private void OpenMaterialLink(MaterialItem? m)
     {
         if (m is { Type: "VIDEO" } && Embed.Url(m.Material.Url, Settings.List("course.embed_hosts")) is { } embed)
         {

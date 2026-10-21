@@ -37,6 +37,13 @@ public sealed partial class ShellViewModel : ObservableObject
     public string NavUsers => Settings.Nav("/dashboard/users", "Foydalanuvchilar");
     public string NavSettings => Settings.Nav("/dashboard/settings", "Sozlamalar");
     public string NavBilling => Settings.Nav("/dashboard/billing", "To'lovlar");
+    public string NavCalendar => Settings.Nav("/dashboard/calendar", "Taqvim");
+    public string NavHomework => Settings.Nav("/dashboard/homework", "Uyga vazifa");
+    public string NavNotifications => Settings.Nav("/dashboard/notifications", "Bildirishnomalar");
+    public string NavLeads => Settings.Nav("/dashboard/leads", "Arizalar");
+    public string NavAudit => Settings.Nav("/dashboard/audit", "Audit jurnali");
+    public string NavKpi => "Ko'rsatkichlar";
+    public string NavSystem => "Tizim holati";
     public string LogoutText => Settings.Text("logout", "Chiqish");
 
     // ── Ruxsatlar ────────────────────────────────────────────
@@ -46,6 +53,18 @@ public sealed partial class ShellViewModel : ObservableObject
     public bool CanUsers => _s.Session.Can(Permissions.UserManage);
     public bool CanSettings => _s.Session.Can(Permissions.SettingsManage);
     public bool HasAdmin => CanUsers || CanSettings;
+    public bool CanHomework => Settings.Bool("homework.enabled", true);
+    public bool CanNotifications => Settings.Bool("notifications.inbox_enabled", true);
+    public bool CanLeads => _s.Session.Can("lead.manage");
+    public bool CanAudit => _s.Session.Can("audit.view");
+    public bool CanSystem => CanUsers;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasInboxUnread))]
+    private int _inboxUnread;
+
+    public bool HasInboxUnread => InboxUnread > 0;
+
     /// <summary>To'lovlar: boshqaruvchi — hammasi, o'quvchi — o'z balansi (billing.enabled bo'lsa).</summary>
     public bool CanBilling => _s.Session.Can(Permissions.BillingManage)
         || (_s.Session.User?.Role == "STUDENT" && Settings.Bool("billing.enabled", false));

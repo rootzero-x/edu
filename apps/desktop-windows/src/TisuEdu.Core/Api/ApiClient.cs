@@ -129,6 +129,34 @@ public sealed class ApiClient
         catch (ApiException) { return null; }
     }
 
+    /// <summary>multipart/form-data yuklash (maydon: file) + qo'shimcha matn maydonlari.</summary>
+    public async Task<T> UploadAsync<T>(string path, string fileName, byte[] content, string mime, IReadOnlyDictionary<string, string>? fields = null, CancellationToken ct = default)
+    {
+        using var req = Build(HttpMethod.Post, path, null, accept: "application/json");
+        var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(content);
+        file.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrEmpty(mime) ? "application/octet-stream" : mime);
+        form.Add(file, "file", fileName);
+        if (fields is not null)
+            foreach (var (k, v) in fields) form.Add(new StringContent(v, Encoding.UTF8), k);
+        req.Content = form;
+        using var res = await Execute(req, ct).ConfigureAwait(false);
+        var text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!res.IsSuccessStatusCode) throw Fail(res.StatusCode, text, path);
+        return Parse<T>(text, path);
+    }
+
+    /// <summary>Imzolangan (signed) mutlaq URL — Bearer token yuborilmaydi.</summary>
+    public async Task<byte[]> GetSignedBytesAsync(string absoluteUrl, CancellationToken ct = default)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, absoluteUrl);
+        req.Headers.UserAgent.ParseAdd(UserAgent);
+        using var res = await Execute(req, ct).ConfigureAwait(false);
+        var bytes = await res.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+        if (!res.IsSuccessStatusCode) throw Fail(res.StatusCode, Encoding.UTF8.GetString(bytes), "files/download");
+        return bytes;
+    }
+
     public async Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default)
     {
         using var req = Build(HttpMethod.Get, path, null, accept: "*/*");

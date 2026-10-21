@@ -24,12 +24,41 @@ public sealed class TodayItem(TodaySession s, SiteSettings settings)
     public bool IsDone => !s.Cancelled && s.StudentsCount > 0 && s.MarkedCount >= s.StudentsCount;
 }
 
+public sealed class SetupStepItem(SetupStep s, SiteSettings st)
+{
+    public SetupStep Step { get; } = s;
+    public string Label => st.ObjStr("ui.setup_labels", s.Key, s.Key);
+    public bool Done => s.Done;
+    public string Glyph => s.Done ? "\uE73E" : "\uEA3A";
+}
+
 /// <summary>Bosh sahifa: /v1/dashboard/summary + so'nggi yangiliklar (parallel so'rovlar).</summary>
 public sealed partial class DashboardViewModel(AppServices services) : PageViewModel(services)
 {
     public ObservableCollection<StatCard> Stats { get; } = [];
     public ObservableCollection<TodayItem> Today { get; } = [];
     public ObservableCollection<Announcement> News { get; } = [];
+    public ObservableCollection<SetupStepItem> Setup { get; } = [];
+
+    [ObservableProperty] private bool _hasSetup;
+    [ObservableProperty] private string _setupTitle = "";
+    [ObservableProperty] private string _setupText = "";
+    [ObservableProperty] private string _setupProgress = "";
+
+    [RelayCommand]
+    private void DismissSetup()
+    {
+        S.Preferences.SetupDismissed = true;
+        HasSetup = false;
+    }
+
+    [RelayCommand]
+    private void OpenSetupStep(SetupStepItem? step)
+    {
+        if (step is null) return;
+        if (Links.Map(step.Step.Href) is { } t) S.Navigator.Navigate(t.Page, t.Parameter);
+        else if (!string.IsNullOrEmpty(step.Step.Href)) S.Platform.Open(new Uri(Settings.SiteUrl + step.Step.Href));
+    }
 
     [ObservableProperty] private string _greeting = "";
     [ObservableProperty] private string _dateText = "";
@@ -88,6 +117,15 @@ public sealed partial class DashboardViewModel(AppServices services) : PageViewM
         Today.Clear();
         foreach (var s in d.Today) Today.Add(new TodayItem(s, Settings));
         HasToday = Today.Count > 0;
+        Setup.Clear();
+        if (d.Setup is { } setup && setup.Done < setup.Total && !S.Preferences.SetupDismissed)
+        {
+            foreach (var step in setup.Steps) Setup.Add(new SetupStepItem(step, Settings));
+            SetupTitle = Settings.ObjStr("ui.setup_labels", "title", "Platformani sozlashni yakunlang");
+            SetupText = Settings.ObjStr("ui.setup_labels", "text", "");
+            SetupProgress = $"{setup.Done}/{setup.Total}";
+        }
+        HasSetup = Setup.Count > 0;
         Unmarked = st.UnmarkedSessions ?? 0;
         HasUnmarked = Unmarked > 0;
         OnPropertyChanged(nameof(UnmarkedText));

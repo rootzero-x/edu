@@ -18,6 +18,8 @@ public static class Permissions
     public const string SettingsManage = "settings.manage";
     public const string AnnouncementManage = "announcement.manage";
     public const string BillingManage = "billing.manage";
+    public const string LeadManage = "lead.manage";
+    public const string AuditView = "audit.view";
 }
 
 public static class AttendanceStatus
@@ -124,6 +126,7 @@ public sealed class DashboardSummary
     public DateTimeOffset GeneratedAt { get; set; }
     public List<TodaySession> Today { get; set; } = [];
     public DashboardStats Stats { get; set; } = new();
+    public SetupChecklist? Setup { get; set; }
 }
 
 // ── Kurslar ──────────────────────────────────────────────────
@@ -189,6 +192,7 @@ public sealed class Material
     public string? Url { get; set; }
     public string? Content { get; set; }
     public int Position { get; set; }
+    public int? FileId { get; set; }
 }
 
 public sealed class LessonModuleRef

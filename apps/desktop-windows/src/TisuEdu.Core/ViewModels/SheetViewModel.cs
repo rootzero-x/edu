@@ -51,6 +51,24 @@ public sealed partial class SheetRowItem : ObservableObject
     public string StatusText => _st.StatusLabel(Status);
     public bool HasValue => Status is not null || Arrived.Trim().Length > 0;
 
+    // ── Darsdagi baho (marks.session_marks) ─────────────────
+    private string _savedScore = "";
+
+    [ObservableProperty] private string _score = "";
+    [ObservableProperty] private bool _hasMarks;
+    [ObservableProperty] private bool _canMark;
+    [ObservableProperty] private string _scaleHint = "";
+
+    public void SetMark(int? score, bool enabled, bool canEdit, Scale scale)
+    {
+        HasMarks = enabled;
+        CanMark = enabled && canEdit;
+        Score = _savedScore = score?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        ScaleHint = $"{scale.Min}–{scale.Max}";
+    }
+
+    public bool MarkChanged => Score.Trim() != _savedScore;
+
     public bool IsDirty => Status != _row.Status || Arrived.Trim() != Format.ArrivedHhmm(_row.ArrivedAt) || Note.Trim() != (_row.Note ?? "");
 
     public bool IsPresent { get => Status == AttendanceStatus.Present; set => Pick(AttendanceStatus.Present, value); }
@@ -166,9 +184,47 @@ public sealed partial class SheetViewModel(AppServices services, int sessionId) 
         }
         IsEmpty = Rows.Count == 0;
         UpdateMarked();
+        await LoadMarksAsync(ct);
 
         CanSeeHistory = canMark;
         if (canMark) _ = LoadHistoryAsync(ct);
+    }
+
+    private Scale _scale = new();
+    private bool _marksEditable;
+
+    private async Task LoadMarksAsync(CancellationToken ct)
+    {
+        try
+        {
+            var m = await S.Api.SessionMarksAsync(sessionId, ct);
+            _scale = m.Scale;
+            _marksEditable = m.Enabled && m.CanEdit;
+            var byStudent = m.Rows.ToDictionary(r => r.StudentId);
+            foreach (var row in Rows) row.SetMark(byStudent.GetValueOrDefault(row.StudentId)?.Score, m.Enabled, _marksEditable, m.Scale);
+            HasMarks = m.Enabled;
+        }
+        catch (ApiException) { HasMarks = false; }
+    }
+
+    [ObservableProperty] private bool _hasMarks;
+
+    /// <summary>O'zgargan baholar (bo'sh — baho o'chiriladi). Xato bo'lsa matn qaytaradi.</summary>
+    internal (List<object> Items, string? Error) MarkItems()
+    {
+        var items = new List<object>();
+        foreach (var r in Rows.Where(r => r.MarkChanged))
+        {
+            var text = r.Score.Trim();
+            int? score = null;
+            if (text.Length > 0)
+            {
+                if (!int.TryParse(text, out var n) || n < _scale.Min || n > _scale.Max) return ([], $"{r.Name}: baho {_scale.Min}–{_scale.Max} oralig'ida bo'lsin.");
+                score = n;
+            }
+            items.Add(new { student_id = r.StudentId, score });
+        }
+        return (items, null);
     }
 
     private void UpdateMarked() =>
@@ -204,6 +260,7 @@ public sealed partial class SheetViewModel(AppServices services, int sessionId) 
             if (arrived.Length > 0 && !Format.IsValidHhmm(arrived)) return $"{r.Name}: {Strings.ArrivedFormat}";
             if (r.ToItem() is { } item) request.Items.Add(item);
         }
+        if (_marksEditable && MarkItems().Error is { } markError) return markError;
         if (request.Items.Count == 0) return Strings.NoStatusOrTime;
         if (ReasonRequired && request.Reason is null) return Strings.ReasonRequired;
         return null;
@@ -221,6 +278,12 @@ public sealed partial class SheetViewModel(AppServices services, int sessionId) 
         var ok = await ActAsync(async () =>
         {
             await S.Api.MarkAsync(sessionId, request);
+            if (_marksEditable)
+            {
+                var (marks, markError) = MarkItems();
+                if (markError is not null) throw new ApiException(System.Net.HttpStatusCode.UnprocessableEntity, markError);
+                if (marks.Count > 0) await S.Api.SaveSessionMarksAsync(sessionId, marks);
+            }
             if (Topic.Trim() != _savedTopic)
             {
                 await S.Api.UpdateSessionTopicAsync(sessionId, Topic.Trim().Length > 0 ? Topic.Trim() : null);

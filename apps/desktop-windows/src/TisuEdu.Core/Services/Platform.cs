@@ -22,11 +22,19 @@ public interface IPlatform
     Task<bool> ConfirmAsync(string title, string message, string primary, string close);
 
     void CopyText(string text);
+
+    /// <summary>Fayl tanlash oynasi (kengaytmalar: ".pdf" …). Bekor qilinsa null.</summary>
+    Task<PickedFile?> PickFileAsync(IReadOnlyList<string> extensions);
 }
+
+public sealed record PickedFile(string Name, byte[] Content, string Mime);
 
 public interface INotifier
 {
     void ShowAnnouncement(Announcement announcement, string siteName);
+
+    /// <summary>Bildirishnomalar markazidagi yangi element (uyga vazifa, baho, to'lov, eslatma …).</summary>
+    void ShowNotification(NotificationItem item, string siteName);
 }
 
 public enum Page
@@ -49,6 +57,17 @@ public enum Page
     AdminSettings,
     Billing,
     BillingStudent,
+    Calendar,
+    Rooms,
+    Homework,
+    Assignment,
+    Leads,
+    Lead,
+    StudentProfile,
+    Notifications,
+    Audit,
+    Kpi,
+    System,
 }
 
 public interface INavigator

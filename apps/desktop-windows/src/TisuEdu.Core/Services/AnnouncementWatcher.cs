@@ -4,8 +4,9 @@ using TisuEdu.Core.Models;
 namespace TisuEdu.Core.Services;
 
 /// <summary>
-/// /v1/announcements/unread ni davriy so'raydi: menyudagi belgi (badge) uchun son va yangi e'lonlar uchun
-/// Windows bildirishnomasi. Bir e'lon faqat bir marta ko'rsatiladi (oxirgi ko'rsatilgan id diskda saqlanadi).
+/// Davriy so'rov: bildirishnomalar markazi (/v1/notifications/unread — uyga vazifa, baholar, e'lonlar, eslatmalar)
+/// va yangiliklar belgisi. Server inbox'ni qo'llamasa (404) — eski /announcements/unread ga o'tadi.
+/// Yangi elementlar Windows bildirishnomasi sifatida bir marta ko'rsatiladi (oxirgi id diskda).
 /// </summary>
 public sealed class AnnouncementWatcher : IDisposable
 {
@@ -16,6 +17,7 @@ public sealed class AnnouncementWatcher : IDisposable
     private string _stateFile = "";
     private CancellationTokenSource? _cts;
     private int _lastNotifiedId = -1;
+    private bool _inbox = true;
 
     public AnnouncementWatcher(Session session, SettingsService settings, INotifier notifier, string stateDir)
     {
@@ -25,14 +27,20 @@ public sealed class AnnouncementWatcher : IDisposable
         _stateDir = stateDir;
     }
 
-    /// <summary>Bildirishnomalar yoqilganmi (ilova sozlamasi).</summary>
     public bool NotificationsEnabled { get; set; } = true;
 
+    /// <summary>Yangiliklar (e'lonlar) o'qilmaganlari.</summary>
     public int Unread { get; private set; }
+
+    /// <summary>Bildirishnomalar markazi o'qilmaganlari.</summary>
+    public int InboxUnread { get; private set; }
+
+    public bool InboxAvailable => _inbox;
 
     public event EventHandler<int>? UnreadChanged;
 
-    /// <summary>So'rovlar orasidagi oraliq: ui.refresh_seconds, lekin fon rejimida kamida 30 soniya.</summary>
+    public event EventHandler<int>? InboxUnreadChanged;
+
     public TimeSpan Interval
     {
         get
@@ -50,10 +58,11 @@ public sealed class AnnouncementWatcher : IDisposable
         _ = LoopAsync(_cts.Token);
     }
 
-    /// <summary>Joriy foydalanuvchi uchun holatni tiklash (har kirishda).</summary>
     internal void Reset()
     {
         Unread = 0;
+        InboxUnread = 0;
+        _inbox = _settings.Current.Bool("notifications.inbox_enabled", true);
         _stateFile = Path.Combine(_stateDir, $"notified-{_session.User?.Id ?? 0}.txt");
         _lastNotifiedId = ReadState();
     }
@@ -65,7 +74,6 @@ public sealed class AnnouncementWatcher : IDisposable
         _cts = null;
     }
 
-    /// <summary>Yangiliklar sahifasi o'qilganda belgi darhol yangilansin.</summary>
     public void SetUnread(int unread)
     {
         if (Unread == unread) return;
@@ -73,9 +81,33 @@ public sealed class AnnouncementWatcher : IDisposable
         UnreadChanged?.Invoke(this, unread);
     }
 
+    public void SetInboxUnread(int unread)
+    {
+        if (InboxUnread == unread) return;
+        InboxUnread = unread;
+        InboxUnreadChanged?.Invoke(this, unread);
+    }
+
     public async Task CheckNowAsync(CancellationToken ct = default)
     {
         if (!_session.IsSignedIn) return;
+        if (_inbox)
+        {
+            try
+            {
+                var r = await _session.Api.NotificationsUnreadAsync(ct).ConfigureAwait(false);
+                SetUnread(r.NewsUnread);
+                SetInboxUnread(r.Unread);
+                Notify(r.Latest.Where(n => !n.Read).Select(n => (n.Id, (Action)(() => _notifier.ShowNotification(n, _settings.Current.SiteName)))).ToList());
+                return;
+            }
+            catch (ApiException ex) when (ex.Status is System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.Forbidden)
+            {
+                _inbox = false; // eski server — e'lonlar bo'yicha ishlaymiz
+            }
+            catch (ApiException) { return; }
+        }
+
         int unread;
         try { unread = await _session.Api.UnreadAsync(ct).ConfigureAwait(false); }
         catch (ApiException) { return; }
@@ -87,12 +119,14 @@ public sealed class AnnouncementWatcher : IDisposable
         AnnouncementPage page;
         try { page = (await _session.Api.AnnouncementsAsync(1, ct).ConfigureAwait(false)).Value; }
         catch (ApiException) { return; }
+        Notify(page.Data.Where(a => !a.Read).Select(a => (a.Id, (Action)(() => _notifier.ShowAnnouncement(a, _settings.Current.SiteName)))).ToList());
+    }
 
-        var fresh = page.Data.Where(a => !a.Read).OrderBy(a => a.Id).ToList();
+    /// <summary>Birinchi tekshiruvda faqat chegara eslab qolinadi (eski o'qilmaganlar bilan "bombardimon" qilinmaydi).</summary>
+    private void Notify(List<(int Id, Action Show)> fresh)
+    {
         if (fresh.Count == 0) return;
-        var maxId = fresh.Max(a => a.Id);
-
-        // Birinchi ishga tushirishda eski o'qilmaganlar bilan "bombardimon" qilinmaydi — faqat chegarani eslab qolamiz.
+        var maxId = fresh.Max(x => x.Id);
         if (_lastNotifiedId < 0)
         {
             SaveState(maxId);
@@ -100,10 +134,7 @@ public sealed class AnnouncementWatcher : IDisposable
         }
         if (NotificationsEnabled)
         {
-            foreach (var a in fresh.Where(a => a.Id > _lastNotifiedId).TakeLast(3))
-            {
-                _notifier.ShowAnnouncement(a, _settings.Current.SiteName);
-            }
+            foreach (var x in fresh.Where(x => x.Id > _lastNotifiedId).OrderBy(x => x.Id).TakeLast(3)) x.Show();
         }
         if (maxId > _lastNotifiedId) SaveState(maxId);
     }

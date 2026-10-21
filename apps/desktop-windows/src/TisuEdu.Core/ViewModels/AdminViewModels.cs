@@ -96,6 +96,65 @@ public sealed partial class UsersViewModel(AppServices services) : PageViewModel
         u.Blocked ? "Blokdan chiqarish" : "Bloklash", () => S.Api.UpdateUserAsync(u.User.Id, new { active = u.Blocked }), u.Blocked ? "Blokdan chiqarildi." : "Bloklandi.");
 
     [RelayCommand]
+    private void OpenProfile(UserItem? u)
+    {
+        if (u is not null) S.Navigator.Navigate(Services.Page.StudentProfile, u.User.Id);
+    }
+
+    [RelayCommand]
+    private async Task DownloadTemplateAsync()
+    {
+        await ActAsync(async () =>
+        {
+            var bytes = await S.Api.ImportTemplateAsync("xlsx");
+            if (await S.Platform.SaveFileAsync("oquvchilar-import.xlsx", "Excel", ".xlsx", bytes)) Notice = "Shablon saqlandi. To'ldirib, «Import» orqali yuklang.";
+        });
+    }
+
+    /// <summary>Excel/CSV'dan o'quvchilar: fayl → server tahlili (xatolar bilan) → tasdiq → yozish.</summary>
+    [RelayCommand]
+    private async Task ImportAsync()
+    {
+        var file = await S.Platform.PickFileAsync([".xlsx", ".csv"]);
+        if (file is null) return;
+        List<KeyValuePair<string, string>> groups = [Editing.Opt("", "— (guruh ustunidan yoki guruhsiz)")];
+        try
+        {
+            var g = await S.Api.GroupsAsync();
+            groups.AddRange(g.Value.Data.Where(x => x.Active).Select(x => Editing.Opt(x.Id.ToString(CultureInfo.InvariantCulture), x.Name)));
+        }
+        catch (ApiException) { }
+
+        ImportPreview? preview = null;
+        var ok = await S.Forms.ShowAsync($"Import: {file.Name}",
+        [
+            FormField.Choice("group_id", "Guruhga qo'shish (ixtiyoriy)", groups, ""),
+        ], async v =>
+        {
+            try { preview = await S.Api.ImportPreviewAsync(file.Name, file.Content, v.Int("group_id")); return null; }
+            catch (ApiException ex) { return ex.Message; }
+        }, "Tekshirish");
+        if (!ok || preview?.Token is not { } token) return;
+
+        var sum = preview.Summary;
+        var problems = preview.Rows.Where(r => r.Status == "error").Take(15)
+            .Select(r => $"{r.Line}-qator ({r.FirstName} {r.PhoneRaw}): {string.Join("; ", r.Errors)}");
+        var message = $"Qatorlar: {sum.Rows} · to'g'ri: {sum.Valid} · xato: {sum.Errors}\n" +
+                      $"Yangi o'quvchilar: {sum.NewStudents} · mavjudlari: {sum.ExistingStudents} · guruhga qo'shiladi: {sum.Memberships}" +
+                      (preview.UnknownColumns.Count > 0 ? $"\nTanilmagan ustunlar: {string.Join(", ", preview.UnknownColumns)}" : "") +
+                      (sum.Errors > 0 ? "\n\nXatolar:\n" + string.Join("\n", problems) + "\n\nXato qatorlar o'tkazib yuboriladi." : "");
+        if (sum.Valid == 0) { ActionError = "Import qilinadigan to'g'ri qator yo'q.\n" + message; return; }
+        if (!await S.Platform.ConfirmAsync("Importni tasdiqlang", message, "Import qilish", "Bekor qilish")) return;
+        await ActAsync(async () =>
+        {
+            var r = await S.Api.ImportCommitAsync(token, skipInvalid: true);
+            var res = r.Result;
+            await RefreshAsync();
+            Notice = res is null ? "Import tugadi." : $"Import tugadi: yangi {res.StudentsCreated}, yangilangan {res.StudentsUpdated}, guruhga qo'shildi {res.Memberships}, o'tkazib yuborildi {res.Skipped}.";
+        });
+    }
+
+    [RelayCommand]
     private Task ApproveAsync(UserItem? u) => u is null ? Task.CompletedTask : ConfirmActAsync("Tasdiqlash",
         $"{u.Name} (botdan ro'yxatdan o'tgan) tasdiqlansinmi?", "Tasdiqlash", () => S.Api.ApproveUserAsync(u.User.Id), "Tasdiqlandi.");
 }

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using TisuEdu.Core.Api;
 using TisuEdu.Core.Models;
 using TisuEdu.Core.Services;
+using Group = TisuEdu.Core.Models.Group;
 
 namespace TisuEdu.Core.ViewModels;
 
@@ -146,6 +147,11 @@ public sealed class StudentRow(int id, string name, string? phone, StudentAttend
     public double RateValue => a?.Rate ?? 0;
     public bool HasRate => a?.Rate is not null;
     public bool CanManage { get; init; }
+    /// <summary>ACTIVE | FROZEN (a'zolik holati, faqat xodimlarga).</summary>
+    public string? Status { get; init; }
+    public string StatusText { get; init; } = "";
+    public bool Frozen => Status == "FROZEN";
+    public bool CanOpenProfile { get; init; }
     public string Counts => a is null ? "" : string.Join("  ", AttendanceStatus.All.Select(s => $"{st.StatusLabel(s)}: {a.Counts.GetValueOrDefault(s)}"));
 }
 
@@ -206,9 +212,37 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
         try { rates = (await attendanceTask).Value.Data.ToDictionary(a => a.StudentId); }
         catch (ApiException) { }
 
+        // Xodim: a'zolik holatlari bilan (muzlatilgan, qachondan) va sobiq a'zolar.
+        MembersFull? members = null;
+        if (CanManage || S.Session.Can(Permissions.AttendanceMark))
+        {
+            try { members = await S.Api.MembersFullAsync(groupId, ct); } catch (ApiException) { }
+        }
+        var staff = S.Session.Can(Permissions.AttendanceMark) || CanManage;
         Students.Clear();
-        foreach (var s in group.Students)
-            Students.Add(new StudentRow(s.Id, s.FullName, s.Phone, rates.GetValueOrDefault(s.Id), Settings) { CanManage = CanManage });
+        if (members is not null)
+        {
+            foreach (var m in members.Current)
+                Students.Add(new StudentRow(m.Id, m.FullName, m.Phone, rates.GetValueOrDefault(m.Id), Settings)
+                {
+                    CanManage = CanManage,
+                    Status = m.Status,
+                    CanOpenProfile = staff,
+                    StatusText = m.Status == "FROZEN"
+                        ? Settings.ObjStr("enrollment.status_labels", "FROZEN", "Muzlatilgan") + (m.Until is { } u ? $" ({u} gacha)" : "") + (m.Reason is { } rs ? $" · {rs}" : "")
+                        : m.FrozenFrom is { } ff ? $"Muzlatish rejalashtirilgan: {ff} — {m.FrozenTo}" : m.JoinedAt is { } j ? $"{j} dan" : "",
+                });
+            Former.Clear();
+            foreach (var f in members.Former)
+                Former.Add($"{f.FullName} · {Settings.ObjStr("enrollment.status_labels", f.Status, f.Status)}" +
+                           (f.TransferGroup is { } tg ? $" → {tg.Name}" : "") + $" · {f.JoinedAt} — {f.LeftOn}" + (f.Reason is { } r ? $" · {r}" : ""));
+            HasFormer = Former.Count > 0;
+        }
+        else
+        {
+            foreach (var s in group.Students)
+                Students.Add(new StudentRow(s.Id, s.FullName, s.Phone, rates.GetValueOrDefault(s.Id), Settings) { CanManage = CanManage, CanOpenProfile = staff });
+        }
         // O'quvchi guruh a'zolari ro'yxatini emas, faqat o'zini ko'radi.
         if (Students.Count == 0)
             foreach (var r in rates.Values) Students.Add(new StudentRow(r.StudentId, r.Name, null, r, Settings));
@@ -286,6 +320,89 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
             v => S.Api.AddMemberAsync(groupId, v.Int("student") ?? 0), "O'quvchi guruhga qo'shildi.", "Qo'shish");
     }
 
+    public ObservableCollection<string> Former { get; } = [];
+
+    [ObservableProperty] private bool _hasFormer;
+
+    [RelayCommand]
+    private void OpenProfile(StudentRow? row)
+    {
+        if (row is { CanOpenProfile: true }) S.Navigator.Navigate(Page.StudentProfile, row.Id);
+    }
+
+    private FormField ReasonField(string key, string label, bool freeze)
+    {
+        var reasons = Settings.List(freeze ? "enrollment.freeze_reasons" : "enrollment.leave_reasons");
+        return reasons.Count > 0 ? FormField.Choice(key, label, reasons.Select(r => Editing.Opt(r, r)), reasons[0]) : new FormField(key, label);
+    }
+
+    /// <summary>O'quvchi holati: muzlatish, qayta faollashtirish, boshqa guruhga o'tkazish, bitirish, chiqarish.</summary>
+    [RelayCommand]
+    private async Task ManageMemberAsync(StudentRow? row)
+    {
+        if (row is null) return;
+        var actions = new List<KeyValuePair<string, string>>();
+        actions.Add(row.Frozen ? Editing.Opt("unfreeze", "Muzlatishni tugatish") : Editing.Opt("freeze", "Muzlatish (ta'til)"));
+        actions.AddRange([Editing.Opt("transfer", "Boshqa guruhga o'tkazish"), Editing.Opt("graduate", "Bitirdi"), Editing.Opt("leave", "Guruhdan chiqarish"), Editing.Opt("profile", "Profil va tarix")]);
+        string? action = null;
+        var picked = await S.Forms.ShowAsync(row.Name, [FormField.Choice("action", "Amal", actions, actions[0].Key)], v =>
+        {
+            action = v.Str("action");
+            return Task.FromResult<string?>(null);
+        }, "Davom etish");
+        if (!picked || action is null) return;
+        var today = Editing.Today;
+        switch (action)
+        {
+            case "profile":
+                OpenProfile(row);
+                break;
+            case "freeze":
+                await EditAsync($"{row.Name} — muzlatish",
+                [
+                    new FormField("from", "Qachondan", FieldKind.Date, today),
+                    new FormField("to", "Qachongacha", FieldKind.Date, DateTime.Today.AddDays(14).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
+                    ReasonField("reason", "Sabab", freeze: true),
+                    new FormField("note", "Izoh", FieldKind.Multiline) { MaxLength = 500 },
+                ], v => S.Api.FreezeMemberAsync(groupId, row.Id, new { from = v.Str("from"), to = v.Str("to"), reason = v.StrOrNull("reason"), note = v.StrOrNull("note") }),
+                    "O'quvchi muzlatildi.", "Muzlatish");
+                break;
+            case "unfreeze":
+                await EditAsync($"{row.Name} — muzlatishni tugatish", [new FormField("date", "Qaytgan sana", FieldKind.Date, today)],
+                    v => S.Api.UnfreezeMemberAsync(groupId, row.Id, v.StrOrNull("date")), "O'quvchi yana faol.", "Tasdiqlash");
+                break;
+            case "transfer":
+                List<Group> groups = [];
+                try { groups = (await S.Api.GroupsAsync()).Value.Data.Where(g => g.Active && g.Id != groupId).ToList(); } catch (ApiException) { }
+                if (groups.Count == 0) { ActionError = "O'tkazish uchun boshqa faol guruh yo'q."; return; }
+                var options = groups.Select(g => Editing.Opt(g.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), $"{g.Name} · {g.Course?.Title}")).ToList();
+                await EditAsync($"{row.Name} — boshqa guruhga o'tkazish",
+                [
+                    FormField.Choice("to_group_id", "Yangi guruh", options, options[0].Key),
+                    new FormField("date", "Yangi guruhdagi birinchi kun", FieldKind.Date, today),
+                    new FormField("reason", "Sabab"),
+                    new FormField("note", "Izoh", FieldKind.Multiline) { MaxLength = 500 },
+                ], v => S.Api.TransferMemberAsync(groupId, row.Id, new { to_group_id = v.Int("to_group_id"), date = v.StrOrNull("date"), reason = v.StrOrNull("reason"), note = v.StrOrNull("note") }),
+                    "O'quvchi boshqa guruhga o'tkazildi.", "O'tkazish");
+                break;
+            case "graduate":
+                await EditAsync($"{row.Name} — bitirdi",
+                [
+                    new FormField("date", "Sana", FieldKind.Date, today),
+                    new FormField("note", "Izoh", FieldKind.Multiline) { MaxLength = 500 },
+                ], v => S.Api.GraduateMemberAsync(groupId, row.Id, new { date = v.StrOrNull("date"), note = v.StrOrNull("note") }), "Bitirgan deb belgilandi.", "Tasdiqlash");
+                break;
+            case "leave":
+                await RemoveMemberAsync(row);
+                break;
+        }
+    }
+
+    [RelayCommand]
+    private Task GraduateAllAsync() => EditAsync("Guruhni bitirish",
+        [new FormField("date", "Bitirish sanasi", FieldKind.Date, Editing.Today) { Hint = "Barcha faol o'quvchilar «bitirgan» deb belgilanadi." }],
+        v => S.Api.GraduateGroupAsync(groupId, v.StrOrNull("date")), "Guruh bitirildi.", "Bitirish");
+
     [RelayCommand]
     private async Task RemoveMemberAsync(StudentRow? row)
     {
@@ -294,8 +411,11 @@ public sealed partial class GroupViewModel(AppServices services, int groupId) : 
         var fields = new List<FormField>();
         if (reasons.Count > 0) fields.Add(FormField.Choice("reason", "Sabab", reasons.Select(r => Editing.Opt(r, r)), reasons[0]));
         else fields.Add(new FormField("reason", "Sabab"));
+        fields.Add(new FormField("date", "Oxirgi qatnashgan kun", FieldKind.Date, Editing.Today));
+        fields.Add(new FormField("note", "Izoh", FieldKind.Multiline) { MaxLength = 500 });
         await EditAsync($"{row.Name} — guruhdan chiqarish", fields,
-            v => S.Api.LeaveMemberAsync(groupId, row.Id, v.StrOrNull("reason")), "O'quvchi guruhdan chiqarildi.", "Chiqarish");
+            v => S.Api.LeaveMemberFullAsync(groupId, row.Id, new { reason = v.StrOrNull("reason"), date = v.StrOrNull("date"), note = v.StrOrNull("note") }),
+            "O'quvchi guruhdan chiqarildi.", "Chiqarish");
     }
 
     [RelayCommand]
